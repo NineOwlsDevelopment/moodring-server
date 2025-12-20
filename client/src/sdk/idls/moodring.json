@@ -1,0 +1,3071 @@
+{
+  "address": "BARTLZY1PLNUm2aNhdmvBsRRksVovqXRie3FGo9KZZZf",
+  "metadata": {
+    "name": "moodring",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_liquidity",
+      "discriminator": [181, 157, 89, 67, 143, 182, 52, 72],
+      "accounts": [
+        {
+          "name": "moodring",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market"
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "lp_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [108, 112, 95, 112, 111, 115, 105, 116, 105, 111, 110]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "provider_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "provider",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_shares",
+      "discriminator": [40, 239, 138, 154, 8, 37, 106, 108],
+      "accounts": [
+        {
+          "name": "moodring",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault_ata",
+          "writable": true
+        },
+        {
+          "name": "user_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "market_authority_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "buy_yes",
+          "type": "u64"
+        },
+        {
+          "name": "buy_no",
+          "type": "u64"
+        },
+        {
+          "name": "max_cost",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_resolver_fee",
+      "discriminator": [252, 86, 226, 67, 77, 59, 103, 58],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "market.authority",
+                "account": "MoodMarket"
+              },
+              {
+                "kind": "account",
+                "path": "market.base",
+                "account": "MoodMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [114, 101, 115, 111, 108, 118, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114, 101, 115, 111, 108, 118, 101, 114, 95, 118, 111, 116, 101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_winnings",
+      "discriminator": [161, 215, 24, 59, 14, 236, 242, 221],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "vault_signer",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111, 112, 116, 105, 111, 110, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_market",
+      "discriminator": [103, 226, 97, 235, 200, 188, 251, 254],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "base",
+          "writable": true
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "account",
+                "path": "base"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateMarketParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_option",
+      "discriminator": [226, 92, 124, 94, 113, 96, 60, 172],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "market.authority",
+                "account": "MoodMarket"
+              },
+              {
+                "kind": "account",
+                "path": "market.base",
+                "account": "MoodMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "option_usdc_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111, 112, 116, 105, 111, 110, 95, 118, 97, 117, 108, 116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "option_name",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "create_resolver",
+      "discriminator": [157, 119, 8, 191, 43, 209, 251, 91],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [114, 101, 115, 111, 108, 118, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_usdc_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "resolver_stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114, 101, 115, 111, 108, 118, 101, 114, 95, 118, 97, 117, 108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "user_pos",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "option_usdc_vault",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "init_user_pos",
+      "discriminator": [172, 209, 41, 65, 79, 45, 143, 65],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "user_pos",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program",
+          "address": "BARTLZY1PLNUm2aNhdmvBsRRksVovqXRie3FGo9KZZZf"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "fee_vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206,
+                  235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140,
+                  245, 133, 126, 255, 0, 169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_market",
+      "discriminator": [35, 35, 189, 193, 155, 48, 170, 203],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "market.authority",
+                "account": "MoodMarket"
+              },
+              {
+                "kind": "account",
+                "path": "market.base",
+                "account": "MoodMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "redeem_sol_fee",
+      "discriminator": [240, 63, 205, 47, 3, 32, 57, 9],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "redeem_usdc_fee",
+      "discriminator": [177, 59, 232, 132, 67, 28, 65, 178],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient_ata",
+          "writable": true
+        },
+        {
+          "name": "fee_vault_ata",
+          "writable": true
+        },
+        {
+          "name": "recipient",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "remove_liquidity",
+      "discriminator": [80, 85, 209, 72, 24, 206, 177, 108],
+      "accounts": [
+        {
+          "name": "moodring",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "lp_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [108, 112, 95, 112, 111, 115, 105, 116, 105, 111, 110]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "provider_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "provider",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "report_vote",
+      "discriminator": [121, 194, 176, 234, 64, 204, 189, 25],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "market.authority",
+                "account": "MoodMarket"
+              },
+              {
+                "kind": "account",
+                "path": "market.base",
+                "account": "MoodMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [114, 101, 115, 111, 108, 118, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "resolver.authority",
+                "account": "Resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114, 101, 115, 111, 108, 118, 101, 114, 95, 118, 111, 116, 101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reporter",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_market",
+      "discriminator": [155, 23, 80, 173, 46, 74, 23, 239],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 97, 114, 107, 101, 116]
+              },
+              {
+                "kind": "account",
+                "path": "market.authority",
+                "account": "MoodMarket"
+              },
+              {
+                "kind": "account",
+                "path": "market.base",
+                "account": "MoodMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [114, 101, 115, 111, 108, 118, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114, 101, 115, 111, 108, 118, 101, 114, 95, 118, 111, 116, 101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "winning_option_index",
+          "type": "u8"
+        },
+        {
+          "name": "winning_side",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "sell_shares",
+      "discriminator": [184, 164, 169, 16, 231, 158, 199, 196],
+      "accounts": [
+        {
+          "name": "moodring",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option",
+          "writable": true
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault_ata",
+          "writable": true
+        },
+        {
+          "name": "user_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "market_authority_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "sell_yes",
+          "type": "u64"
+        },
+        {
+          "name": "sell_no",
+          "type": "u64"
+        },
+        {
+          "name": "min_payout",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_pause_flags",
+      "discriminator": [205, 167, 85, 237, 144, 202, 248, 175],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pause_admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "PauseFlagsParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_admins",
+      "discriminator": [179, 114, 235, 27, 31, 235, 125, 107],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [102, 101, 101, 95, 118, 97, 117, 108, 116]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateAdminsParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        {
+          "name": "moodring",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "option"
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [117, 115, 101, 114, 95, 112, 111, 115]
+              },
+              {
+                "kind": "account",
+                "path": "option"
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "option_vault",
+          "writable": true
+        },
+        {
+          "name": "user_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_stake",
+      "discriminator": [153, 8, 22, 138, 105, 176, 87, 66],
+      "accounts": [
+        {
+          "name": "moodring",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [109, 111, 111, 100, 114, 105, 110, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [114, 101, 115, 111, 108, 118, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_stake_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114, 101, 115, 111, 108, 118, 101, 114, 95, 118, 97, 117, 108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "resolver"
+              }
+            ]
+          }
+        },
+        {
+          "name": "resolver_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "FeeVault",
+      "discriminator": [192, 178, 69, 232, 58, 149, 157, 132]
+    },
+    {
+      "name": "LiquidityPosition",
+      "discriminator": [153, 56, 106, 34, 55, 42, 113, 176]
+    },
+    {
+      "name": "MarketOption",
+      "discriminator": [21, 99, 95, 73, 135, 147, 204, 96]
+    },
+    {
+      "name": "MoodMarket",
+      "discriminator": [149, 229, 228, 133, 139, 75, 215, 213]
+    },
+    {
+      "name": "Moodring",
+      "discriminator": [10, 98, 142, 180, 62, 235, 141, 75]
+    },
+    {
+      "name": "Resolver",
+      "discriminator": [108, 125, 211, 206, 52, 124, 132, 79]
+    },
+    {
+      "name": "ResolverVote",
+      "discriminator": [38, 62, 191, 220, 77, 165, 20, 61]
+    },
+    {
+      "name": "UserPosition",
+      "discriminator": [251, 248, 209, 245, 83, 234, 17, 27]
+    }
+  ],
+  "events": [
+    {
+      "name": "AddLiquidityEvent",
+      "discriminator": [27, 178, 153, 186, 47, 196, 140, 45]
+    },
+    {
+      "name": "BuySharesEvent",
+      "discriminator": [185, 52, 1, 127, 117, 180, 40, 122]
+    },
+    {
+      "name": "ClaimResolverFeeEvent",
+      "discriminator": [155, 160, 140, 56, 208, 121, 162, 92]
+    },
+    {
+      "name": "ClaimWinningsEvent",
+      "discriminator": [141, 122, 74, 70, 105, 110, 174, 165]
+    },
+    {
+      "name": "CreateMarketEvent",
+      "discriminator": [192, 85, 193, 210, 137, 36, 225, 173]
+    },
+    {
+      "name": "CreateOptionEvent",
+      "discriminator": [229, 31, 148, 108, 104, 19, 211, 13]
+    },
+    {
+      "name": "CreateResolverEvent",
+      "discriminator": [188, 250, 217, 68, 140, 79, 150, 76]
+    },
+    {
+      "name": "DepositEvent",
+      "discriminator": [120, 248, 61, 83, 31, 142, 107, 144]
+    },
+    {
+      "name": "InitUserPosEvent",
+      "discriminator": [165, 227, 248, 102, 53, 239, 186, 5]
+    },
+    {
+      "name": "InitializeMarketEvent",
+      "discriminator": [96, 23, 203, 149, 240, 36, 16, 93]
+    },
+    {
+      "name": "RemoveLiquidityEvent",
+      "discriminator": [141, 199, 182, 123, 159, 94, 215, 102]
+    },
+    {
+      "name": "ReportVoteEvent",
+      "discriminator": [113, 193, 113, 121, 228, 103, 73, 45]
+    },
+    {
+      "name": "ResolveMarketEvent",
+      "discriminator": [176, 29, 224, 138, 228, 217, 249, 149]
+    },
+    {
+      "name": "SellSharesEvent",
+      "discriminator": [146, 7, 166, 97, 67, 82, 93, 252]
+    },
+    {
+      "name": "WithdrawEvent",
+      "discriminator": [22, 9, 133, 26, 160, 44, 71, 192]
+    },
+    {
+      "name": "WithdrawStakeEvent",
+      "discriminator": [47, 85, 239, 214, 207, 29, 151, 88]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidInstruction",
+      "msg": "Invalid instruction"
+    },
+    {
+      "code": 6001,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6003,
+      "name": "MoodringNotInitialized",
+      "msg": "Moodring program not initialized"
+    },
+    {
+      "code": 6004,
+      "name": "MoodringPaused",
+      "msg": "Moodring program is paused"
+    },
+    {
+      "code": 6005,
+      "name": "TradingPaused",
+      "msg": "Trading is paused"
+    },
+    {
+      "code": 6006,
+      "name": "LiquidityPaused",
+      "msg": "Liquidity operations are paused"
+    },
+    {
+      "code": 6007,
+      "name": "ResolutionPaused",
+      "msg": "Resolution operations are paused"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidAdmin",
+      "msg": "Invalid admin"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidFeeVault",
+      "msg": "Invalid fee vault"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidMarketName",
+      "msg": "Invalid market name"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidMarketMetadataUri",
+      "msg": "Invalid market metadata URI"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidMarketExpiration",
+      "msg": "Market expiration in the past"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidTokenMint",
+      "msg": "Invalid token mint"
+    },
+    {
+      "code": 6014,
+      "name": "Overflow",
+      "msg": "Overflow"
+    },
+    {
+      "code": 6015,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6016,
+      "name": "DivisionByZero",
+      "msg": "Division by zero"
+    },
+    {
+      "code": 6017,
+      "name": "AccountAlreadyInitialized",
+      "msg": "Account already initialized"
+    },
+    {
+      "code": 6018,
+      "name": "InsufficientTokensForVote",
+      "msg": "Insufficient tokens for vote"
+    },
+    {
+      "code": 6019,
+      "name": "MarketExpired",
+      "msg": "Market has expired"
+    },
+    {
+      "code": 6020,
+      "name": "MarketNotExpired",
+      "msg": "Market not yet expired"
+    },
+    {
+      "code": 6021,
+      "name": "MarketAlreadyResolved",
+      "msg": "Market already resolved"
+    },
+    {
+      "code": 6022,
+      "name": "TradeSizeTooLarge",
+      "msg": "Trade size exceeds maximum allowed"
+    },
+    {
+      "code": 6023,
+      "name": "TradeSizeTooSmall",
+      "msg": "Trade size below minimum allowed"
+    },
+    {
+      "code": 6024,
+      "name": "InsufficientLiquidity",
+      "msg": "Insufficient liquidity for trade"
+    },
+    {
+      "code": 6025,
+      "name": "PriceImpactTooHigh",
+      "msg": "Price impact exceeds maximum allowed"
+    },
+    {
+      "code": 6026,
+      "name": "CircuitBreakerTriggered",
+      "msg": "Circuit breaker triggered"
+    },
+    {
+      "code": 6027,
+      "name": "SlippageTooHigh",
+      "msg": "Slippage exceeds maximum allowed"
+    },
+    {
+      "code": 6028,
+      "name": "EmergencyPauseTriggered",
+      "msg": "Emergency pause triggered"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidPriceCalculation",
+      "msg": "Invalid price calculation"
+    },
+    {
+      "code": 6030,
+      "name": "MarketManipulationDetected",
+      "msg": "Market manipulation detected"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidFeeRate",
+      "msg": "Invalid fee rate"
+    },
+    {
+      "code": 6032,
+      "name": "InsufficientBalance",
+      "msg": "Insufficient balance"
+    },
+    {
+      "code": 6033,
+      "name": "UserPosMissing",
+      "msg": "User position not found"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidOrderPriority",
+      "msg": "Order priority violated: orders must be matched by price-time priority"
+    },
+    {
+      "code": 6035,
+      "name": "AllOptionsNotInitialized",
+      "msg": "All options not initialized"
+    },
+    {
+      "code": 6036,
+      "name": "ArithmeticUnderflow",
+      "msg": "Arithmetic underflow"
+    },
+    {
+      "code": 6037,
+      "name": "SlippageExceeded",
+      "msg": "Slippage tolerance exceeded"
+    },
+    {
+      "code": 6038,
+      "name": "InvalidSharesAmount",
+      "msg": "Invalid shares amount"
+    },
+    {
+      "code": 6039,
+      "name": "MarketNotResolved",
+      "msg": "Market not resolved"
+    },
+    {
+      "code": 6040,
+      "name": "InvalidWinningOption",
+      "msg": "Invalid winning option"
+    },
+    {
+      "code": 6041,
+      "name": "NotWinningOption",
+      "msg": "Not winning option"
+    },
+    {
+      "code": 6042,
+      "name": "InvalidOptionIndex",
+      "msg": "Invalid option index"
+    },
+    {
+      "code": 6043,
+      "name": "UserPositionAlreadyExists",
+      "msg": "User already has position for this option"
+    },
+    {
+      "code": 6044,
+      "name": "MarketDurationTooShort",
+      "msg": "Market duration too short"
+    },
+    {
+      "code": 6045,
+      "name": "InvalidVaultAddress",
+      "msg": "Invalid vault address provided"
+    },
+    {
+      "code": 6046,
+      "name": "OptionAlreadyExists",
+      "msg": "Option already exists"
+    },
+    {
+      "code": 6047,
+      "name": "InsufficientWinnings",
+      "msg": "Insufficient winnings"
+    },
+    {
+      "code": 6048,
+      "name": "ResolverCoolDownPeriodNotMet",
+      "msg": "Resolver cool down period not met"
+    },
+    {
+      "code": 6049,
+      "name": "MinimumStakeNotMet",
+      "msg": "Minimum stake not met"
+    },
+    {
+      "code": 6050,
+      "name": "InsufficientReputation",
+      "msg": "Insufficient reputation for this market value"
+    },
+    {
+      "code": 6051,
+      "name": "ResolutionAlreadyProposed",
+      "msg": "Resolution already proposed"
+    },
+    {
+      "code": 6052,
+      "name": "ResolutionNotProposed",
+      "msg": "Resolution not yet proposed"
+    },
+    {
+      "code": 6053,
+      "name": "ResolverAlreadyVoted",
+      "msg": "Resolver already voted"
+    },
+    {
+      "code": 6054,
+      "name": "InsufficientConsensus",
+      "msg": "Insufficient consensus for finalization"
+    },
+    {
+      "code": 6055,
+      "name": "ResolutionTimeoutNotReached",
+      "msg": "Resolution timeout not yet reached"
+    },
+    {
+      "code": 6056,
+      "name": "InvalidResolutionState",
+      "msg": "Market resolution state invalid"
+    },
+    {
+      "code": 6057,
+      "name": "ResolverNotActive",
+      "msg": "Resolver not active"
+    },
+    {
+      "code": 6058,
+      "name": "InvalidResolvers",
+      "msg": "Invalid resolvers"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidRequiredVotes",
+      "msg": "Invalid required votes"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidResolver",
+      "msg": "Invalid resolver"
+    },
+    {
+      "code": 6061,
+      "name": "ResolverNotVoted",
+      "msg": "Resolver not voted"
+    },
+    {
+      "code": 6062,
+      "name": "NoResolverReward",
+      "msg": "No resolver reward"
+    },
+    {
+      "code": 6063,
+      "name": "RewardAlreadyClaimed",
+      "msg": "Reward already claimed"
+    },
+    {
+      "code": 6064,
+      "name": "IncorrectVote",
+      "msg": "Incorrect vote"
+    },
+    {
+      "code": 6065,
+      "name": "ResolverVotedCorrectly",
+      "msg": "Resolver voted correctly"
+    },
+    {
+      "code": 6066,
+      "name": "AlreadyReported",
+      "msg": "Already reported for this market"
+    },
+    {
+      "code": 6067,
+      "name": "RequiredVotesMustBeOdd",
+      "msg": "Required votes must be odd if resolver count is even"
+    }
+  ],
+  "types": [
+    {
+      "name": "AddLiquidityEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "shares_minted",
+            "type": "u64"
+          },
+          {
+            "name": "total_lp_shares",
+            "type": "u64"
+          },
+          {
+            "name": "pool_value",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuySharesEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "buy_yes",
+            "type": "u64"
+          },
+          {
+            "name": "buy_no",
+            "type": "u64"
+          },
+          {
+            "name": "cost",
+            "type": "u64"
+          },
+          {
+            "name": "lp_fee",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "total_cost",
+            "type": "u64"
+          },
+          {
+            "name": "current_price",
+            "type": "u64"
+          },
+          {
+            "name": "yes_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "no_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "pool_liquidity",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimResolverFeeEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_amount",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimWinningsEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "winning_shares",
+            "type": "u64"
+          },
+          {
+            "name": "payout",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateMarketEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "base",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority_usdc_ata",
+            "type": "pubkey"
+          },
+          {
+            "name": "question",
+            "type": "bytes"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "bytes"
+          },
+          {
+            "name": "expiration",
+            "type": "i64"
+          },
+          {
+            "name": "is_binary",
+            "type": "bool"
+          },
+          {
+            "name": "total_volume",
+            "type": "u64"
+          },
+          {
+            "name": "total_options",
+            "type": "u8"
+          },
+          {
+            "name": "resolvers",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "required_votes",
+            "type": "u8"
+          },
+          {
+            "name": "resolver_reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateMarketParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market_question",
+            "type": "bytes"
+          },
+          {
+            "name": "market_metadata_uri",
+            "type": "bytes"
+          },
+          {
+            "name": "market_expiration_date",
+            "type": "i64"
+          },
+          {
+            "name": "is_binary",
+            "type": "bool"
+          },
+          {
+            "name": "resolvers",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "required_votes",
+            "type": "u8"
+          },
+          {
+            "name": "resolver_reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateOptionEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "option_label",
+            "type": "bytes"
+          },
+          {
+            "name": "option_index",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateResolverEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "markets_resolved",
+            "type": "u64"
+          },
+          {
+            "name": "reputation_score",
+            "type": "u64"
+          },
+          {
+            "name": "last_resolved_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "user_pos",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "new_balance",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "ata",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitUserPosEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "user_pos",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeMarketEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_options",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidityPosition",
+      "docs": ["Individual LP position tracking their share of the pool"],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "lp_shares",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketOption",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "option_index",
+            "type": "u8"
+          },
+          {
+            "name": "option_label",
+            "type": "bytes"
+          },
+          {
+            "name": "usdc_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "yes_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "no_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "liquidity_parameter",
+            "type": "u64"
+          },
+          {
+            "name": "total_lp_shares",
+            "type": "u64"
+          },
+          {
+            "name": "pool_liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "accumulated_lp_fees",
+            "type": "u64"
+          },
+          {
+            "name": "is_initialized",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MoodMarket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "base",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority_usdc_ata",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "question",
+            "type": "bytes"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "bytes"
+          },
+          {
+            "name": "expiration",
+            "type": "i64"
+          },
+          {
+            "name": "resolvers",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "required_votes",
+            "type": "u8"
+          },
+          {
+            "name": "resolver_votes",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "VoteOnResolutionParams"
+                }
+              }
+            }
+          },
+          {
+            "name": "resolver_reward",
+            "type": "u64"
+          },
+          {
+            "name": "winning_option",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "winning_side",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "total_options",
+            "type": "u8"
+          },
+          {
+            "name": "total_volume",
+            "type": "u64"
+          },
+          {
+            "name": "is_binary",
+            "type": "bool"
+          },
+          {
+            "name": "is_verified",
+            "type": "bool"
+          },
+          {
+            "name": "is_resolved",
+            "type": "bool"
+          },
+          {
+            "name": "is_resolved_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "is_initialized",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Moodring",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "pause_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_markets",
+            "type": "u64"
+          },
+          {
+            "name": "base_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "base_decimals",
+            "type": "u8"
+          },
+          {
+            "name": "market_creation_fee",
+            "type": "u64"
+          },
+          {
+            "name": "min_reputation",
+            "type": "u64"
+          },
+          {
+            "name": "creator_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_value_locked",
+            "type": "u64"
+          },
+          {
+            "name": "total_volume",
+            "type": "u64"
+          },
+          {
+            "name": "min_liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "lp_fee_rate",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee_rate",
+            "type": "u64"
+          },
+          {
+            "name": "creator_fee_rate",
+            "type": "u64"
+          },
+          {
+            "name": "is_paused",
+            "type": "bool"
+          },
+          {
+            "name": "pause_trading",
+            "type": "bool"
+          },
+          {
+            "name": "pause_liquidity",
+            "type": "bool"
+          },
+          {
+            "name": "pause_resolution",
+            "type": "bool"
+          },
+          {
+            "name": "is_initialized",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseFlagsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "is_paused",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "pause_trading",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "pause_liquidity",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "pause_resolution",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RemoveLiquidityEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "amount_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_shares",
+            "type": "u64"
+          },
+          {
+            "name": "total_lp_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReportVoteEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "reporter",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_reputation",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResolveMarketEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "winning_option_index",
+            "type": "u8"
+          },
+          {
+            "name": "winning_side",
+            "type": "u8"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Resolver",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "markets_resolved",
+            "type": "u64"
+          },
+          {
+            "name": "incorrectly_voted_markets",
+            "type": "u64"
+          },
+          {
+            "name": "reputation_score",
+            "type": "u64"
+          },
+          {
+            "name": "last_resolved_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "is_bonded",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResolverVote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome_index",
+            "type": "u8"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "voted_at",
+            "type": "i64"
+          },
+          {
+            "name": "correctly_voted",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "reward_claimed",
+            "type": "bool"
+          },
+          {
+            "name": "reward_claimed_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "reward_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reputation_updated",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SellSharesEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "sell_yes",
+            "type": "u64"
+          },
+          {
+            "name": "sell_no",
+            "type": "u64"
+          },
+          {
+            "name": "payout",
+            "type": "u64"
+          },
+          {
+            "name": "lp_fee",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "net_payout",
+            "type": "u64"
+          },
+          {
+            "name": "current_price",
+            "type": "u64"
+          },
+          {
+            "name": "yes_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "no_quantity",
+            "type": "u64"
+          },
+          {
+            "name": "pool_liquidity",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateAdminsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_fee_admin",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "new_pause_admin",
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "balance_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "balance_yes",
+            "type": "u64"
+          },
+          {
+            "name": "balance_no",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VoteOnResolutionParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "winning_option_index",
+            "type": "u8"
+          },
+          {
+            "name": "winning_side",
+            "type": "u8"
+          },
+          {
+            "name": "voted_at",
+            "type": "i64"
+          },
+          {
+            "name": "correctly_voted",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "reward_claimed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "option",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawStakeEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "resolver",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

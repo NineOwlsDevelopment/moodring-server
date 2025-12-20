@@ -1,0 +1,89 @@
+import { Router } from "express";
+import multer from "multer";
+import { authenticateToken } from "../middleware/auth";
+import { marketCreationLimiter } from "../middleware/rateLimit";
+import { validateUUID } from "../middleware/validate";
+import { typedHandler } from "../types/routeHandler";
+import {
+  createMarket,
+  createOption,
+  initializeMarket,
+  resolveMarket,
+  withdrawCreatorFee,
+  getFairValue,
+  estimateBuyCost,
+  estimateSellPayout,
+  getMarkets,
+  getMarket,
+  getMyMarkets,
+  getFeaturedMarkets,
+  getTrendingMarkets,
+  addToWatchlist,
+  removeFromWatchlist,
+  getWatchlist,
+  getWatchlistStatus,
+  getMarketCreationFee,
+} from "../controllers/controller_market";
+import { getCategories } from "../controllers/controller_admin";
+
+const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Protected routes
+router.get("/my-markets", authenticateToken, typedHandler(getMyMarkets));
+router.get("/watchlist", authenticateToken, typedHandler(getWatchlist));
+router.post(
+  "/create",
+  authenticateToken,
+  marketCreationLimiter,
+  upload.single("image"),
+  typedHandler(createMarket)
+);
+router.post(
+  "/option/create",
+  authenticateToken,
+  upload.single("image"),
+  typedHandler(createOption)
+);
+router.post("/initialize", authenticateToken, typedHandler(initializeMarket));
+router.post("/resolve", authenticateToken, typedHandler(resolveMarket));
+router.post(
+  "/withdraw-creator-fee",
+  authenticateToken,
+  typedHandler(withdrawCreatorFee)
+);
+router.post(
+  "/:id/watchlist",
+  authenticateToken,
+  validateUUID("id"),
+  typedHandler(addToWatchlist)
+);
+router.delete(
+  "/:id/watchlist",
+  authenticateToken,
+  validateUUID("id"),
+  typedHandler(removeFromWatchlist)
+);
+router.get(
+  "/:id/watchlist/status",
+  authenticateToken,
+  validateUUID("id"),
+  typedHandler(getWatchlistStatus)
+);
+
+// Public routes
+router.get("/", typedHandler(getMarkets));
+router.get("/categories", typedHandler(getCategories));
+router.get("/creation-fee", typedHandler(getMarketCreationFee));
+router.get("/featured", typedHandler(getFeaturedMarkets));
+router.get("/trending", typedHandler(getTrendingMarkets));
+router.get(
+  "/option/:option/fair-value",
+  validateUUID("option"),
+  typedHandler(getFairValue)
+);
+router.get("/:id", validateUUID("id"), typedHandler(getMarket));
+router.post("/estimate-buy", typedHandler(estimateBuyCost));
+router.post("/estimate-sell", typedHandler(estimateSellPayout));
+
+export default router;

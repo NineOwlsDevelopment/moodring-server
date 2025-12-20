@@ -1,0 +1,161 @@
+import { pool } from "../db";
+import { Pool, PoolClient } from "pg";
+import { UUID } from "crypto";
+
+type QueryClient = Pool | PoolClient;
+
+export interface Withdrawal {
+  id: UUID;
+  user_id: UUID;
+  wallet_id: UUID;
+  destination_address: string;
+  amount: number;
+  token_symbol: "SOL" | "USDC";
+  transaction_signature: string | null;
+  status: "pending" | "processing" | "completed" | "failed";
+  failure_reason: string | null;
+  created_at: Date;
+  updated_at: Date;
+  completed_at: Date | null;
+}
+
+export interface WithdrawalCreateInput {
+  user_id: UUID;
+  wallet_id: UUID;
+  destination_address: string;
+  amount: number;
+  token_symbol: "SOL" | "USDC";
+}
+
+export class WithdrawalModel {
+  static async create(
+    data: WithdrawalCreateInput,
+    client?: QueryClient
+  ): Promise<Withdrawal> {
+    const { user_id, wallet_id, destination_address, amount, token_symbol } =
+      data;
+    const db = client || pool;
+
+    const query = `
+      INSERT INTO withdrawals (user_id, wallet_id, destination_address, amount, token_symbol)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+
+    const result = await db.query(query, [
+      user_id,
+      wallet_id,
+      destination_address,
+      amount,
+      token_symbol,
+    ]);
+    return result.rows[0];
+  }
+
+  static async findById(
+    id: UUID | string,
+    client?: QueryClient
+  ): Promise<Withdrawal | null> {
+    const db = client || pool;
+    const result = await db.query("SELECT * FROM withdrawals WHERE id = $1", [
+      id,
+    ]);
+    return result.rows[0] || null;
+  }
+
+  static async findByUserId(
+    userId: UUID | string,
+    limit = 50,
+    offset = 0,
+    client?: QueryClient
+  ): Promise<{ withdrawals: Withdrawal[]; total: number }> {
+    const db = client || pool;
+    const [withdrawalsResult, countResult] = await Promise.all([
+      db.query(
+        `
+        SELECT * FROM withdrawals
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+      `,
+        [userId, limit, offset]
+      ),
+      db.query(
+        "SELECT COUNT(*)::int as count FROM withdrawals WHERE user_id = $1",
+        [userId]
+      ),
+    ]);
+
+    return {
+      withdrawals: withdrawalsResult.rows,
+      total: countResult.rows[0]?.count || 0,
+    };
+  }
+
+  static async findPending(client?: QueryClient): Promise<Withdrawal[]> {
+    const db = client || pool;
+    const result = await db.query(
+      "SELECT * FROM withdrawals WHERE status = 'pending' ORDER BY created_at ASC"
+    );
+    return result.rows;
+  }
+
+  static async updateStatus(
+    id: UUID | string,
+    status: "pending" | "processing" | "completed" | "failed",
+    transactionSignature?: string,
+    failureReason?: string,
+    client?: QueryClient
+  ): Promise<Withdrawal | null> {
+    const db = client || pool;
+    const completedAt = status === "completed" ? "CURRENT_TIMESTAMP" : "NULL";
+
+    const result = await db.query(
+      `
+      UPDATE withdrawals
+      SET 
+        status = $1, 
+        transaction_signature = COALESCE($2, transaction_signature),
+        failure_reason = COALESCE($3, failure_reason),
+        completed_at = ${
+          status === "completed" ? "CURRENT_TIMESTAMP" : "completed_at"
+        },
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING *
+    `,
+      [status, transactionSignature || null, failureReason || null, id]
+    );
+    return result.rows[0] || null;
+  }
+
+  static async hasPendingWithdrawal(
+    userId: UUID | string,
+    client?: QueryClient
+  ): Promise<boolean> {
+    const db = client || pool;
+    const result = await db.query(
+      "SELECT 1 FROM withdrawals WHERE user_id = $1 AND status IN ('pending', 'processing') LIMIT 1",
+      [userId]
+    );
+    return result.rows.length > 0;
+  }
+
+  static async getTotalWithdrawn(
+    userId: UUID | string,
+    client?: QueryClient
+  ): Promise<{ sol: number; usdc: number }> {
+    const db = client || pool;
+    const result = await db.query(
+      `
+      SELECT 
+        COALESCE(SUM(amount) FILTER (WHERE token_symbol = 'SOL'), 0)::bigint as sol,
+        COALESCE(SUM(amount) FILTER (WHERE token_symbol = 'USDC'), 0)::bigint as usdc
+      FROM withdrawals
+      WHERE user_id = $1 AND status = 'completed'
+    `,
+      [userId]
+    );
+    return result.rows[0];
+  }
+}
