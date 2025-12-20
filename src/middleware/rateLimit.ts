@@ -1,142 +1,172 @@
-import { Request, Response, NextFunction } from "express";
-
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
-}
-
-interface RateLimitOptions {
-  windowMs: number; // Time window in milliseconds
-  max: number; // Max requests per window
-  message?: string;
-  keyGenerator?: (req: Request) => string;
-  skip?: (req: Request) => boolean;
-}
-
-const stores: Map<string, RateLimitStore> = new Map();
+import { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import { createClient } from "redis";
 
 /**
- * Create a rate limiter middleware
+ * Rate Limiting Middleware using express-rate-limit
+ * Industry standard with optional Redis support for distributed systems
  */
-export const createRateLimiter = (options: RateLimitOptions) => {
-  const {
-    windowMs,
-    max,
-    message = "Too many requests, please try again later",
-    keyGenerator = (req) => req.ip || "unknown",
-    skip = () => false,
-  } = options;
 
-  const storeName = `${windowMs}-${max}`;
-  if (!stores.has(storeName)) {
-    stores.set(storeName, {});
-  }
-  const store = stores.get(storeName)!;
+// Initialize Redis client if configured
+let redisClient: ReturnType<typeof createClient> | null = null;
+let redisStore: RedisStore | null = null;
 
-  // Cleanup old entries periodically
-  setInterval(() => {
-    const now = Date.now();
-    for (const key in store) {
-      if (store[key].resetTime < now) {
-        delete store[key];
-      }
-    }
-  }, windowMs);
-
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (skip(req)) {
-      return next();
-    }
-
-    const key = keyGenerator(req);
-    const now = Date.now();
-
-    if (!store[key] || store[key].resetTime < now) {
-      store[key] = {
-        count: 1,
-        resetTime: now + windowMs,
-      };
-    } else {
-      store[key].count++;
-    }
-
-    const remaining = Math.max(0, max - store[key].count);
-    const resetTime = store[key].resetTime;
-
-    res.set({
-      "X-RateLimit-Limit": max.toString(),
-      "X-RateLimit-Remaining": remaining.toString(),
-      "X-RateLimit-Reset": Math.ceil(resetTime / 1000).toString(),
+if (process.env.REDIS_URL || process.env.REDIS_HOST) {
+  try {
+    redisClient = createClient({
+      url: process.env.REDIS_URL,
+      socket: process.env.REDIS_HOST
+        ? {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || "6379"),
+          }
+        : undefined,
     });
 
-    if (store[key].count > max) {
-      res.set("Retry-After", Math.ceil((resetTime - now) / 1000).toString());
-      console.log("Too Many Requests", message);
-      return res.status(429).json({
+    redisClient.on("error", (err) => {
+      console.error("[Rate Limit] Redis error:", err);
+    });
+
+    redisClient
+      .connect()
+      .then(() => {
+        console.log("✅ Redis connected for rate limiting");
+        redisStore = new RedisStore({
+          sendCommand: async (...args: string[]) => {
+            return redisClient!.sendCommand(args);
+          },
+        });
+      })
+      .catch((err) => {
+        console.warn(
+          "⚠️  Failed to connect to Redis. Using in-memory rate limiting:",
+          err
+        );
+      });
+  } catch (error) {
+    console.warn(
+      "⚠️  Redis not available. Using in-memory rate limiting:",
+      error
+    );
+  }
+}
+
+/**
+ * Create a rate limiter with standard configuration
+ */
+const createLimiter = (
+  windowMs: number,
+  max: number,
+  message: string,
+  skip?: (req: Request) => boolean
+) => {
+  return rateLimit({
+    windowMs,
+    max,
+    message: {
+      error: "Too Many Requests",
+      message,
+    },
+    standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+    legacyHeaders: false, // Disable `X-RateLimit-*` headers
+    store: redisStore || undefined, // Use Redis if available, otherwise in-memory
+    skip: skip || (() => false),
+    handler: (req: Request, res: Response) => {
+      console.warn(`[Rate Limit] ${message} from IP: ${req.ip}`);
+      res.status(429).json({
         error: "Too Many Requests",
         message,
-        retryAfter: Math.ceil((resetTime - now) / 1000),
       });
-    }
-
-    next();
-  };
+    },
+  });
 };
 
-// Pre-configured rate limiters
-export const generalLimiter = createRateLimiter({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 12000, // 100 requests per 1 minute
-  message: "Too many requests from this IP, please try again after 1 minute",
-});
+/**
+ * General rate limiter - applied to all API routes
+ */
+export const generalLimiter = createLimiter(
+  1 * 60 * 1000, // 1 minute
+  120, // 120 requests per minute (fixed typo from 12000)
+  "Too many requests from this IP, please try again after 1 minute"
+);
 
-export const authLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100000, // 10 login attempts per hour
-  message: "Too many authentication attempts, please try again after an hour",
-});
+/**
+ * Authentication rate limiter
+ * Stricter limits for login/registration endpoints
+ */
+export const authLimiter = createLimiter(
+  60 * 60 * 1000, // 1 hour
+  10, // 10 login attempts per hour (fixed typo from 100000)
+  "Too many authentication attempts, please try again after an hour"
+);
 
-export const strictLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 requests per minute
-  message: "Rate limit exceeded, please slow down",
-});
+/**
+ * Strict rate limiter
+ * Very restrictive for sensitive operations
+ */
+export const strictLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  10, // 10 requests per minute
+  "Rate limit exceeded, please slow down"
+);
 
-export const tradeLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 2000, // 20 trades per minute
-  message: "Trading rate limit exceeded, please wait before making more trades",
-});
+/**
+ * Trading rate limiter
+ * Allows more requests for trading operations
+ */
+export const tradeLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  20, // 20 trades per minute (fixed typo from 2000)
+  "Trading rate limit exceeded, please wait before making more trades"
+);
 
-export const commentLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 5, // 5 comments per minute
-  message:
-    "Comment rate limit exceeded, please wait before posting more comments",
-});
+/**
+ * Comment rate limiter
+ * Prevents comment spam
+ */
+export const commentLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  5, // 5 comments per minute
+  "Comment rate limit exceeded, please wait before posting more comments"
+);
 
-export const claimLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 claims per minute
-  message: "Claim rate limit exceeded, please wait before making more claims",
-});
+/**
+ * Claim rate limiter
+ * Limits claim operations
+ */
+export const claimLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  10, // 10 claims per minute
+  "Claim rate limit exceeded, please wait before making more claims"
+);
 
-export const withdrawalLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // 5 withdrawals per hour
-  message: "Withdrawal rate limit exceeded, please try again later",
-});
+/**
+ * Withdrawal rate limiter
+ * Very strict for financial operations
+ */
+export const withdrawalLimiter = createLimiter(
+  60 * 60 * 1000, // 1 hour
+  5, // 5 withdrawals per hour
+  "Withdrawal rate limit exceeded, please try again later"
+);
 
-export const marketCreationLimiter = createRateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 1000, // 10 markets per hour
-  message: "Market creation rate limit exceeded, please try again later",
-});
+/**
+ * Market creation rate limiter
+ * Prevents market spam
+ */
+export const marketCreationLimiter = createLimiter(
+  60 * 60 * 1000, // 1 hour
+  10, // 10 markets per hour (fixed typo from 1000)
+  "Market creation rate limit exceeded, please try again later"
+);
 
-export const voteLimiter = createRateLimiter({
-  windowMs: 60 * 1000, // 1 minute
-  max: 20, // 20 votes per minute
-  message: "Vote rate limit exceeded, please slow down",
-});
+/**
+ * Vote rate limiter
+ * Limits voting operations
+ */
+export const voteLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  20, // 20 votes per minute
+  "Vote rate limit exceeded, please slow down"
+);

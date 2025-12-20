@@ -566,8 +566,7 @@ export const authenticateWithWallet = async (
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      // sameSite: "strict" as const,
-      sameSite: false,
+      sameSite: "strict" as const,
       path: "/",
     };
 

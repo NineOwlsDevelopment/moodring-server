@@ -16,6 +16,7 @@ dotenv.config({
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { createServer } from "http";
 
 // ============================================================================
@@ -43,11 +44,17 @@ import { startResolutionProcessor } from "./services/resolutionProcessor";
 import { initializeCircleWallet } from "./services/circleWallet";
 import { generalLimiter } from "./middleware/rateLimit";
 import { healthCheck } from "./controllers/controller_analytics";
+import { globalIPBlacklist, adminIPWhitelist } from "./middleware/ipFilter";
+import { initializeSecrets } from "./utils/secrets";
 
 // ============================================================================
 // Express App Initialization
 // ============================================================================
 const app = express();
+
+// Trust proxy for accurate IP detection (important for rate limiting and IP filtering)
+// Set to 1 to trust first proxy, or use specific number for multiple proxies
+app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
 
 // ============================================================================
 // Configuration
@@ -58,12 +65,10 @@ const cors_options = {
   allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
   origin: [
     process.env.CLIENT_URL || "http://localhost:3000",
-    "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    "http://localhost:5173",
     "https://moodring.io",
     "https://dev.moodring.io",
-    "http://localhost:5173",
-    "http://localhost:3000",
     "wss://dev.moodring.io",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -72,13 +77,65 @@ const cors_options = {
 const PORT = process.env.PORT || 5001;
 
 // ============================================================================
-// Middleware
+// Security Middleware
 // ============================================================================
-app.use(cors(cors_options));
-app.use(cookieParser());
-app.use(express.json());
+// Initialize secrets manager (non-blocking, will use env vars as fallback)
+initializeSecrets().catch((error) => {
+  console.error("Failed to initialize secrets manager:", error);
+  if (process.env.NODE_ENV === "production") {
+    console.error("❌ Secrets manager required in production. Exiting.");
+    process.exit(1);
+  } else {
+    console.warn("⚠️  Continuing with environment variables only");
+  }
+});
 
-// Request logging middleware
+// Helmet.js - Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
+        connectSrc: [
+          "'self'",
+          process.env.CLIENT_URL || "http://localhost:3000",
+          "http://localhost:5173",
+          "https://moodring.io",
+          "https://dev.moodring.io",
+          "wss://dev.moodring.io",
+        ],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests:
+          process.env.NODE_ENV === "production" ? [] : null,
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Disable for compatibility
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
+
+// Global IP blacklist (applied to all routes)
+app.use(globalIPBlacklist);
+
+// CORS configuration
+app.use(cors(cors_options));
+
+// Cookie parser
+app.use(cookieParser());
+
+// Request size limits to prevent DoS attacks
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Request logging middleware - Logs the request method and path in the console
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
   next();
@@ -90,11 +147,35 @@ app.use((req, res, next) => {
 // Health check endpoint (no rate limiting)
 app.get("/health", healthCheck);
 
+// API Versioning - All routes under /api/v1/
+const API_VERSION = "/api/v1";
+
 // Apply general rate limiting to all API routes
+app.use(API_VERSION, generalLimiter);
+
+// Public routes (no IP restrictions)
+app.use(`${API_VERSION}/auth`, route_auth);
+app.use(`${API_VERSION}/user`, route_user);
+app.use(`${API_VERSION}/market`, route_market);
+app.use(`${API_VERSION}/trade`, route_trade);
+app.use(`${API_VERSION}/liquidity`, route_liquidity);
+app.use(`${API_VERSION}/withdrawal`, route_withdrawal);
+app.use(`${API_VERSION}/activity`, route_activity);
+app.use(`${API_VERSION}/notifications`, route_notification);
+app.use(`${API_VERSION}/comments`, route_comment);
+app.use(`${API_VERSION}/analytics`, route_analytics);
+app.use(`${API_VERSION}/resolution`, route_resolution);
+
+// Admin routes with IP whitelist
+app.use(`${API_VERSION}/admin`, adminIPWhitelist, route_admin);
+
+// Legacy API routes (backward compatibility - deprecated)
+// These routes will be removed in a future version
+// Apply rate limiting to legacy routes too
 app.use("/api", generalLimiter);
+
 app.use("/api/auth", route_auth);
 app.use("/api/user", route_user);
-app.use("/api/admin", route_admin);
 app.use("/api/market", route_market);
 app.use("/api/trade", route_trade);
 app.use("/api/liquidity", route_liquidity);
@@ -104,6 +185,7 @@ app.use("/api/notifications", route_notification);
 app.use("/api/comments", route_comment);
 app.use("/api/analytics", route_analytics);
 app.use("/api/resolution", route_resolution);
+app.use("/api/admin", adminIPWhitelist, route_admin);
 
 // ============================================================================
 // Service Initialization
