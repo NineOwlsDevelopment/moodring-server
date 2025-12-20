@@ -10,14 +10,14 @@ export interface WalletDeposit {
   user_id: UUID;
   signature: string;
   slot: number | null;
-  block_time: Date | null;
+  block_time: number;
   amount: number;
   token_symbol: string;
   source: string | null;
   status: string;
   raw: any;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface DepositCreateInput {
@@ -25,7 +25,7 @@ export interface DepositCreateInput {
   user_id: UUID | string;
   signature: string;
   slot?: number | null;
-  block_time?: Date | null;
+  block_time?: number;
   amount: number;
   token_symbol?: string;
   source?: string | null;
@@ -81,6 +81,7 @@ export class DepositModel {
       raw = null,
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const result = await db.query(
       `INSERT INTO wallet_deposits (
@@ -93,9 +94,11 @@ export class DepositModel {
         token_symbol,
         source,
         status,
-        raw
+        raw,
+        created_at,
+        updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (signature) DO NOTHING
       RETURNING *`,
       [
@@ -109,6 +112,8 @@ export class DepositModel {
         source,
         status,
         raw ? JSON.stringify(raw) : null,
+        now,
+        now,
       ]
     );
 

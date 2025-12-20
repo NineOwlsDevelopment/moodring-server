@@ -59,7 +59,7 @@ export const setPauseFlags = async (
 
     // Update pause_trading in moodring table
     await pool.query(
-      `UPDATE moodring SET pause_trading = $1, updated_at = CURRENT_TIMESTAMP`,
+      `UPDATE moodring SET pause_trading = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT`,
       [pauseTrading ?? false]
     );
 
@@ -207,13 +207,13 @@ export const withdrawProtocolFees = async (
       // Reset protocol fees on all markets (for consistency, even though we track in moodring now)
       await client.query(`
         UPDATE markets 
-        SET protocol_fees_collected = 0, updated_at = CURRENT_TIMESTAMP
+        SET protocol_fees_collected = 0, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
         WHERE protocol_fees_collected > 0
       `);
 
       // Add to admin wallet (treasury)
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP 
+        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE user_id = $2`,
         [withdrawalAmount, adminUserId]
       );
@@ -347,7 +347,7 @@ export const toggleMarketFeatured = async (
       SET 
         is_featured = COALESCE($1, NOT is_featured),
         featured_order = $2,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $3
       RETURNING *
     `,
@@ -386,7 +386,7 @@ export const toggleMarketVerified = async (
       UPDATE markets
       SET 
         is_verified = COALESCE($1, NOT is_verified),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2
       RETURNING *
     `,
@@ -492,7 +492,7 @@ export const processWithdrawal = async (
            status = $1,
            transaction_signature = $2,
            failure_reason = $3,
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE id = $4`,
         [status, transaction_signature || null, failure_reason || null, id]
       );
@@ -501,13 +501,13 @@ export const processWithdrawal = async (
       if (status === "failed") {
         if (withdrawal.token_symbol === "SOL") {
           await client.query(
-            `UPDATE wallets SET balance_sol = balance_sol + $1, updated_at = CURRENT_TIMESTAMP 
+            `UPDATE wallets SET balance_sol = balance_sol + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
              WHERE id = $2`,
             [withdrawal.amount, withdrawal.wallet_id]
           );
         } else {
           await client.query(
-            `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP 
+            `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
              WHERE id = $2`,
             [withdrawal.amount, withdrawal.wallet_id]
           );
@@ -570,8 +570,8 @@ export const getAdminStats = async (
         pool.query(`
         SELECT 
           COUNT(*)::int as total,
-          COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int as new_24h,
-          COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int as new_7d
+          COUNT(*) FILTER (WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')::BIGINT)::int as new_24h,
+          COUNT(*) FILTER (WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '7 days')::BIGINT)::int as new_7d
         FROM users
       `),
         pool.query(`
@@ -586,8 +586,8 @@ export const getAdminStats = async (
         SELECT 
           COUNT(*)::int as total,
           COALESCE(SUM(total_cost), 0)::bigint as total_volume,
-          COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int as trades_24h,
-          COALESCE(SUM(total_cost) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours'), 0)::bigint as volume_24h
+          COUNT(*) FILTER (WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')::BIGINT)::int as trades_24h,
+          COALESCE(SUM(total_cost) FILTER (WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')::BIGINT), 0)::bigint as volume_24h
         FROM trades
         WHERE status = 'completed'
       `),
@@ -716,7 +716,7 @@ export const adjustUserBalance = async (
 
     if (requiresApproval) {
       // Create approval request
-      const expiresAt = new Date(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000);
+      const expiresAt = Math.floor(Date.now() / 1000) + EXPIRY_HOURS * 60 * 60;
 
       const requestResult = await pool.query(
         `INSERT INTO balance_adjustment_requests (
@@ -741,7 +741,7 @@ export const adjustUserBalance = async (
           "Balance adjustment request created. Requires multi-admin approval.",
         request_id: requestResult.rows[0].id,
         approvals_required: REQUIRED_APPROVALS,
-        expires_at: expiresAt.toISOString(),
+        expires_at: expiresAt,
       });
     }
 
@@ -772,7 +772,7 @@ export const adjustUserBalance = async (
       if (token_symbol === "SOL") {
         const updateResult = await client.query(
           `UPDATE wallets
-           SET balance_sol = balance_sol + $1, updated_at = CURRENT_TIMESTAMP
+           SET balance_sol = balance_sol + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
            WHERE user_id = $2
            RETURNING *`,
           [parsedAmount, id]
@@ -781,7 +781,7 @@ export const adjustUserBalance = async (
       } else {
         const updateResult = await client.query(
           `UPDATE wallets
-           SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP
+           SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
            WHERE user_id = $2
            RETURNING *`,
           [parsedAmount, id]
@@ -852,10 +852,10 @@ export const approveBalanceAdjustment = async (req: any, res: Response) => {
       const request = requestResult.rows[0];
 
       // Check if expired
-      if (new Date() > new Date(request.expires_at)) {
+      if (Math.floor(Date.now() / 1000) > request.expires_at) {
         await client.query(
           `UPDATE balance_adjustment_requests 
-           SET status = 'expired', updated_at = CURRENT_TIMESTAMP 
+           SET status = 'expired', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
            WHERE id = $1`,
           [requestId]
         );
@@ -880,7 +880,7 @@ export const approveBalanceAdjustment = async (req: any, res: Response) => {
          SET 
            approvals_received = $1,
            approved_by = $2,
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE id = $3`,
         [approvalsReceived, approvedBy, requestId]
       );
@@ -899,14 +899,14 @@ export const approveBalanceAdjustment = async (req: any, res: Response) => {
         if (request.token_symbol === "SOL") {
           await client.query(
             `UPDATE wallets 
-             SET balance_sol = balance_sol + $1, updated_at = CURRENT_TIMESTAMP 
+             SET balance_sol = balance_sol + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
              WHERE user_id = $2`,
             [request.amount, request.target_user_id]
           );
         } else {
           await client.query(
             `UPDATE wallets 
-             SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP 
+             SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
              WHERE user_id = $2`,
             [request.amount, request.target_user_id]
           );
@@ -917,9 +917,9 @@ export const approveBalanceAdjustment = async (req: any, res: Response) => {
           `UPDATE balance_adjustment_requests 
            SET 
              status = 'approved',
-             executed_at = CURRENT_TIMESTAMP,
+             executed_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
              executed_by = $1,
-             updated_at = CURRENT_TIMESTAMP
+             updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
            WHERE id = $2`,
           [adminUserId, requestId]
         );
@@ -1412,7 +1412,7 @@ export const reviewSuspiciousTrade = async (req: any, res: Response) => {
     const updatedTrade = await SuspiciousTradeModel.updateReviewStatus(id, {
       review_status,
       reviewed_by: adminId,
-      reviewed_at: new Date(),
+      reviewed_at: Math.floor(Date.now() / 1000),
       review_notes,
       risk_score,
       manual_action_required,

@@ -57,7 +57,7 @@ export const requestMagicLink = async (
 
     // Generate OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = Math.floor((Date.now() + 10 * 60 * 1000) / 1000); // 10 minutes, Unix timestamp in seconds
 
     // Store OTP in database
     await pool.query(
@@ -114,10 +114,11 @@ export const verifyMagicLink = async (
       // Check if locked out
       if (
         attemptRecord.locked_until &&
-        new Date() < new Date(attemptRecord.locked_until)
+        attemptRecord.locked_until > 0 &&
+        Math.floor(Date.now() / 1000) < attemptRecord.locked_until
       ) {
         const remainingMinutes = Math.ceil(
-          (new Date(attemptRecord.locked_until).getTime() - Date.now()) / 60000
+          (attemptRecord.locked_until - Math.floor(Date.now() / 1000)) / 60
         );
         return sendError(res, 429, "Too many failed attempts", {
           message: `Account temporarily locked. Try again in ${remainingMinutes} minutes.`,
@@ -138,18 +139,20 @@ export const verifyMagicLink = async (
       // Track attempt regardless of whether OTP was found (prevents brute force)
       if (magicLinkResult.rows.length === 0) {
         // Increment attempt counter for this email
+        const now = Math.floor(Date.now() / 1000);
+        const lockedUntil = now + OTP_LOCKOUT_MINUTES * 60;
         await client.query(
           `INSERT INTO otp_attempts (email, attempts, last_attempt_at)
-           VALUES ($1, 1, NOW())
+           VALUES ($1, 1, $2)
            ON CONFLICT (email) DO UPDATE SET 
              attempts = otp_attempts.attempts + 1,
-             last_attempt_at = NOW(),
+             last_attempt_at = $2,
              locked_until = CASE 
-               WHEN otp_attempts.attempts + 1 >= $2 
-               THEN NOW() + $3 * INTERVAL '1 minute'
+               WHEN otp_attempts.attempts + 1 >= $3 
+               THEN $4
                ELSE otp_attempts.locked_until 
              END`,
-          [normalizedEmail, OTP_MAX_ATTEMPTS, OTP_LOCKOUT_MINUTES]
+          [normalizedEmail, now, OTP_MAX_ATTEMPTS, lockedUntil]
         );
 
         throw new TransactionError(401, "Invalid or expired OTP");
@@ -158,20 +161,22 @@ export const verifyMagicLink = async (
       const magicLink = magicLinkResult.rows[0];
 
       // Check if OTP has expired
-      if (new Date() > new Date(magicLink.expires_at)) {
+      if (Math.floor(Date.now() / 1000) > magicLink.expires_at) {
         // Also count as failed attempt
+        const now = Math.floor(Date.now() / 1000);
+        const lockedUntil = now + OTP_LOCKOUT_MINUTES * 60;
         await client.query(
           `INSERT INTO otp_attempts (email, attempts, last_attempt_at)
-           VALUES ($1, 1, NOW())
+           VALUES ($1, 1, $2)
            ON CONFLICT (email) DO UPDATE SET 
              attempts = otp_attempts.attempts + 1,
-             last_attempt_at = NOW(),
+             last_attempt_at = $2,
              locked_until = CASE 
-               WHEN otp_attempts.attempts + 1 >= $2 
-               THEN NOW() + $3 * INTERVAL '1 minute'
+               WHEN otp_attempts.attempts + 1 >= $3 
+               THEN $4
                ELSE otp_attempts.locked_until 
              END`,
-          [normalizedEmail, OTP_MAX_ATTEMPTS, OTP_LOCKOUT_MINUTES]
+          [normalizedEmail, now, OTP_MAX_ATTEMPTS, lockedUntil]
         );
 
         throw new TransactionError(401, "OTP has expired");
@@ -179,7 +184,7 @@ export const verifyMagicLink = async (
 
       // Mark OTP as used
       await client.query(
-        `UPDATE magic_links SET is_used = true, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP 
+        `UPDATE magic_links SET is_used = true, attempts = attempts + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE id = $1`,
         [magicLink.id]
       );
@@ -214,12 +219,15 @@ export const verifyMagicLink = async (
           );
         }
 
-        // Create new user
-        const userInsertResult = await client.query(
-          `INSERT INTO users (email, username, display_name) VALUES ($1, $2, $3) RETURNING *`,
-          [email.toLowerCase(), username, username]
+        // Create new user using model
+        user = await UserModel.create(
+          {
+            email: email.toLowerCase(),
+            username: username,
+            display_name: username,
+          },
+          client
         );
-        user = userInsertResult.rows[0];
         isNewUser = true;
 
         // Create Circle wallet for deposits/withdrawals INSIDE transaction
@@ -260,13 +268,15 @@ export const verifyMagicLink = async (
           );
         }
 
-        // Create wallet record in database (inside transaction)
-        const walletInsertResult = await client.query(
-          `INSERT INTO wallets (user_id, public_key, circle_wallet_id) 
-           VALUES ($1, $2, $3) RETURNING *`,
-          [user.id, address, walletId]
+        // Create wallet record in database using model (inside transaction)
+        wallet = await WalletModel.create(
+          {
+            user_id: user.id,
+            public_key: address,
+            circle_wallet_id: walletId,
+          },
+          client
         );
-        wallet = walletInsertResult.rows[0];
         console.log(
           `[CircleWallet] Wallet record created in database for user ${user.id}`
         );
@@ -366,26 +376,43 @@ export const generateWalletNonce = async (
     }
 
     // Validate wallet address format
+    let publicKey: PublicKey;
     try {
-      new PublicKey(wallet_address);
+      publicKey = new PublicKey(wallet_address);
     } catch {
       return sendValidationError(res, "Invalid wallet address format");
     }
 
+    // Normalize wallet address to base58 string (ensures consistent case)
+    const normalizedAddress = publicKey.toBase58();
+
     // Generate cryptographically secure nonce
     const nonce = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + NONCE_EXPIRY_MINUTES * 60 * 1000);
+    const expiresAt = Math.floor(
+      (Date.now() + NONCE_EXPIRY_MINUTES * 60 * 1000) / 1000
+    ); // Unix timestamp in seconds
 
     // Store nonce in database
-    await pool.query(
-      `INSERT INTO wallet_auth_nonces (nonce, wallet_address, expires_at)
-       VALUES ($1, $2, $3)`,
-      [nonce, wallet_address, expiresAt]
+    const insertResult = await pool.query(
+      `INSERT INTO wallet_auth_nonces (nonce, wallet_address, expires_at, created_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [nonce, normalizedAddress, expiresAt, Math.floor(Date.now() / 1000)]
     );
 
-    // Cleanup expired nonces (async, don't wait)
+    console.log("Nonce created:", {
+      nonce,
+      wallet_address: normalizedAddress,
+      expires_at: expiresAt,
+      created_at: insertResult.rows[0]?.created_at,
+    });
+
+    // Cleanup expired nonces (async, don't wait, only delete nonces older than expiry time)
+    // Only clean up nonces that expired more than 1 minute ago to avoid race conditions
     pool
-      .query(`DELETE FROM wallet_auth_nonces WHERE expires_at < NOW()`)
+      .query(
+        `DELETE FROM wallet_auth_nonces WHERE expires_at < EXTRACT(EPOCH FROM NOW())::BIGINT - 60`
+      )
       .catch(() => {});
 
     // Return the message to be signed
@@ -394,7 +421,7 @@ export const generateWalletNonce = async (
     return sendSuccess(res, {
       nonce,
       message,
-      expires_at: expiresAt.toISOString(),
+      expires_at: expiresAt,
     });
   } catch (error: any) {
     console.error("Generate wallet nonce error:", error);
@@ -425,8 +452,9 @@ export const authenticateWithWallet = async (
     }
 
     // Verify Solana signature first (before transaction)
+    let publicKey: PublicKey;
     try {
-      const publicKey = new PublicKey(wallet_address);
+      publicKey = new PublicKey(wallet_address);
       const messageBytes = new TextEncoder().encode(message);
       const signatureBytes = bs58.decode(signature);
       const isValid = nacl.sign.detached.verify(
@@ -442,6 +470,9 @@ export const authenticateWithWallet = async (
       return sendError(res, 401, "Signature verification failed");
     }
 
+    // Normalize wallet address to base58 string (ensures consistent case)
+    const normalizedAddress = publicKey.toBase58();
+
     // Verify the message contains the nonce
     if (!message.includes(nonce)) {
       return sendError(res, 401, "Message does not contain the expected nonce");
@@ -449,21 +480,90 @@ export const authenticateWithWallet = async (
 
     const result = await withTransaction(async (client) => {
       // Verify nonce exists and is valid (within transaction with lock)
+      // Note: used_at defaults to 0 (not NULL), so we check for 0
       const nonceResult = await client.query(
         `SELECT * FROM wallet_auth_nonces 
-         WHERE nonce = $1 AND wallet_address = $2 AND used_at IS NULL
+         WHERE nonce = $1 AND wallet_address = $2 AND used_at = 0
          FOR UPDATE`,
-        [nonce, wallet_address]
+        [nonce, normalizedAddress]
       );
 
       if (nonceResult.rows.length === 0) {
+        // Check if nonce exists but is already used or doesn't match address
+        const checkResult = await client.query(
+          `SELECT * FROM wallet_auth_nonces WHERE nonce = $1`,
+          [nonce]
+        );
+
+        if (checkResult.rows.length > 0) {
+          const record = checkResult.rows[0];
+          // Convert string values from PostgreSQL to numbers for comparison
+          const usedAt = Number(record.used_at);
+          const expiresAt = Number(record.expires_at);
+          const currentTime = Math.floor(Date.now() / 1000);
+
+          console.error(
+            "Nonce lookup failed - nonce exists but query didn't match:",
+            {
+              nonce,
+              requestedAddress: normalizedAddress,
+              storedAddress: record.wallet_address,
+              addressesMatch: record.wallet_address === normalizedAddress,
+              usedAt,
+              usedAtIsZero: usedAt === 0,
+              expiresAt,
+              currentTime,
+              isExpired: currentTime > expiresAt,
+              queryConditions: {
+                nonceMatch: true,
+                addressMatch: record.wallet_address === normalizedAddress,
+                usedAtZero: usedAt === 0,
+              },
+            }
+          );
+
+          if (usedAt > 0) {
+            throw new TransactionError(401, "Nonce has already been used");
+          }
+          if (record.wallet_address !== normalizedAddress) {
+            throw new TransactionError(
+              401,
+              `Nonce does not match wallet address. Expected: ${normalizedAddress}, Got: ${record.wallet_address}`
+            );
+          }
+          if (currentTime > expiresAt) {
+            throw new TransactionError(401, "Nonce has expired");
+          }
+
+          // If we get here, all checks passed but query still failed - this shouldn't happen
+          // Log detailed info for debugging
+          console.error(
+            "Nonce validation passed but query failed - possible database issue:",
+            {
+              nonce,
+              normalizedAddress,
+              record,
+            }
+          );
+          throw new TransactionError(
+            401,
+            "Nonce validation failed unexpectedly"
+          );
+        }
+
+        // Nonce doesn't exist at all
+        console.error("Nonce not found in database:", {
+          nonce,
+          normalizedAddress,
+        });
         throw new TransactionError(401, "Invalid or expired nonce");
       }
 
       const nonceRecord = nonceResult.rows[0];
+      const expiresAt = Number(nonceRecord.expires_at);
 
       // Check if nonce has expired
-      if (new Date() > new Date(nonceRecord.expires_at)) {
+      if (Math.floor(Date.now() / 1000) > expiresAt) {
         throw new TransactionError(
           401,
           "Nonce has expired. Please request a new one."
@@ -472,7 +572,7 @@ export const authenticateWithWallet = async (
 
       // Mark nonce as used AFTER successful signature verification (prevents replay)
       await client.query(
-        `UPDATE wallet_auth_nonces SET used_at = NOW() WHERE id = $1`,
+        `UPDATE wallet_auth_nonces SET used_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [nonceRecord.id]
       );
 
@@ -485,13 +585,16 @@ export const authenticateWithWallet = async (
       let isNewUser = false;
       let wallet = null;
 
-      // Create user if doesn't exist
+      // Create user if doesn't exist using model
       if (!user) {
-        const userInsertResult = await client.query(
-          `INSERT INTO users (username, display_name, email) VALUES ($1, $2, $3) RETURNING *`,
-          [wallet_address.toLowerCase(), generateRandomUsername(), null]
+        user = await UserModel.create(
+          {
+            username: wallet_address.toLowerCase(),
+            display_name: generateRandomUsername(),
+            email: undefined,
+          },
+          client
         );
-        user = userInsertResult.rows[0];
         isNewUser = true;
 
         // Create Circle wallet for deposits/withdrawals INSIDE transaction
@@ -532,13 +635,15 @@ export const authenticateWithWallet = async (
           );
         }
 
-        // Create wallet record in database (inside transaction)
-        const walletInsertResult = await client.query(
-          `INSERT INTO wallets (user_id, public_key, circle_wallet_id) 
-           VALUES ($1, $2, $3) RETURNING *`,
-          [user.id, address, walletId]
+        // Create wallet record in database using model (inside transaction)
+        wallet = await WalletModel.create(
+          {
+            user_id: user.id,
+            public_key: address,
+            circle_wallet_id: walletId,
+          },
+          client
         );
-        wallet = walletInsertResult.rows[0];
         console.log(
           `[CircleWallet] Wallet record created in database for user ${user.id}`
         );

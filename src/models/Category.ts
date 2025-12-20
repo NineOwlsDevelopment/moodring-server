@@ -6,8 +6,8 @@ type QueryClient = Pool | PoolClient;
 export interface Category {
   id: string;
   name: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CategoryCreateInput {
@@ -20,13 +20,14 @@ export class CategoryModel {
     client?: QueryClient
   ): Promise<Category> {
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
     const query = `
-      INSERT INTO market_categories (name)
-      VALUES ($1)
+      INSERT INTO market_categories (name, created_at, updated_at)
+      VALUES ($1, $2, $3)
       RETURNING *
     `;
 
-    const values = [data.name];
+    const values = [data.name, now, now];
     const result = await db.query(query, values);
     return result.rows[0];
   }
@@ -89,7 +90,7 @@ export class CategoryModel {
     const result = await db.query(
       `
       UPDATE market_categories
-      SET name = $1, updated_at = CURRENT_TIMESTAMP
+      SET name = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2
       RETURNING *
     `,

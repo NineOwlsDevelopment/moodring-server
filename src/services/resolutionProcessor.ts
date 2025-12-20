@@ -93,7 +93,8 @@ class ResolutionProcessor {
          JOIN markets m ON m.id = o.market_id
          WHERE o.is_resolved = TRUE
            AND o.dispute_deadline IS NOT NULL
-           AND o.dispute_deadline < NOW()
+           AND o.dispute_deadline > 0
+           AND o.dispute_deadline < EXTRACT(EPOCH FROM NOW())::BIGINT
            AND EXISTS (
              SELECT 1 FROM user_positions up
              WHERE up.option_id = o.id
@@ -237,7 +238,7 @@ class ResolutionProcessor {
     // Update wallets for winners
     for (const update of winnerUpdates) {
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
         [update.payout, update.walletId]
       );
     }
@@ -252,7 +253,7 @@ class ResolutionProcessor {
           total_no_cost = 0,
           realized_pnl = realized_pnl + $1,
           is_claimed = TRUE,
-          updated_at = CURRENT_TIMESTAMP 
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE user_id = $2 AND option_id = $3`,
         [update.realizedPnl, update.userId, optionId]
       );
@@ -268,7 +269,7 @@ class ResolutionProcessor {
           total_no_cost = 0,
           realized_pnl = realized_pnl + $1,
           is_claimed = TRUE,
-          updated_at = CURRENT_TIMESTAMP 
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE user_id = $2 AND option_id = $3`,
         [update.realizedPnl, update.userId, optionId]
       );
@@ -278,7 +279,7 @@ class ResolutionProcessor {
     await client.query(
       `UPDATE markets SET 
         shared_pool_liquidity = $1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $2`,
       [currentPoolLiquidity, marketId]
     );
@@ -430,7 +431,7 @@ class ResolutionProcessor {
             `UPDATE markets 
              SET is_resolved = TRUE, 
                  status = $1,
-                 updated_at = CURRENT_TIMESTAMP 
+                 updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
              WHERE id = $2`,
             [MarketStatus.RESOLVED, market.id]
           );

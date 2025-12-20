@@ -1,5 +1,9 @@
-import { MarketOption } from "@/data/dummyData";
-import { formatProbability, calculateYesPrice, capitalizeWords } from "@/utils/format";
+import { MarketOption } from "@/types/market";
+import {
+  formatProbability,
+  calculateYesPrice,
+  capitalizeWords,
+} from "@/utils/format";
 
 interface MoodRingProps {
   options?: MarketOption[];
@@ -91,12 +95,14 @@ export const MoodRing = ({
     // Multiple choice market - use API-provided prices or calculate using LMSR
     const optionsWithPrices = options.map((option) => ({
       ...option,
-      yesPrice: (option as any).yes_price ?? calculateYesPrice(
-        Number(option.yes_quantity) || 0,
-        Number(option.no_quantity) || 0,
-        liquidityParam,
-        isResolved
-      ),
+      yesPrice:
+        (option as any).yes_price ??
+        calculateYesPrice(
+          Number(option.yes_quantity) || 0,
+          Number(option.no_quantity) || 0,
+          liquidityParam,
+          isResolved
+        ),
     }));
 
     // Sort by YES price descending for visual order
@@ -105,7 +111,10 @@ export const MoodRing = ({
     );
 
     // Normalize prices to sum to 1 for the ring display
-    const totalPrices = sortedOptions.reduce((sum, opt) => sum + opt.yesPrice, 0);
+    const totalPrices = sortedOptions.reduce(
+      (sum, opt) => sum + opt.yesPrice,
+      0
+    );
 
     // Calculate the radius
     const radius = (size - strokeWidth) / 2;
@@ -115,7 +124,10 @@ export const MoodRing = ({
     let cumulativePercent = 0;
     segments = sortedOptions.map((option, index) => {
       // Normalize the price so all segments sum to 1
-      const segmentPercent = totalPrices > 0 ? option.yesPrice / totalPrices : 1 / sortedOptions.length;
+      const segmentPercent =
+        totalPrices > 0
+          ? option.yesPrice / totalPrices
+          : 1 / sortedOptions.length;
       const startPercent = cumulativePercent;
       cumulativePercent += segmentPercent;
 

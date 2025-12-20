@@ -12,8 +12,8 @@ export interface Post {
   market_id: UUID | null;
   parent_post_id: UUID | null;
   is_deleted: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface PostCreateInput {
@@ -39,7 +39,7 @@ export interface PostLike {
   id: UUID;
   post_id: UUID;
   user_id: UUID;
-  created_at: Date;
+  created_at: number;
 }
 
 export interface PostComment {
@@ -49,8 +49,8 @@ export interface PostComment {
   content: string;
   parent_comment_id: UUID | null;
   is_deleted: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface PostCommentWithUser extends PostComment {
@@ -80,10 +80,11 @@ export class PostModel {
     const imageUrl = image_url ?? null;
     const marketId = market_id ?? null;
     const parentPostId = parent_post_id ?? null;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO posts (user_id, content, image_url, market_id, parent_post_id)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO posts (user_id, content, image_url, market_id, parent_post_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
@@ -93,6 +94,8 @@ export class PostModel {
       imageUrl,
       marketId,
       parentPostId,
+      now,
+      now,
     ]);
 
     // Update user's post count
@@ -362,9 +365,10 @@ export class PostModel {
         };
       } else {
         // Like
+        const now = Math.floor(Date.now() / 1000);
         await db.query(
-          "INSERT INTO post_likes (post_id, user_id) VALUES ($1, $2)",
-          [postId, userId]
+          "INSERT INTO post_likes (post_id, user_id, created_at) VALUES ($1, $2, $3)",
+          [postId, userId, now]
         );
         const countResult = await db.query(
           "SELECT COUNT(*)::int as count FROM post_likes WHERE post_id = $1",
@@ -393,7 +397,7 @@ export class PostModel {
     const db = client || pool;
 
     const result = await db.query(
-      "UPDATE posts SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 RETURNING id",
+      "UPDATE posts SET is_deleted = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1 AND user_id = $2 RETURNING id",
       [postId, userId]
     );
 
@@ -475,10 +479,11 @@ export class PostCommentModel {
   ): Promise<PostComment> {
     const { post_id, user_id, content, parent_comment_id = null } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO post_comments (post_id, user_id, content, parent_comment_id)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO post_comments (post_id, user_id, content, parent_comment_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -487,6 +492,8 @@ export class PostCommentModel {
       user_id,
       content,
       parent_comment_id,
+      now,
+      now,
     ]);
     return result.rows[0];
   }
@@ -561,7 +568,7 @@ export class PostCommentModel {
     const db = client || pool;
 
     const result = await db.query(
-      "UPDATE post_comments SET is_deleted = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 RETURNING id",
+      "UPDATE post_comments SET is_deleted = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1 AND user_id = $2 RETURNING id",
       [commentId, userId]
     );
 

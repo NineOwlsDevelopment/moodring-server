@@ -14,8 +14,8 @@ export interface Comment {
   is_deleted: boolean;
   upvotes: number;
   downvotes: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CommentCreateInput {
@@ -37,7 +37,7 @@ export interface CommentVote {
   comment_id: UUID;
   user_id: UUID;
   vote_type: "up" | "down";
-  created_at: Date;
+  created_at: number;
 }
 
 export class CommentModel {
@@ -47,10 +47,11 @@ export class CommentModel {
   ): Promise<Comment> {
     const { user_id, market_id, parent_id = null, content } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO comments (user_id, market_id, parent_id, content)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO comments (user_id, market_id, parent_id, content, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
 
@@ -59,6 +60,8 @@ export class CommentModel {
       market_id,
       parent_id,
       content,
+      now,
+      now,
     ]);
     return result.rows[0];
   }
@@ -110,12 +113,13 @@ export class CommentModel {
     client?: QueryClient
   ): Promise<{ comments: CommentWithUser[]; total: number }> {
     const db = client || pool;
-    
+
     // Determine ORDER BY clause based on sort parameter
-    const orderBy = sort === "top" 
-      ? "(c.upvotes - c.downvotes) DESC, c.created_at DESC"
-      : "c.created_at DESC";
-    
+    const orderBy =
+      sort === "top"
+        ? "(c.upvotes - c.downvotes) DESC, c.created_at DESC"
+        : "c.created_at DESC";
+
     const [commentsResult, countResult] = await Promise.all([
       db.query(
         `
@@ -192,7 +196,7 @@ export class CommentModel {
     const result = await db.query(
       `
       UPDATE comments
-      SET content = $1, is_edited = TRUE, updated_at = CURRENT_TIMESTAMP
+      SET content = $1, is_edited = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2 AND user_id = $3 AND is_deleted = FALSE
       RETURNING *
     `,
@@ -210,7 +214,7 @@ export class CommentModel {
     const result = await db.query(
       `
       UPDATE comments
-      SET is_deleted = TRUE, content = '[deleted]', updated_at = CURRENT_TIMESTAMP
+      SET is_deleted = TRUE, content = '[deleted]', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
@@ -268,9 +272,10 @@ export class CommentModel {
         }
       } else {
         // New vote
+        const now = Math.floor(Date.now() / 1000);
         await client.query(
-          "INSERT INTO comment_votes (comment_id, user_id, vote_type) VALUES ($1, $2, $3)",
-          [commentId, userId, voteType]
+          "INSERT INTO comment_votes (comment_id, user_id, vote_type, created_at) VALUES ($1, $2, $3, $4)",
+          [commentId, userId, voteType, now]
         );
         await client.query(
           `UPDATE comments SET ${

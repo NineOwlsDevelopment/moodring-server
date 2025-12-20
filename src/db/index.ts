@@ -6,28 +6,22 @@ dotenv.config({
   path: path.join(__dirname, "../.env"),
 });
 
-// Configure pg to return timestamps as proper ISO strings
-// TIMESTAMP columns in PostgreSQL don't have timezone info, so we interpret them
-// as NY time (the server's timezone) and convert to ISO format
+// Note: Timestamps are now stored as BIGINT (Unix timestamps in seconds, like Solana)
+// BIGINT values are automatically returned as JavaScript numbers by pg, so no special parser needed
+// The following parsers are kept for backward compatibility if any TIMESTAMP columns still exist
 // Type OIDs: 1114 = TIMESTAMP, 1184 = TIMESTAMPTZ
 types.setTypeParser(1114, (stringValue) => {
-  // Parse as NY local time and convert to ISO string
-  // Format from PostgreSQL: "2025-12-05 15:00:00" or "2025-12-05 15:00:00.123"
   if (!stringValue) return null;
-
-  // Replace space with T to make it ISO-like, then create a Date
-  // The server TZ is already set to America/New_York, so Date will interpret correctly
+  // Convert TIMESTAMP to Unix timestamp (seconds)
   const isoLike = stringValue.replace(" ", "T");
   const date = new Date(isoLike);
-
-  // Return ISO string which includes timezone info (Z suffix for UTC)
-  return date.toISOString();
+  return Math.floor(date.getTime() / 1000);
 });
 
-// TIMESTAMPTZ already includes timezone info, just normalize to ISO
+// TIMESTAMPTZ to Unix timestamp (seconds)
 types.setTypeParser(1184, (stringValue) => {
   if (!stringValue) return null;
-  return new Date(stringValue).toISOString();
+  return Math.floor(new Date(stringValue).getTime() / 1000);
 });
 
 export const pool = new Pool({

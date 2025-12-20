@@ -9,14 +9,14 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(100) UNIQUE NOT NULL,
   avatar_url TEXT,
   display_name VARCHAR(100),
-  display_name_changed_at TIMESTAMP,
+  display_name_changed_at BIGINT NOT NULL DEFAULT 0,
   notification_preferences JSONB DEFAULT '{"email_market_resolved": true, "email_market_expiring": true, "email_trade_executed": false, "email_comment_reply": true, "push_enabled": true}'::jsonb,
   followers_count INT NOT NULL DEFAULT 0,
   following_count INT NOT NULL DEFAULT 0,
   posts_count INT NOT NULL DEFAULT 0,
   bio TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create moodring table
@@ -89,16 +89,16 @@ CREATE TABLE IF NOT EXISTS moodring (
   enable_referrals BOOLEAN NOT NULL DEFAULT FALSE, -- Enable referral system
   enable_notifications BOOLEAN NOT NULL DEFAULT TRUE, -- Enable notification system
 
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create moodring_admins table
 CREATE TABLE IF NOT EXISTS moodring_admins (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create wallets table
@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS wallets (
   balance_usdc BIGINT NOT NULL DEFAULT 0,
   public_key VARCHAR(255),
   circle_wallet_id VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create wallet_deposits table
@@ -120,14 +120,14 @@ CREATE TABLE IF NOT EXISTS wallet_deposits (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   signature VARCHAR(255) NOT NULL UNIQUE,
   slot BIGINT,
-  block_time TIMESTAMP,
+  block_time BIGINT NOT NULL DEFAULT 0,
   amount BIGINT NOT NULL,
   token_symbol VARCHAR(32) NOT NULL DEFAULT 'SOL',
   source VARCHAR(255),
   status VARCHAR(32) NOT NULL DEFAULT 'pending',
   raw JSONB,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create wallet_sweeps table (records funds swept from user wallets to hot wallet)
@@ -143,9 +143,9 @@ CREATE TABLE IF NOT EXISTS wallet_sweeps (
   transaction_signature VARCHAR(255),
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   failure_reason TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
+  completed_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create magic_links table
@@ -155,17 +155,17 @@ CREATE TABLE IF NOT EXISTS magic_links (
   token VARCHAR(255) NOT NULL,
   attempts INT NOT NULL DEFAULT 0,
   is_used BOOLEAN NOT NULL DEFAULT FALSE,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  expires_at BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create Market Categories table
 CREATE TABLE IF NOT EXISTS market_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create Market table (UUID id as primary key)
@@ -200,8 +200,8 @@ CREATE TABLE IF NOT EXISTS markets (
   resolution_mode TEXT CHECK (resolution_mode IN ('ORACLE', 'AUTHORITY', 'OPINION')),
   bond_amount BIGINT NOT NULL DEFAULT 0,
   status TEXT CHECK (status IN ('OPEN', 'RESOLVING', 'RESOLVED', 'DISPUTED')) DEFAULT 'OPEN',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create Market-Category junction table (uses market_id UUID)
@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS market_category_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
   category_id UUID NOT NULL REFERENCES market_categories(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(market_id, category_id)
 );
 
@@ -223,12 +223,12 @@ CREATE TABLE IF NOT EXISTS market_options (
   no_quantity BIGINT NOT NULL DEFAULT 0,
   is_resolved BOOLEAN NOT NULL DEFAULT FALSE,
   winning_side INT,
-  resolved_at TIMESTAMP,
+  resolved_at BIGINT NOT NULL DEFAULT 0,
   resolved_reason TEXT,
   resolved_by VARCHAR(255),
-  dispute_deadline TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  dispute_deadline BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create Transactions table
@@ -245,9 +245,9 @@ CREATE TABLE IF NOT EXISTS jwt_revoked_tokens (
   token_hash VARCHAR(255) NOT NULL UNIQUE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_type VARCHAR(20) NOT NULL, -- 'access' or 'refresh'
-  expires_at TIMESTAMP NOT NULL,
-  revoked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  expires_at BIGINT NOT NULL DEFAULT 0,
+  revoked_at BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -266,8 +266,8 @@ CREATE TABLE IF NOT EXISTS trades (
   fees_paid BIGINT NOT NULL DEFAULT 0,
   transaction_signature VARCHAR(255),
   status VARCHAR(20) NOT NULL DEFAULT 'completed', -- 'pending', 'completed', 'failed'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS suspicious_trades (
   -- Review status
   review_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'reviewed', 'cleared', 'flagged'
   reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  reviewed_at TIMESTAMP,
+  reviewed_at BIGINT NOT NULL DEFAULT 0,
   review_notes TEXT,
 
   -- Risk assessment
@@ -300,8 +300,8 @@ CREATE TABLE IF NOT EXISTS suspicious_trades (
   automated_action_taken BOOLEAN DEFAULT FALSE,
   manual_action_required BOOLEAN DEFAULT TRUE,
 
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -318,9 +318,9 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
   failure_reason TEXT,
   idempotency_key VARCHAR(255) UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
+  completed_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS activities (
   entity_id VARCHAR(255), -- public_key or id of the entity
   metadata JSONB, -- Additional data about the activity
   is_public BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -351,8 +351,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   metadata JSONB,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   is_email_sent BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  read_at TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  read_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -374,9 +374,9 @@ CREATE TABLE IF NOT EXISTS user_stats (
   referral_earnings BIGINT NOT NULL DEFAULT 0,
   current_streak INT NOT NULL DEFAULT 0,
   longest_streak INT NOT NULL DEFAULT 0,
-  last_trade_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  last_trade_at BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -392,8 +392,8 @@ CREATE TABLE IF NOT EXISTS comments (
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   upvotes INT NOT NULL DEFAULT 0,
   downvotes INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Comment votes table (to track who voted)
@@ -402,7 +402,7 @@ CREATE TABLE IF NOT EXISTS comment_votes (
   comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   vote_type VARCHAR(10) NOT NULL, -- 'up' or 'down'
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(comment_id, user_id)
 );
 
@@ -416,8 +416,8 @@ CREATE TABLE IF NOT EXISTS referral_codes (
   uses_count INT NOT NULL DEFAULT 0,
   total_earnings BIGINT NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS referrals (
@@ -428,8 +428,8 @@ CREATE TABLE IF NOT EXISTS referrals (
   referrer_reward BIGINT NOT NULL DEFAULT 0,
   referred_reward BIGINT NOT NULL DEFAULT 0,
   is_rewarded BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  rewarded_at TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  rewarded_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -437,7 +437,7 @@ CREATE TABLE IF NOT EXISTS referrals (
 -- =====================================================
 CREATE TABLE IF NOT EXISTS platform_stats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  stat_date DATE UNIQUE NOT NULL DEFAULT CURRENT_DATE,
+  stat_date BIGINT NOT NULL DEFAULT 0,
   total_users INT NOT NULL DEFAULT 0,
   new_users INT NOT NULL DEFAULT 0,
   active_users INT NOT NULL DEFAULT 0, -- users with trades today
@@ -447,8 +447,8 @@ CREATE TABLE IF NOT EXISTS platform_stats (
   total_volume BIGINT NOT NULL DEFAULT 0,
   total_fees_collected BIGINT NOT NULL DEFAULT 0,
   total_liquidity BIGINT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -464,8 +464,8 @@ CREATE TABLE IF NOT EXISTS creator_stats (
   markets_resolved INT NOT NULL DEFAULT 0,
   markets_disputed INT NOT NULL DEFAULT 0,
   reputation_score BIGINT NOT NULL DEFAULT 100,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -478,8 +478,8 @@ CREATE TABLE IF NOT EXISTS lp_positions (
   shares BIGINT NOT NULL DEFAULT 0,
   deposited_amount BIGINT NOT NULL DEFAULT 0,
   lp_token_balance DECIMAL(20, 6) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(user_id, market_id)
 );
 
@@ -499,8 +499,8 @@ CREATE TABLE IF NOT EXISTS user_positions (
   total_no_cost BIGINT NOT NULL DEFAULT 0,
   realized_pnl BIGINT NOT NULL DEFAULT 0,
   is_claimed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(user_id, option_id)
 );
 
@@ -510,8 +510,8 @@ CREATE TABLE IF NOT EXISTS user_positions (
 CREATE TABLE IF NOT EXISTS platform_settings (
   key VARCHAR(64) PRIMARY KEY,
   value TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -524,7 +524,7 @@ CREATE TABLE IF NOT EXISTS admin_actions (
   target_user_id UUID REFERENCES users(id),
   target_market_id UUID REFERENCES markets(id),
   metadata JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -540,8 +540,8 @@ CREATE TABLE IF NOT EXISTS live_rooms (
   allow_video BOOLEAN DEFAULT true,
   allow_screen_share BOOLEAN DEFAULT true,
   require_auth BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Live room participants
@@ -554,8 +554,8 @@ CREATE TABLE IF NOT EXISTS live_room_participants (
   is_video_on BOOLEAN DEFAULT false,
   is_screen_sharing BOOLEAN DEFAULT false,
   is_hand_raised BOOLEAN DEFAULT false,
-  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  left_at TIMESTAMP DEFAULT NULL
+  joined_at BIGINT NOT NULL DEFAULT 0,
+  left_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Live room chat messages (for text chat within the live room)
@@ -567,7 +567,7 @@ CREATE TABLE IF NOT EXISTS live_room_messages (
   message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'emoji', 'gif', 'system')),
   reply_to_id UUID REFERENCES live_room_messages(id) ON DELETE SET NULL,
   is_deleted BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -718,7 +718,7 @@ WHERE left_at IS NULL;
 CREATE OR REPLACE FUNCTION update_live_room_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
+    NEW.updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -794,7 +794,7 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
   trade_id UUID REFERENCES trades(id) ON DELETE SET NULL,
   
   -- Timestamp for time-series queries
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -808,8 +808,8 @@ CREATE TABLE IF NOT EXISTS price_ohlc (
   
   -- Time bucket info
   interval_type VARCHAR(10) NOT NULL, -- '1m', '5m', '15m', '1h', '4h', '1d'
-  bucket_start TIMESTAMP WITH TIME ZONE NOT NULL,
-  bucket_end TIMESTAMP WITH TIME ZONE NOT NULL,
+  bucket_start BIGINT NOT NULL DEFAULT 0,
+  bucket_end BIGINT NOT NULL DEFAULT 0,
   
   -- OHLC data for YES price
   open_price DECIMAL(10, 8) NOT NULL,
@@ -825,8 +825,8 @@ CREATE TABLE IF NOT EXISTS price_ohlc (
   close_yes_quantity BIGINT NOT NULL,
   close_no_quantity BIGINT NOT NULL,
   
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   
   -- Ensure uniqueness per option per interval per bucket
   UNIQUE(option_id, interval_type, bucket_start)
@@ -841,9 +841,9 @@ CREATE TABLE IF NOT EXISTS wallet_auth_nonces (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nonce VARCHAR(64) NOT NULL UNIQUE,
   wallet_address VARCHAR(64) NOT NULL,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  used_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  expires_at BIGINT NOT NULL DEFAULT 0,
+  used_at BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -854,9 +854,9 @@ CREATE TABLE IF NOT EXISTS otp_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) NOT NULL,
   attempts INT NOT NULL DEFAULT 0,
-  last_attempt_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  locked_until TIMESTAMP WITH TIME ZONE DEFAULT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  last_attempt_at BIGINT NOT NULL DEFAULT 0,
+  locked_until BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(email)
 );
 
@@ -873,8 +873,8 @@ CREATE TABLE IF NOT EXISTS trader_follows (
   copy_percentage INT NOT NULL DEFAULT 100, -- Percentage of trade size to copy (1-100)
   max_trade_amount BIGINT, -- Maximum amount per copied trade (in micro-USDC, NULL = no limit)
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(follower_id, trader_id)
 );
 
@@ -886,7 +886,7 @@ CREATE TABLE IF NOT EXISTS copied_trades (
   follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   trader_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   copy_percentage INT NOT NULL, -- Percentage that was copied
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -902,8 +902,8 @@ CREATE TABLE IF NOT EXISTS posts (
   market_id UUID REFERENCES markets(id) ON DELETE SET NULL, -- Optional market reference
   parent_post_id UUID REFERENCES posts(id) ON DELETE CASCADE, -- For replies/threads
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Table for post likes
@@ -911,7 +911,7 @@ CREATE TABLE IF NOT EXISTS post_likes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(post_id, user_id)
 );
 
@@ -923,8 +923,8 @@ CREATE TABLE IF NOT EXISTS post_comments (
   content TEXT NOT NULL,
   parent_comment_id UUID REFERENCES post_comments(id) ON DELETE CASCADE, -- For nested replies
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Table for user follows (for social feed)
@@ -932,7 +932,7 @@ CREATE TABLE IF NOT EXISTS user_follows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(follower_id, following_id),
   CHECK(follower_id != following_id) -- Can't follow yourself
 );
@@ -946,7 +946,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(user_id, market_id)
 );
 
@@ -962,7 +962,7 @@ CREATE TABLE IF NOT EXISTS resolution_submissions (
   outcome TEXT NOT NULL,
   evidence JSONB,
   signature TEXT,
-  submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  submitted_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Create market_resolutions table
@@ -973,7 +973,7 @@ CREATE TABLE IF NOT EXISTS market_resolutions (
   resolver_summary JSONB NOT NULL,
   resolution_trace JSONB NOT NULL,
   canonical_hash TEXT NOT NULL UNIQUE,
-  resolved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  resolved_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- =====================================================
@@ -990,11 +990,11 @@ CREATE TABLE IF NOT EXISTS liquidity_alerts (
   reserve_ratio DECIMAL(10, 4) NOT NULL, -- Percentage (e.g., 95.5)
   severity VARCHAR(20) NOT NULL, -- 'warning', 'critical'
   is_resolved BOOLEAN NOT NULL DEFAULT FALSE,
-  resolved_at TIMESTAMP,
+  resolved_at BIGINT NOT NULL DEFAULT 0,
   resolved_by UUID REFERENCES users(id),
   metadata JSONB,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Add admin approval tracking for balance adjustments
@@ -1009,25 +1009,25 @@ CREATE TABLE IF NOT EXISTS balance_adjustment_requests (
   approvals_required INT NOT NULL DEFAULT 2,
   approvals_received INT NOT NULL DEFAULT 0,
   approved_by UUID[], -- Array of admin user IDs who approved
-  expires_at TIMESTAMP NOT NULL,
-  executed_at TIMESTAMP,
+  expires_at BIGINT NOT NULL DEFAULT 0,
+  executed_at BIGINT NOT NULL DEFAULT 0,
   executed_by UUID REFERENCES users(id),
   metadata JSONB,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Add resolution time-lock table
 CREATE TABLE IF NOT EXISTS resolution_time_locks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   option_id UUID NOT NULL REFERENCES market_options(id) ON DELETE CASCADE,
-  resolved_at TIMESTAMP NOT NULL,
-  unlock_at TIMESTAMP NOT NULL, -- resolved_at + time_lock_duration
+  resolved_at BIGINT NOT NULL DEFAULT 0,
+  unlock_at BIGINT NOT NULL DEFAULT 0, -- resolved_at + time_lock_duration
   time_lock_hours INT NOT NULL DEFAULT 24, -- Default 24 hour lock
   is_locked BOOLEAN NOT NULL DEFAULT TRUE,
-  unlocked_at TIMESTAMP,
+  unlocked_at BIGINT NOT NULL DEFAULT 0,
   unlocked_by UUID REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at BIGINT NOT NULL DEFAULT 0
 );
 
 -- Add copy trade queue for sequential processing
@@ -1046,9 +1046,9 @@ CREATE TABLE IF NOT EXISTS copy_trade_queue (
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'rejected')),
   error_message TEXT,
   price_slippage_bps INT, -- Price change in basis points since original trade
-  processed_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  processed_at BIGINT NOT NULL DEFAULT 0,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   -- Prevent duplicate copy trades for same original trade + follower
   UNIQUE(original_trade_id, follower_id)
 );
@@ -1060,7 +1060,7 @@ CREATE TABLE IF NOT EXISTS user_device_fingerprints (
   fingerprint_hash VARCHAR(255) NOT NULL, -- SHA256 hash of device fingerprint
   ip_address INET,
   user_agent TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(user_id, fingerprint_hash)
 );
 
@@ -1070,11 +1070,11 @@ CREATE TABLE IF NOT EXISTS daily_volume_tracking (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   fingerprint_hash VARCHAR(255),
   ip_address INET,
-  date DATE NOT NULL,
+  date BIGINT NOT NULL DEFAULT 0,
   volume_usdc BIGINT NOT NULL DEFAULT 0,
   trade_count INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at BIGINT NOT NULL DEFAULT 0,
+  updated_at BIGINT NOT NULL DEFAULT 0,
   UNIQUE(user_id, date)
 );
 
@@ -1168,35 +1168,45 @@ CREATE INDEX IF NOT EXISTS idx_daily_volume_tracking_fingerprint ON daily_volume
 -- ADDITIONAL FUNCTIONS
 -- =====================================================
 
--- Helper Function: Get bucket start time for a given interval
-CREATE OR REPLACE FUNCTION get_bucket_start(ts TIMESTAMP WITH TIME ZONE, interval_type VARCHAR(10))
-RETURNS TIMESTAMP WITH TIME ZONE AS $$
+-- Helper Function: Get bucket start time for a given interval (returns Unix timestamp in seconds)
+CREATE OR REPLACE FUNCTION get_bucket_start(ts BIGINT, interval_type VARCHAR(10))
+RETURNS BIGINT AS $$
+DECLARE
+  ts_timestamp TIMESTAMP WITH TIME ZONE;
+  bucket_start_ts TIMESTAMP WITH TIME ZONE;
 BEGIN
+  ts_timestamp := to_timestamp(ts);
   CASE interval_type
-    WHEN '1m' THEN RETURN date_trunc('minute', ts);
-    WHEN '5m' THEN RETURN date_trunc('hour', ts) + (EXTRACT(minute FROM ts)::int / 5) * INTERVAL '5 minutes';
-    WHEN '15m' THEN RETURN date_trunc('hour', ts) + (EXTRACT(minute FROM ts)::int / 15) * INTERVAL '15 minutes';
-    WHEN '1h' THEN RETURN date_trunc('hour', ts);
-    WHEN '4h' THEN RETURN date_trunc('day', ts) + (EXTRACT(hour FROM ts)::int / 4) * INTERVAL '4 hours';
-    WHEN '1d' THEN RETURN date_trunc('day', ts);
-    ELSE RETURN date_trunc('hour', ts);
+    WHEN '1m' THEN bucket_start_ts := date_trunc('minute', ts_timestamp);
+    WHEN '5m' THEN bucket_start_ts := date_trunc('hour', ts_timestamp) + (EXTRACT(minute FROM ts_timestamp)::int / 5) * INTERVAL '5 minutes';
+    WHEN '15m' THEN bucket_start_ts := date_trunc('hour', ts_timestamp) + (EXTRACT(minute FROM ts_timestamp)::int / 15) * INTERVAL '15 minutes';
+    WHEN '1h' THEN bucket_start_ts := date_trunc('hour', ts_timestamp);
+    WHEN '4h' THEN bucket_start_ts := date_trunc('day', ts_timestamp) + (EXTRACT(hour FROM ts_timestamp)::int / 4) * INTERVAL '4 hours';
+    WHEN '1d' THEN bucket_start_ts := date_trunc('day', ts_timestamp);
+    ELSE bucket_start_ts := date_trunc('hour', ts_timestamp);
   END CASE;
+  RETURN EXTRACT(EPOCH FROM bucket_start_ts)::BIGINT;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Helper Function: Get bucket end time for a given interval
-CREATE OR REPLACE FUNCTION get_bucket_end(bucket_start TIMESTAMP WITH TIME ZONE, interval_type VARCHAR(10))
-RETURNS TIMESTAMP WITH TIME ZONE AS $$
+-- Helper Function: Get bucket end time for a given interval (returns Unix timestamp in seconds)
+CREATE OR REPLACE FUNCTION get_bucket_end(bucket_start BIGINT, interval_type VARCHAR(10))
+RETURNS BIGINT AS $$
+DECLARE
+  bucket_start_ts TIMESTAMP WITH TIME ZONE;
+  bucket_end_ts TIMESTAMP WITH TIME ZONE;
 BEGIN
+  bucket_start_ts := to_timestamp(bucket_start);
   CASE interval_type
-    WHEN '1m' THEN RETURN bucket_start + INTERVAL '1 minute';
-    WHEN '5m' THEN RETURN bucket_start + INTERVAL '5 minutes';
-    WHEN '15m' THEN RETURN bucket_start + INTERVAL '15 minutes';
-    WHEN '1h' THEN RETURN bucket_start + INTERVAL '1 hour';
-    WHEN '4h' THEN RETURN bucket_start + INTERVAL '4 hours';
-    WHEN '1d' THEN RETURN bucket_start + INTERVAL '1 day';
-    ELSE RETURN bucket_start + INTERVAL '1 hour';
+    WHEN '1m' THEN bucket_end_ts := bucket_start_ts + INTERVAL '1 minute';
+    WHEN '5m' THEN bucket_end_ts := bucket_start_ts + INTERVAL '5 minutes';
+    WHEN '15m' THEN bucket_end_ts := bucket_start_ts + INTERVAL '15 minutes';
+    WHEN '1h' THEN bucket_end_ts := bucket_start_ts + INTERVAL '1 hour';
+    WHEN '4h' THEN bucket_end_ts := bucket_start_ts + INTERVAL '4 hours';
+    WHEN '1d' THEN bucket_end_ts := bucket_start_ts + INTERVAL '1 day';
+    ELSE bucket_end_ts := bucket_start_ts + INTERVAL '1 hour';
   END CASE;
+  RETURN EXTRACT(EPOCH FROM bucket_end_ts)::BIGINT;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 

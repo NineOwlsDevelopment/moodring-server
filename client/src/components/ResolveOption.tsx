@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Market, MarketOption } from "@/data/dummyData";
+import { Market, MarketOption } from "@/types/market";
 import { submitResolution, finalizeOptionResolution } from "@/api/api";
 import { useUserStore } from "@/stores/userStore";
 import { toast } from "sonner";

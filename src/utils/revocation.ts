@@ -33,11 +33,14 @@ export const revokeToken = async (
   tokenType: "access" | "refresh"
 ): Promise<void> => {
   const tokenHash = hashToken(token);
-  const expiresAt = getTokenExpiration(token);
+  const expiresAtDate = getTokenExpiration(token);
 
-  if (!expiresAt) {
+  if (!expiresAtDate) {
     throw new Error("Invalid token: cannot determine expiration");
   }
+
+  // Convert Date to Unix timestamp (seconds)
+  const expiresAt = Math.floor(expiresAtDate.getTime() / 1000);
 
   // Only insert if not already revoked (handle duplicate revocation gracefully)
   await pool.query(
@@ -57,7 +60,7 @@ export const isTokenRevoked = async (token: string): Promise<boolean> => {
   const result = await pool.query(
     `SELECT 1 FROM jwt_revoked_tokens 
      WHERE token_hash = $1 
-     AND expires_at > CURRENT_TIMESTAMP`,
+     AND expires_at > EXTRACT(EPOCH FROM NOW())::BIGINT`,
     [tokenHash]
   );
 
@@ -70,7 +73,7 @@ export const isTokenRevoked = async (token: string): Promise<boolean> => {
 export const cleanupExpiredRevokedTokens = async (): Promise<number> => {
   const result = await pool.query(
     `DELETE FROM jwt_revoked_tokens 
-     WHERE expires_at < CURRENT_TIMESTAMP`
+     WHERE expires_at < EXTRACT(EPOCH FROM NOW())::BIGINT`
   );
 
   return result.rowCount || 0;

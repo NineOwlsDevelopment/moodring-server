@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Market, UserPosition } from "@/data/dummyData";
+import { Market, UserPosition } from "@/types/market";
 
 type MarketUpdater = Market[] | ((currentMarkets: Market[]) => Market[]);
 

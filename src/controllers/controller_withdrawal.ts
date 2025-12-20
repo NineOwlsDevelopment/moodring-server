@@ -117,7 +117,7 @@ export const requestWithdrawal = async (
 
         // Check for duplicate withdrawal requests (INSIDE transaction with lock)
         // This prevents race conditions - both checks happen atomically
-        const fiveSecondsAgo = new Date(Date.now() - 5000);
+        const fiveSecondsAgo = Math.floor((Date.now() - 5000) / 1000); // Unix timestamp in seconds
         const duplicateCheck = await client.query(
           `SELECT id, status FROM withdrawals 
            WHERE user_id = $1 
@@ -160,25 +160,23 @@ export const requestWithdrawal = async (
           );
         }
 
-        // Create withdrawal record as 'pending' (will be updated after Circle API call)
+        // Create withdrawal record using model (will be updated after Circle API call)
         // Handle potential idempotency key collision gracefully
         let withdrawalResult;
         try {
-          withdrawalResult = await client.query(
-            `INSERT INTO withdrawals (
-              user_id, wallet_id, destination_address, amount, token_symbol, 
-              status, idempotency_key
-            )
-             VALUES ($1, $2, $3, $4, 'USDC', 'pending', $5)
-             RETURNING *`,
-            [
-              userId,
-              wallet.id,
+          const withdrawal = await WithdrawalModel.create(
+            {
+              user_id: userId as UUID,
+              wallet_id: wallet.id as UUID,
               destination_address,
-              parsedAmount,
-              idempotencyKey,
-            ]
+              amount: parsedAmount,
+              token_symbol: "USDC" as const,
+              status: "pending" as const,
+              idempotency_key: idempotencyKey,
+            },
+            client
           );
+          withdrawalResult = { rows: [withdrawal] };
         } catch (insertError: any) {
           // Handle unique constraint violation on idempotency_key
           if (
@@ -186,17 +184,18 @@ export const requestWithdrawal = async (
             insertError.constraint?.includes("idempotency_key")
           ) {
             // Idempotency key collision - check if it's a duplicate request
-            const existingWithdrawal = await client.query(
+            const existingWithdrawalQuery = await client.query(
               `SELECT * FROM withdrawals WHERE idempotency_key = $1`,
               [idempotencyKey]
             );
-            if (existingWithdrawal.rows.length > 0) {
+            if (existingWithdrawalQuery.rows.length > 0) {
+              const existingWithdrawal = existingWithdrawalQuery.rows[0];
               throw new TransactionError(
                 409,
                 "Duplicate withdrawal request detected",
                 {
-                  withdrawal_id: existingWithdrawal.rows[0].id,
-                  status: existingWithdrawal.rows[0].status,
+                  withdrawal_id: existingWithdrawal.id,
+                  status: existingWithdrawal.status,
                   message: "This withdrawal request was already processed.",
                 }
               );
@@ -209,7 +208,7 @@ export const requestWithdrawal = async (
 
         // Deduct from USDC balance immediately (inside transaction)
         await client.query(
-          `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
           [parsedAmount, wallet.id]
         );
 
@@ -235,7 +234,7 @@ export const requestWithdrawal = async (
     try {
       // Update status to 'processing' before making API call
       await pool.query(
-        `UPDATE withdrawals SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE withdrawals SET status = 'processing', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [withdrawal.id]
       );
 
@@ -250,7 +249,7 @@ export const requestWithdrawal = async (
       await withTransaction(async (client) => {
         await client.query(
           `UPDATE withdrawals 
-           SET transaction_signature = $1, status = 'completed', updated_at = CURRENT_TIMESTAMP 
+           SET transaction_signature = $1, status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
            WHERE id = $2`,
           [transactionId, withdrawal.id]
         );
@@ -271,7 +270,7 @@ export const requestWithdrawal = async (
         if (wallet) {
           // Refund balance
           await client.query(
-            `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
             [parsedAmount, wallet.id]
           );
         }
@@ -279,7 +278,7 @@ export const requestWithdrawal = async (
         // Mark withdrawal as failed
         await client.query(
           `UPDATE withdrawals 
-           SET status = 'failed', failure_reason = $1, updated_at = CURRENT_TIMESTAMP 
+           SET status = 'failed', failure_reason = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
            WHERE id = $2`,
           [circleError.message || "Circle API error", withdrawal.id]
         );
@@ -383,13 +382,13 @@ export const cancelWithdrawal = async (
 
       // Refund USDC to wallet
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
         [withdrawal.amount, withdrawal.wallet_id]
       );
 
       // Update withdrawal status
       await client.query(
-        `UPDATE withdrawals SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE withdrawals SET status = 'cancelled', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [id]
       );
     });

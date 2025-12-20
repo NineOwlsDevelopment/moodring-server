@@ -8,7 +8,7 @@ export interface Watchlist {
   id: UUID;
   user_id: UUID;
   market_id: UUID;
-  created_at: Date;
+  created_at: number;
 }
 
 export interface WatchlistCreateInput {
@@ -26,15 +26,16 @@ export class WatchlistModel {
   ): Promise<Watchlist> {
     const { user_id, market_id } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO watchlist (user_id, market_id)
-      VALUES ($1, $2)
+      INSERT INTO watchlist (user_id, market_id, created_at)
+      VALUES ($1, $2, $3)
       ON CONFLICT (user_id, market_id) DO NOTHING
       RETURNING *
     `;
 
-    const result = await db.query(query, [user_id, market_id]);
+    const result = await db.query(query, [user_id, market_id, now]);
 
     if (result.rows[0]) {
       return result.rows[0];

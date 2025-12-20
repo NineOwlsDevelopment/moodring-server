@@ -283,12 +283,12 @@ export const getMarketAnalytics = async (
       pool.query(
         `
         SELECT 
-          DATE(created_at) as date,
+          EXTRACT(EPOCH FROM DATE_TRUNC('day', to_timestamp(created_at)))::BIGINT as date,
           SUM(total_cost)::bigint as volume,
           COUNT(*)::int as trades
         FROM trades
         WHERE market_id = $1 AND status = 'completed'
-        GROUP BY DATE(created_at)
+        GROUP BY EXTRACT(EPOCH FROM DATE_TRUNC('day', to_timestamp(created_at)))::BIGINT
         ORDER BY date DESC
         LIMIT 30
       `,
@@ -334,13 +334,13 @@ export const healthCheck = async (req: HealthCheckRequest, res: Response) => {
 
     return sendSuccess(res, {
       status: "ok",
-      timestamp: new Date().toISOString(),
+      timestamp: Math.floor(Date.now() / 1000),
       uptime: process.uptime(),
       version: process.env.npm_package_version || "1.0.0",
     });
   } catch (error: any) {
     return sendError(res, 503, "Database connection failed", {
-      timestamp: new Date().toISOString(),
+      timestamp: Math.floor(Date.now() / 1000),
     });
   }
 };

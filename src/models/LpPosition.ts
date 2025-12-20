@@ -11,8 +11,8 @@ export interface LpPosition {
   shares: number;
   deposited_amount: number;
   lp_token_balance: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface LpPositionCreateInput {
@@ -31,18 +31,25 @@ export class LpPositionModel {
     data: LpPositionCreateInput,
     client?: QueryClient
   ): Promise<LpPosition> {
-    const { user_id, market_id, shares, deposited_amount, lp_token_balance = shares } = data;
+    const {
+      user_id,
+      market_id,
+      shares,
+      deposited_amount,
+      lp_token_balance = shares,
+    } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO lp_positions (user_id, market_id, shares, deposited_amount, lp_token_balance)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO lp_positions (user_id, market_id, shares, deposited_amount, lp_token_balance, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (user_id, market_id) 
       DO UPDATE SET 
         shares = lp_positions.shares + EXCLUDED.shares,
         deposited_amount = lp_positions.deposited_amount + EXCLUDED.deposited_amount,
         lp_token_balance = lp_positions.lp_token_balance + EXCLUDED.lp_token_balance,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `;
 
@@ -52,6 +59,7 @@ export class LpPositionModel {
       shares,
       deposited_amount,
       lp_token_balance,
+      now,
     ]);
     return result.rows[0];
   }
@@ -114,7 +122,7 @@ export class LpPositionModel {
     const db = client || pool;
     const query = `
       UPDATE lp_positions 
-      SET shares = shares - $3, updated_at = CURRENT_TIMESTAMP
+      SET shares = shares - $3, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND market_id = $2 AND shares >= $3
       RETURNING *
     `;
@@ -134,7 +142,7 @@ export class LpPositionModel {
     const db = client || pool;
     const query = `
       UPDATE lp_positions 
-      SET deposited_amount = $3, updated_at = CURRENT_TIMESTAMP
+      SET deposited_amount = $3, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND market_id = $2
       RETURNING *
     `;

@@ -11,8 +11,8 @@ export interface Wallet {
   balance_sol: number;
   balance_usdc: number;
   circle_wallet_id: string; // Circle wallet ID (required)
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface WalletCreateInput {
@@ -43,12 +43,13 @@ export class WalletModel {
       throw new Error("Circle wallet ID and public key are required");
     }
 
+    const now = Math.floor(Date.now() / 1000);
     try {
       const result = await db.query(
-        `INSERT INTO wallets (user_id, public_key, circle_wallet_id) 
-         VALUES ($1, $2, $3) 
+        `INSERT INTO wallets (user_id, public_key, circle_wallet_id, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5) 
          RETURNING *`,
-        [user_id, public_key, circle_wallet_id]
+        [user_id, public_key, circle_wallet_id, now, now]
       );
 
       return result.rows[0];
@@ -188,11 +189,12 @@ export class WalletModel {
       await client.query("DELETE FROM wallets WHERE user_id = $1", [user_id]);
 
       // Create new Circle wallet
+      const now = Math.floor(Date.now() / 1000);
       const result = await client.query(
-        `INSERT INTO wallets (user_id, public_key, circle_wallet_id) 
-         VALUES ($1, $2, $3) 
+        `INSERT INTO wallets (user_id, public_key, circle_wallet_id, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5) 
          RETURNING *`,
-        [user_id, public_key, circle_wallet_id]
+        [user_id, public_key, circle_wallet_id, now, now]
       );
 
       await client.query("COMMIT");
@@ -293,7 +295,7 @@ export class WalletModel {
       return this.findById(id, client);
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP");
+    updates.push("updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT");
     values.push(id);
 
     const query = `

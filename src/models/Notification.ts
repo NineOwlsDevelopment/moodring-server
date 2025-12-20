@@ -26,8 +26,8 @@ export interface Notification {
   metadata: Record<string, any> | null;
   is_read: boolean;
   is_email_sent: boolean;
-  created_at: Date;
-  read_at: Date | null;
+  created_at: number;
+  read_at: number;
 }
 
 export interface NotificationCreateInput {
@@ -55,10 +55,11 @@ export class NotificationModel {
       metadata = null,
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, metadata, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
@@ -70,6 +71,7 @@ export class NotificationModel {
       entity_type,
       entity_id,
       metadata ? JSON.stringify(metadata) : null,
+      now,
     ]);
     return result.rows[0];
   }
@@ -84,12 +86,13 @@ export class NotificationModel {
     const values: any[] = [];
     const placeholders: string[] = [];
 
+    const now = Math.floor(Date.now() / 1000);
     notifications.forEach((n, index) => {
-      const offset = index * 7;
+      const offset = index * 8;
       placeholders.push(
         `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${
           offset + 5
-        }, $${offset + 6}, $${offset + 7})`
+        }, $${offset + 6}, $${offset + 7}, $${offset + 8})`
       );
       values.push(
         n.user_id,
@@ -98,12 +101,13 @@ export class NotificationModel {
         n.message,
         n.entity_type || null,
         n.entity_id || null,
-        n.metadata ? JSON.stringify(n.metadata) : null
+        n.metadata ? JSON.stringify(n.metadata) : null,
+        now
       );
     });
 
     const query = `
-      INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, metadata)
+      INSERT INTO notifications (user_id, notification_type, title, message, entity_type, entity_id, metadata, created_at)
       VALUES ${placeholders.join(", ")}
       RETURNING *
     `;
@@ -175,7 +179,7 @@ export class NotificationModel {
     const result = await db.query(
       `
       UPDATE notifications
-      SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
+      SET is_read = TRUE, read_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $1 AND user_id = $2
       RETURNING id
     `,
@@ -192,7 +196,7 @@ export class NotificationModel {
     const result = await db.query(
       `
       UPDATE notifications
-      SET is_read = TRUE, read_at = CURRENT_TIMESTAMP
+      SET is_read = TRUE, read_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND is_read = FALSE
     `,
       [userId]
@@ -227,7 +231,7 @@ export class NotificationModel {
   static async deleteOld(daysOld = 30, client?: QueryClient): Promise<number> {
     const db = client || pool;
     const result = await db.query(
-      "DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '$1 days' AND is_read = TRUE",
+      "DELETE FROM notifications WHERE created_at < EXTRACT(EPOCH FROM NOW() - INTERVAL '$1 days')::BIGINT AND is_read = TRUE",
       [daysOld]
     );
     return result.rowCount || 0;

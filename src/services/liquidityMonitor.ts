@@ -145,7 +145,7 @@ class LiquidityMonitorService {
           required_liquidity = $2,
           reserve_ratio = $3,
           severity = $4,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
         WHERE id = $5
       `,
         [
@@ -220,9 +220,9 @@ class LiquidityMonitorService {
       UPDATE liquidity_alerts
       SET 
         is_resolved = TRUE,
-        resolved_at = CURRENT_TIMESTAMP,
+        resolved_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
         resolved_by = $1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2 AND is_resolved = FALSE
       RETURNING id
     `,

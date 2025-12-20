@@ -78,7 +78,7 @@ class OracleResolver {
       submission_id: submission.id,
       outcome,
       evidence: submission.evidence,
-      timestamp: submission.submitted_at.toISOString(),
+      timestamp: submission.submitted_at,
     };
 
     return {
@@ -119,7 +119,7 @@ class AuthorityResolver {
       submission_id: authoritySubmission.id,
       outcome,
       evidence: authoritySubmission.evidence,
-      timestamp: authoritySubmission.submitted_at.toISOString(),
+      timestamp: authoritySubmission.submitted_at,
     };
 
     return {
@@ -180,7 +180,7 @@ class OpinionResolver {
       submissions: submissions.map((s) => ({
         user_id: s.user_id,
         outcome: s.outcome,
-        submitted_at: s.submitted_at.toISOString(),
+        submitted_at: s.submitted_at,
       })),
     };
 

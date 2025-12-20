@@ -13,12 +13,12 @@ export interface Option {
   no_quantity: number;
   is_resolved: boolean;
   winning_side: number | null;
-  resolved_at: Date | null;
+  resolved_at: number;
   resolved_reason: string | null;
   resolved_by: string | null;
-  dispute_deadline: Date | null;
-  created_at: Date;
-  updated_at: Date;
+  dispute_deadline: number;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface OptionCreateInput {
@@ -42,6 +42,7 @@ export class OptionModel {
       no_quantity = 0,
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
       INSERT INTO market_options (
@@ -49,9 +50,11 @@ export class OptionModel {
         option_label,
         option_image_url,
         yes_quantity,
-        no_quantity
+        no_quantity,
+        created_at,
+        updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5
+        $1, $2, $3, $4, $5, $6, $7
       ) RETURNING *
     `;
 
@@ -61,6 +64,8 @@ export class OptionModel {
       option_image_url,
       yes_quantity,
       no_quantity,
+      now,
+      now,
     ];
 
     try {
@@ -105,7 +110,7 @@ export class OptionModel {
     values.push(id);
     const query = `
       UPDATE market_options
-      SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
+      SET ${updates.join(", ")}, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $${paramCount}
       RETURNING *
     `;

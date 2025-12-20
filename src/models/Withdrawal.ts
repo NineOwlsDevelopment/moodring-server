@@ -14,9 +14,9 @@ export interface Withdrawal {
   transaction_signature: string | null;
   status: "pending" | "processing" | "completed" | "failed";
   failure_reason: string | null;
-  created_at: Date;
-  updated_at: Date;
-  completed_at: Date | null;
+  created_at: number;
+  updated_at: number;
+  completed_at: number;
 }
 
 export interface WithdrawalCreateInput {
@@ -25,6 +25,8 @@ export interface WithdrawalCreateInput {
   destination_address: string;
   amount: number;
   token_symbol: "SOL" | "USDC";
+  status?: "pending" | "processing" | "completed" | "failed";
+  idempotency_key?: string;
 }
 
 export class WithdrawalModel {
@@ -32,13 +34,21 @@ export class WithdrawalModel {
     data: WithdrawalCreateInput,
     client?: QueryClient
   ): Promise<Withdrawal> {
-    const { user_id, wallet_id, destination_address, amount, token_symbol } =
-      data;
+    const {
+      user_id,
+      wallet_id,
+      destination_address,
+      amount,
+      token_symbol,
+      status = "pending",
+      idempotency_key = null,
+    } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO withdrawals (user_id, wallet_id, destination_address, amount, token_symbol)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO withdrawals (user_id, wallet_id, destination_address, amount, token_symbol, status, idempotency_key, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
 
@@ -48,6 +58,10 @@ export class WithdrawalModel {
       destination_address,
       amount,
       token_symbol,
+      status,
+      idempotency_key,
+      now,
+      now,
     ]);
     return result.rows[0];
   }
@@ -108,7 +122,8 @@ export class WithdrawalModel {
     client?: QueryClient
   ): Promise<Withdrawal | null> {
     const db = client || pool;
-    const completedAt = status === "completed" ? "CURRENT_TIMESTAMP" : "NULL";
+    const completedAt =
+      status === "completed" ? "EXTRACT(EPOCH FROM NOW())::BIGINT" : "NULL";
 
     const result = await db.query(
       `
@@ -118,9 +133,11 @@ export class WithdrawalModel {
         transaction_signature = COALESCE($2, transaction_signature),
         failure_reason = COALESCE($3, failure_reason),
         completed_at = ${
-          status === "completed" ? "CURRENT_TIMESTAMP" : "completed_at"
+          status === "completed"
+            ? "EXTRACT(EPOCH FROM NOW())::BIGINT"
+            : "completed_at"
         },
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $4
       RETURNING *
     `,

@@ -90,7 +90,7 @@ export class RiskControlService {
   ): Promise<RiskCheckResult> {
     const moodring = await getMoodringData(client);
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000); // Unix timestamp in seconds
     const recentVolumeResult = await client.query(
       `SELECT COALESCE(SUM(total_cost), 0)::bigint as recent_volume
        FROM trades

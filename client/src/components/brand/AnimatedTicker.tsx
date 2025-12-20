@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Market } from "@/data/dummyData";
+import { Market } from "@/types/market";
 import { formatUSDC, capitalizeWords } from "@/utils/format";
 
 interface AnimatedTickerProps {

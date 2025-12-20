@@ -16,9 +16,9 @@ export interface WalletSweep {
   transaction_signature: string | null;
   status: "pending" | "completed" | "failed";
   failure_reason: string | null;
-  created_at: Date;
-  updated_at: Date;
-  completed_at: Date | null;
+  created_at: number;
+  updated_at: number;
+  completed_at: number;
 }
 
 export interface SweepCreateInput {
@@ -49,6 +49,7 @@ export class SweepModel {
       token_symbol = "USDC",
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const result = await db.query(
       `INSERT INTO wallet_sweeps (
@@ -59,9 +60,11 @@ export class SweepModel {
         destination_address,
         amount,
         token_symbol,
-        status
+        status,
+        created_at,
+        updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9)
       RETURNING *`,
       [
         wallet_id,
@@ -71,6 +74,8 @@ export class SweepModel {
         destination_address,
         amount,
         token_symbol,
+        now,
+        now,
       ]
     );
 
@@ -91,8 +96,8 @@ export class SweepModel {
       `UPDATE wallet_sweeps
        SET status = 'completed',
            transaction_signature = $2,
-           completed_at = CURRENT_TIMESTAMP,
-           updated_at = CURRENT_TIMESTAMP
+           completed_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
+           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $1
        RETURNING *`,
       [sweepId, transactionSignature]
@@ -115,7 +120,7 @@ export class SweepModel {
       `UPDATE wallet_sweeps
        SET status = 'failed',
            failure_reason = $2,
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $1
        RETURNING *`,
       [sweepId, failureReason]

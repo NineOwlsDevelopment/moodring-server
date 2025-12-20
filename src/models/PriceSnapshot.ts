@@ -16,7 +16,7 @@ export interface PriceSnapshot {
   trade_count: number;
   snapshot_type: "trade" | "periodic" | "initialization";
   trade_id: UUID | null;
-  created_at: Date;
+  created_at: number;
 }
 
 export interface PriceOHLC {
@@ -24,8 +24,8 @@ export interface PriceOHLC {
   option_id: UUID;
   market_id: UUID;
   interval_type: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
-  bucket_start: Date;
-  bucket_end: Date;
+  bucket_start: number;
+  bucket_end: number;
   open_price: number;
   high_price: number;
   low_price: number;
@@ -34,8 +34,8 @@ export interface PriceOHLC {
   trade_count: number;
   close_yes_quantity: number;
   close_no_quantity: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface PriceSnapshotCreateInput {
@@ -91,13 +91,14 @@ export class PriceSnapshotModel {
       snapshot_type = "trade",
       trade_id = null,
     } = data;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
       INSERT INTO price_snapshots (
         option_id, market_id, yes_price, no_price,
         yes_quantity, no_quantity, volume, trade_count,
-        snapshot_type, trade_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        snapshot_type, trade_id, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
 
@@ -112,6 +113,7 @@ export class PriceSnapshotModel {
       trade_count,
       snapshot_type,
       trade_id,
+      now,
     ];
 
     const result = await db.query(query, values);
@@ -155,8 +157,8 @@ export class PriceSnapshotModel {
       )
       VALUES (
         $1, $2, $3,
-        get_bucket_start(CURRENT_TIMESTAMP, $3),
-        get_bucket_end(get_bucket_start(CURRENT_TIMESTAMP, $3), $3),
+        get_bucket_start(EXTRACT(EPOCH FROM NOW())::BIGINT, $3),
+        get_bucket_end(get_bucket_start(EXTRACT(EPOCH FROM NOW())::BIGINT, $3), $3),
         $4, $4, $4, $4,
         $5, 1,
         $6, $7
@@ -170,7 +172,7 @@ export class PriceSnapshotModel {
         trade_count = price_ohlc.trade_count + 1,
         close_yes_quantity = EXCLUDED.close_yes_quantity,
         close_no_quantity = EXCLUDED.close_no_quantity,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
     `;
 
     await db.query(query, [
@@ -237,7 +239,7 @@ export class PriceSnapshotModel {
       const ohlcResult = await db.query(
         `
         SELECT 
-          EXTRACT(EPOCH FROM bucket_start) * 1000 as timestamp,
+          bucket_start * 1000 as timestamp,
           close_price as yes_price,
           1 - close_price as no_price,
           volume
@@ -265,7 +267,7 @@ export class PriceSnapshotModel {
     const result = await db.query(
       `
       SELECT 
-        EXTRACT(EPOCH FROM created_at) * 1000 as timestamp,
+        created_at * 1000 as timestamp,
         yes_price,
         no_price,
         volume
@@ -301,7 +303,7 @@ export class PriceSnapshotModel {
     const result = await db.query(
       `
       SELECT 
-        EXTRACT(EPOCH FROM bucket_start) * 1000 as timestamp,
+        bucket_start * 1000 as timestamp,
         open_price as open,
         high_price as high,
         low_price as low,
@@ -353,7 +355,7 @@ export class PriceSnapshotModel {
       `
       SELECT 
         option_id,
-        EXTRACT(EPOCH FROM bucket_start) * 1000 as timestamp,
+        bucket_start * 1000 as timestamp,
         close_price as yes_price,
         1 - close_price as no_price,
         volume
@@ -388,7 +390,7 @@ export class PriceSnapshotModel {
       `
       SELECT 
         option_id,
-        EXTRACT(EPOCH FROM created_at) * 1000 as timestamp,
+        created_at * 1000 as timestamp,
         yes_price,
         no_price,
         volume
@@ -459,7 +461,7 @@ export class PriceSnapshotModel {
     client?: QueryClient
   ): Promise<number> {
     const db = client || pool;
-    const cutoffTime = timeRange ? this.getCutoffTime(timeRange) : new Date(0);
+    const cutoffTime = timeRange ? this.getCutoffTime(timeRange) : 0;
 
     const result = await db.query(
       `
@@ -481,8 +483,7 @@ export class PriceSnapshotModel {
     client?: QueryClient
   ): Promise<number> {
     const db = client || pool;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - daysToKeep);
+    const cutoff = Math.floor(Date.now() / 1000) - daysToKeep * 24 * 60 * 60;
 
     const result = await db.query(
       `
@@ -499,21 +500,21 @@ export class PriceSnapshotModel {
   // HELPER METHODS
   // ============================================
 
-  private static getCutoffTime(timeRange: TimeRange): Date {
-    const now = new Date();
+  private static getCutoffTime(timeRange: TimeRange): number {
+    const now = Math.floor(Date.now() / 1000);
     switch (timeRange) {
       case "1H":
-        return new Date(now.getTime() - 60 * 60 * 1000);
+        return now - 60 * 60;
       case "24H":
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return now - 24 * 60 * 60;
       case "7D":
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return now - 7 * 24 * 60 * 60;
       case "30D":
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return now - 30 * 24 * 60 * 60;
       case "ALL":
-        return new Date(0);
+        return 0;
       default:
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return now - 7 * 24 * 60 * 60;
     }
   }
 

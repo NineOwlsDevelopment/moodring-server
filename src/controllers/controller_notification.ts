@@ -201,7 +201,7 @@ export const updatePreferences = async (
       `
       UPDATE users
       SET notification_preferences = notification_preferences || $1::jsonb,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2
       RETURNING notification_preferences
     `,

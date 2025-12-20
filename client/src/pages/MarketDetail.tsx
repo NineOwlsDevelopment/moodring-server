@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Market, MarketOption } from "@/data/dummyData";
+import { Market, MarketOption } from "@/types/market";
 import { TradeForm } from "@/components/TradeForm";
 import { CommentSection } from "@/components/CommentSection";
 import { PriceChart } from "@/components/PriceChart";

@@ -215,12 +215,13 @@ export class TradeValidationService {
     // Check daily volume limit
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+    const todayStartTimestamp = Math.floor(todayStart.getTime() / 1000); // Unix timestamp in seconds
 
     const dailyVolumeResult = await client.query(
       `SELECT COALESCE(SUM(total_cost), 0)::bigint as daily_volume
        FROM trades
        WHERE user_id = $1 AND created_at >= $2`,
-      [userId, todayStart]
+      [userId, todayStartTimestamp]
     );
 
     const dailyVolume = Number(dailyVolumeResult.rows[0]?.daily_volume || 0);

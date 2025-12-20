@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Market, MarketOption } from "@/data/dummyData";
+import { Market, MarketOption } from "@/types/market";
 import { claimWinnings, fetchPositions, Position } from "@/api/api";
 import { useUserStore } from "@/stores/userStore";
 import { formatUSDC } from "@/utils/format";

@@ -16,8 +16,8 @@ export interface UserPosition {
   total_yes_cost: number;
   total_no_cost: number;
   realized_pnl: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface UserPositionCreateInput {
@@ -36,15 +36,22 @@ export class UserPositionModel {
   ): Promise<UserPosition> {
     const { user_id, market_id, option_id } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO user_positions (user_id, market_id, option_id)
-      VALUES ($1, $2, $3)
+      INSERT INTO user_positions (user_id, market_id, option_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, option_id) DO NOTHING
       RETURNING *
     `;
 
-    const result = await db.query(query, [user_id, market_id, option_id]);
+    const result = await db.query(query, [
+      user_id,
+      market_id,
+      option_id,
+      now,
+      now,
+    ]);
 
     if (result.rows[0]) {
       return result.rows[0];
@@ -165,7 +172,7 @@ export class UserPositionModel {
         avg_no_price = $6,
         total_yes_cost = $7,
         total_no_cost = $8,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND option_id = $2
       RETURNING *
     `;
@@ -235,7 +242,7 @@ export class UserPositionModel {
         total_yes_cost = $5,
         total_no_cost = $6,
         realized_pnl = realized_pnl + $7,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND option_id = $2
       RETURNING *
     `;
@@ -290,7 +297,7 @@ export class UserPositionModel {
         total_yes_cost = 0,
         total_no_cost = 0,
         realized_pnl = realized_pnl + $3,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1 AND option_id = $2
       RETURNING *
     `;

@@ -53,8 +53,8 @@ export interface Market {
   category?: string; // legacy single category
   categories?: MarketCategory[]; // new array of categories
   options: MarketOption[];
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface PriceHistoryPoint {

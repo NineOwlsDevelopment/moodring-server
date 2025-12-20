@@ -20,9 +20,9 @@ export interface UserStats {
   referral_earnings: number;
   current_streak: number;
   longest_streak: number;
-  last_trade_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
+  last_trade_at: number;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface UserStatsUpdate {
@@ -39,7 +39,7 @@ export interface UserStatsUpdate {
   referral_earnings?: number;
   current_streak?: number;
   longest_streak?: number;
-  last_trade_at?: Date;
+  last_trade_at?: number;
 }
 
 export interface LeaderboardEntry {
@@ -73,9 +73,10 @@ export class UserStatsModel {
     }
 
     // Create new stats record
+    const now = Math.floor(Date.now() / 1000);
     const result = await db.query(
-      "INSERT INTO user_stats (user_id) VALUES ($1) RETURNING *",
-      [userId]
+      "INSERT INTO user_stats (user_id, created_at, updated_at) VALUES ($1, $2, $3) RETURNING *",
+      [userId, now, now]
     );
     return result.rows[0];
   }
@@ -120,7 +121,7 @@ export class UserStatsModel {
       return this.getOrCreate(userId, client);
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP");
+    updates.push("updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT");
     values.push(userId);
 
     const result = await db.query(
@@ -157,8 +158,8 @@ export class UserStatsModel {
         total_volume = total_volume + $1,
         total_fees_paid = total_fees_paid + $2,
         markets_participated = markets_participated + CASE WHEN $3 THEN 1 ELSE 0 END,
-        last_trade_at = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP
+        last_trade_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $4
       RETURNING *
     `,
@@ -189,7 +190,7 @@ export class UserStatsModel {
         total_profit_loss = total_profit_loss + $2,
         current_streak = CASE WHEN $1 THEN current_streak + 1 ELSE 0 END,
         longest_streak = GREATEST(longest_streak, CASE WHEN $1 THEN current_streak + 1 ELSE longest_streak END),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $3
       RETURNING *
     `,

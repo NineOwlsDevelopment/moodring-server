@@ -11,8 +11,8 @@ export interface ReferralCode {
   uses_count: number;
   total_earnings: number;
   is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface Referral {
@@ -23,8 +23,8 @@ export interface Referral {
   referrer_reward: number;
   referred_reward: number;
   is_rewarded: boolean;
-  created_at: Date;
-  rewarded_at: Date | null;
+  created_at: number;
+  rewarded_at: number;
 }
 
 export interface ReferralWithDetails extends Referral {
@@ -72,11 +72,12 @@ export class ReferralModel {
     let code = this.generateCode(username);
     let attempts = 0;
 
+    const now = Math.floor(Date.now() / 1000);
     while (attempts < 10) {
       try {
         const result = await db.query(
-          "INSERT INTO referral_codes (user_id, code) VALUES ($1, $2) RETURNING *",
-          [userId, code]
+          "INSERT INTO referral_codes (user_id, code, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING *",
+          [userId, code, now, now]
         );
         return result.rows[0];
       } catch (error: any) {
@@ -131,20 +132,21 @@ export class ReferralModel {
       await client.query("BEGIN");
 
       // Insert referral record
+      const now = Math.floor(Date.now() / 1000);
       const referralResult = await client.query(
         `
-        INSERT INTO referrals (referrer_id, referred_id, referral_code_id)
-        VALUES ($1, $2, $3)
+        INSERT INTO referrals (referrer_id, referred_id, referral_code_id, created_at)
+        VALUES ($1, $2, $3, $4)
         RETURNING *
       `,
-        [referrerId, referredId, referralCodeId]
+        [referrerId, referredId, referralCodeId, now]
       );
 
       // Update referral code uses count
       await client.query(
         `
         UPDATE referral_codes
-        SET uses_count = uses_count + 1, updated_at = CURRENT_TIMESTAMP
+        SET uses_count = uses_count + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
         WHERE id = $1
       `,
         [referralCodeId]
@@ -187,7 +189,7 @@ export class ReferralModel {
           referrer_reward = $1,
           referred_reward = $2,
           is_rewarded = TRUE,
-          rewarded_at = CURRENT_TIMESTAMP
+          rewarded_at = EXTRACT(EPOCH FROM NOW())::BIGINT
         WHERE id = $3 AND is_rewarded = FALSE
         RETURNING *
       `,
@@ -203,7 +205,7 @@ export class ReferralModel {
       await client.query(
         `
         UPDATE referral_codes
-        SET total_earnings = total_earnings + $1, updated_at = CURRENT_TIMESTAMP
+        SET total_earnings = total_earnings + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
         WHERE id = $2
       `,
         [referrerReward, result.rows[0].referral_code_id]

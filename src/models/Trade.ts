@@ -17,8 +17,8 @@ export interface Trade {
   fees_paid: number;
   transaction_signature: string | null;
   status: "pending" | "completed" | "failed";
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface TradeCreateInput {
@@ -60,13 +60,14 @@ export class TradeModel {
       status = "completed",
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
       INSERT INTO trades (
         user_id, market_id, option_id,
         trade_type, side, quantity, price_per_share, total_cost,
-        fees_paid, transaction_signature, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        fees_paid, transaction_signature, status, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
 
@@ -82,6 +83,8 @@ export class TradeModel {
       fees_paid,
       transaction_signature,
       status,
+      now,
+      now,
     ];
 
     const result = await db.query(query, values);
@@ -248,7 +251,7 @@ export class TradeModel {
     const result = await db.query(
       `
       UPDATE trades
-      SET status = $1, transaction_signature = COALESCE($2, transaction_signature), updated_at = CURRENT_TIMESTAMP
+      SET status = $1, transaction_signature = COALESCE($2, transaction_signature), updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $3
       RETURNING *
     `,

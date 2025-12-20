@@ -116,9 +116,8 @@ export const submitResolution = async (
         }
       } else if (market.resolution_mode === ResolutionMode.OPINION) {
         // For OPINION, anyone can resolve if market expiration has passed
-        const now = new Date();
-        const expirationDate = new Date(market.expiration_timestamp * 1000);
-        if (expirationDate > now) {
+        const now = Math.floor(Date.now() / 1000);
+        if (market.expiration_timestamp > now) {
           throw new TransactionError(
             400,
             "Market expiration date has not passed. OPINION mode markets can only be resolved after expiration."
@@ -192,9 +191,8 @@ export const submitResolution = async (
 
       // Set dispute deadline (2 hours from now)
       const disputeWindowHours = 2;
-      const disputeDeadline = new Date(
-        Date.now() + disputeWindowHours * 60 * 60 * 1000
-      );
+      const disputeDeadline =
+        Math.floor(Date.now() / 1000) + disputeWindowHours * 60 * 60;
 
       // Resolve the option
       await OptionModel.update(
@@ -202,7 +200,7 @@ export const submitResolution = async (
         {
           is_resolved: true,
           winning_side: winningSide,
-          resolved_at: new Date(),
+          resolved_at: Math.floor(Date.now() / 1000),
           resolved_reason: `Resolved via ${market.resolution_mode} mode based on submission`,
           resolved_by: userId,
           dispute_deadline: disputeDeadline,
@@ -352,7 +350,10 @@ export const disputeResolution = async (
         );
       }
 
-      if (new Date(option.dispute_deadline) < new Date()) {
+      if (
+        option.dispute_deadline > 0 &&
+        option.dispute_deadline < Math.floor(Date.now() / 1000)
+      ) {
         throw new TransactionError(
           400,
           "Dispute deadline has passed for this option"
@@ -375,7 +376,7 @@ export const disputeResolution = async (
 
       // Deduct resolution fee from user's wallet
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
         [DISPUTE_RESOLUTION_FEE_MICROUSDC, wallet.id]
       );
 

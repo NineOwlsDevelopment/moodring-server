@@ -26,7 +26,7 @@ export interface SuspiciousTrade {
   // Review status
   review_status: "pending" | "reviewed" | "cleared" | "flagged";
   reviewed_by: UUID | null;
-  reviewed_at: Date | null;
+  reviewed_at: number;
   review_notes: string | null;
 
   // Risk assessment
@@ -34,8 +34,8 @@ export interface SuspiciousTrade {
   automated_action_taken: boolean;
   manual_action_required: boolean;
 
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface SuspiciousTradeCreateInput {
@@ -59,7 +59,7 @@ export interface SuspiciousTradeCreateInput {
   // Review status (defaults)
   review_status?: "pending" | "reviewed" | "cleared" | "flagged";
   reviewed_by?: UUID | null;
-  reviewed_at?: Date | null;
+  reviewed_at?: number;
   review_notes?: string | null;
 
   // Risk assessment (defaults)
@@ -102,14 +102,16 @@ export class SuspiciousTradeModel {
     } = data;
 
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
       INSERT INTO suspicious_trades (
         trade_id, user_id, market_id, option_id, trade_type, side,
         quantity, price_per_share, total_amount, detection_reason,
         detection_metadata, review_status, reviewed_by, reviewed_at,
-        review_notes, risk_score, automated_action_taken, manual_action_required
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        review_notes, risk_score, automated_action_taken, manual_action_required,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `;
 
@@ -132,6 +134,8 @@ export class SuspiciousTradeModel {
       risk_score,
       automated_action_taken,
       manual_action_required,
+      now,
+      now,
     ];
 
     const result = await db.query(query, values);
@@ -229,7 +233,7 @@ export class SuspiciousTradeModel {
     reviewData: {
       review_status: "pending" | "reviewed" | "cleared" | "flagged";
       reviewed_by?: UUID;
-      reviewed_at?: Date;
+      reviewed_at?: number;
       review_notes?: string;
       risk_score?: number;
       manual_action_required?: boolean;
@@ -250,7 +254,7 @@ export class SuspiciousTradeModel {
       UPDATE suspicious_trades
       SET review_status = $1, reviewed_by = $2, reviewed_at = $3,
           review_notes = $4, risk_score = $5, manual_action_required = $6,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $7
       RETURNING *
     `;

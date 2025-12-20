@@ -16,8 +16,8 @@ export interface PlatformStats {
   total_volume: number;
   total_fees_collected: number;
   total_liquidity: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CreatorStats {
@@ -30,8 +30,8 @@ export interface CreatorStats {
   markets_resolved: number;
   markets_disputed: number;
   reputation_score: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface CreatorStatsWithUser extends CreatorStats {
@@ -46,7 +46,7 @@ export class PlatformStatsModel {
   static async getTodayStats(client?: QueryClient): Promise<PlatformStats> {
     const db = client || pool;
     const existing = await db.query(
-      "SELECT * FROM platform_stats WHERE stat_date = CURRENT_DATE"
+      "SELECT * FROM platform_stats WHERE stat_date = EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT"
     );
 
     if (existing.rows.length > 0) {
@@ -64,14 +64,14 @@ export class PlatformStatsModel {
     ] = await Promise.all([
       db.query("SELECT COUNT(*)::int as count FROM users"),
       db.query(
-        "SELECT COUNT(*)::int as count FROM users WHERE DATE(created_at) = CURRENT_DATE"
+        "SELECT COUNT(*)::int as count FROM users WHERE created_at >= EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT AND created_at < EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()) + INTERVAL '1 day')::BIGINT"
       ),
       db.query(
-        "SELECT COUNT(DISTINCT user_id)::int as count FROM trades WHERE DATE(created_at) = CURRENT_DATE"
+        "SELECT COUNT(DISTINCT user_id)::int as count FROM trades WHERE created_at >= EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT AND created_at < EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()) + INTERVAL '1 day')::BIGINT"
       ),
       db.query("SELECT COUNT(*)::int as count FROM markets"),
       db.query(
-        "SELECT COUNT(*)::int as count FROM markets WHERE DATE(created_at) = CURRENT_DATE"
+        "SELECT COUNT(*)::int as count FROM markets WHERE created_at >= EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT AND created_at < EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()) + INTERVAL '1 day')::BIGINT"
       ),
       db.query(
         `
@@ -79,17 +79,18 @@ export class PlatformStatsModel {
           COUNT(*)::int as count,
           COALESCE(SUM(total_cost), 0)::bigint as volume
         FROM trades 
-        WHERE DATE(created_at) = CURRENT_DATE
+        WHERE created_at >= EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT AND created_at < EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()) + INTERVAL '1 day')::BIGINT
       `
       ),
     ]);
 
+    const now = Math.floor(Date.now() / 1000);
     const result = await db.query(
       `
       INSERT INTO platform_stats (
         stat_date, total_users, new_users, active_users, 
-        total_markets, new_markets, total_trades, total_volume
-      ) VALUES (CURRENT_DATE, $1, $2, $3, $4, $5, $6, $7)
+        total_markets, new_markets, total_trades, total_volume, created_at
+      ) VALUES (EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()))::BIGINT, $1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (stat_date) DO UPDATE SET
         total_users = $1,
         new_users = $2,
@@ -98,7 +99,7 @@ export class PlatformStatsModel {
         new_markets = $5,
         total_trades = $6,
         total_volume = $7,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `,
       [
@@ -109,6 +110,7 @@ export class PlatformStatsModel {
         newMarketsResult.rows[0].count,
         tradesResult.rows[0].count,
         tradesResult.rows[0].volume,
+        now,
       ]
     );
 
@@ -126,7 +128,7 @@ export class PlatformStatsModel {
     const result = await db.query(
       `
       SELECT * FROM platform_stats
-      WHERE stat_date >= CURRENT_DATE - INTERVAL '${days} days'
+      WHERE stat_date >= EXTRACT(EPOCH FROM DATE_TRUNC('day', NOW()) - INTERVAL '${days} days')::BIGINT
       ORDER BY stat_date DESC
     `
     );
@@ -176,9 +178,10 @@ export class CreatorStatsModel {
       return existing.rows[0];
     }
 
+    const now = Math.floor(Date.now() / 1000);
     const result = await db.query(
-      "INSERT INTO creator_stats (user_id) VALUES ($1) RETURNING *",
-      [userId]
+      "INSERT INTO creator_stats (user_id, created_at, updated_at) VALUES ($1, $2, $3) RETURNING *",
+      [userId, now, now]
     );
     return result.rows[0];
   }
@@ -208,7 +211,7 @@ export class CreatorStatsModel {
     const result = await db.query(
       `
       UPDATE creator_stats
-      SET markets_created = markets_created + 1, updated_at = CURRENT_TIMESTAMP
+      SET markets_created = markets_created + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $1
       RETURNING *
     `,
@@ -240,7 +243,7 @@ export class CreatorStatsModel {
           THEN (total_volume_generated + $1) / markets_created 
           ELSE 0 
         END,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $3
       RETURNING *
     `,
@@ -270,7 +273,7 @@ export class CreatorStatsModel {
           WHEN $1 THEN GREATEST(reputation_score - 5, 0)
           ELSE LEAST(reputation_score + 1, 100)
         END,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE user_id = $2
       RETURNING *
     `,

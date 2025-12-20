@@ -216,7 +216,7 @@ export class CommonTradeOperations {
     newBalance: number
   ): Promise<void> {
     await client.query(
-      `UPDATE wallets SET balance_usdc = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      `UPDATE wallets SET balance_usdc = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
       [newBalance, walletId]
     );
   }
@@ -234,7 +234,7 @@ export class CommonTradeOperations {
       `UPDATE market_options SET
         yes_quantity = $1,
         no_quantity = $2,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $3`,
       [newYesQuantity, newNoQuantity, optionId]
     );
@@ -261,7 +261,7 @@ export class CommonTradeOperations {
         protocol_fees_collected = protocol_fees_collected + $4,
         accumulated_lp_fees = accumulated_lp_fees + $5,
         shared_pool_liquidity = GREATEST(0, shared_pool_liquidity + $6),
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $7`,
       [
         volumeChange,
@@ -327,7 +327,7 @@ export class CommonTradeOperations {
           yes_shares = $1,
           total_yes_cost = $2,
           avg_yes_price = $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE user_id = $4 AND option_id = $5`,
         [newYesShares, newTotalYesCost, newAvgYesPrice, userId, optionId]
       );
@@ -344,7 +344,7 @@ export class CommonTradeOperations {
           no_shares = $1,
           total_no_cost = $2,
           avg_no_price = $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE user_id = $4 AND option_id = $5`,
         [newNoShares, newTotalNoCost, newAvgNoPrice, userId, optionId]
       );

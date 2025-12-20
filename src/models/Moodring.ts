@@ -69,15 +69,15 @@ export interface MoodringConfig {
   enable_referrals: boolean;
   enable_notifications: boolean;
 
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface MoodringAdmin {
   id: UUID;
   user_id: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface MoodringConfigInput {
@@ -375,7 +375,7 @@ export class MoodringModel {
       return existing;
     }
 
-    setClauses.push("updated_at = CURRENT_TIMESTAMP");
+    setClauses.push("updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT");
     values.push(existing.id);
 
     const query = `
@@ -398,7 +398,7 @@ export class MoodringModel {
     const db = client || pool;
     const result = await db.query(`
       UPDATE moodring
-      SET total_markets = total_markets + 1, updated_at = CURRENT_TIMESTAMP
+      SET total_markets = total_markets + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `);
     return result.rows[0] || null;
@@ -421,7 +421,7 @@ export class MoodringModel {
         protocol_fees_collected = protocol_fees_collected + $2,
         lifetime_protocol_fees_earned = lifetime_protocol_fees_earned + $2,
         current_protocol_fees_balance = current_protocol_fees_balance + $2,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `,
       [creatorFees, protocolFees]
@@ -444,7 +444,7 @@ export class MoodringModel {
       SET 
         current_protocol_fees_balance = GREATEST(0, current_protocol_fees_balance - $1),
         total_protocol_fees_withdrawn = total_protocol_fees_withdrawn + $1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `,
       [amount]
@@ -467,7 +467,7 @@ export class MoodringModel {
       SET 
         total_value_locked = total_value_locked + $1,
         total_volume = total_volume + $2,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       RETURNING *
     `,
       [tvlDelta, volumeDelta]

@@ -14,8 +14,8 @@ export interface LiveRoom {
   allow_video: boolean;
   allow_screen_share: boolean;
   require_auth: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface LiveRoomParticipant {
@@ -27,8 +27,8 @@ export interface LiveRoomParticipant {
   is_video_on: boolean;
   is_screen_sharing: boolean;
   is_hand_raised: boolean;
-  joined_at: Date;
-  left_at: Date | null;
+  joined_at: number;
+  left_at: number;
 }
 
 export interface LiveRoomParticipantWithUser extends LiveRoomParticipant {
@@ -65,12 +65,13 @@ export class LiveRoomModel {
     }
 
     // Create new room
+    const now = Math.floor(Date.now() / 1000);
     const query = `
-      INSERT INTO live_rooms (market_id, name, is_active)
-      VALUES ($1, 'Market Live Room', true)
+      INSERT INTO live_rooms (market_id, name, is_active, created_at, updated_at)
+      VALUES ($1, 'Market Live Room', true, $2, $3)
       RETURNING *
     `;
-    const result = await db.query(query, [marketId]);
+    const result = await db.query(query, [marketId, now, now]);
     return result.rows[0];
   }
 
@@ -148,12 +149,13 @@ export class LiveRoomModel {
       return existing;
     }
 
+    const now = Math.floor(Date.now() / 1000);
     const query = `
-      INSERT INTO live_room_participants (room_id, user_id, role)
-      VALUES ($1, $2, $3)
+      INSERT INTO live_room_participants (room_id, user_id, role, joined_at)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await db.query(query, [roomId, userId, role]);
+    const result = await db.query(query, [roomId, userId, role, now]);
 
     // Update participant count
     await db.query(
@@ -175,7 +177,7 @@ export class LiveRoomModel {
     const db = client || pool;
     const query = `
       UPDATE live_room_participants 
-      SET left_at = CURRENT_TIMESTAMP
+      SET left_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL
       RETURNING id
     `;
@@ -323,7 +325,7 @@ export class LiveRoomModel {
     const db = client || pool;
     // Mark all participants as left
     await db.query(
-      `UPDATE live_room_participants SET left_at = CURRENT_TIMESTAMP WHERE room_id = $1 AND left_at IS NULL`,
+      `UPDATE live_room_participants SET left_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE room_id = $1 AND left_at IS NULL`,
       [roomId]
     );
 

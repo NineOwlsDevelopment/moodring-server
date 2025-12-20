@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatUSDC, formatDate, capitalizeWords } from "@/utils/format";
-import { Market } from "@/data/dummyData";
+import { Market } from "@/types/market";
 import {
   fetchMarkets,
   resolveMarket,

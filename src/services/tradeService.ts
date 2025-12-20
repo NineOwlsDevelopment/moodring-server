@@ -538,7 +538,7 @@ export class TradeService {
     await client.query(
       `UPDATE markets SET
         shared_pool_liquidity = $1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $2`,
       [newPoolLiquidity, marketId]
     );
@@ -560,7 +560,7 @@ export class TradeService {
         total_no_cost = 0,
         realized_pnl = realized_pnl + $1,
         is_claimed = TRUE,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE user_id = $2 AND option_id = $3`,
       [realizedPnl, userId, optionId]
     );
@@ -607,7 +607,7 @@ export class TradeService {
           yes_shares = $1,
           total_yes_cost = $2,
           realized_pnl = realized_pnl + $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE user_id = $4 AND option_id = $5`,
         [
           newYesShares,
@@ -629,7 +629,7 @@ export class TradeService {
           no_shares = $1,
           total_no_cost = $2,
           realized_pnl = realized_pnl + $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE user_id = $4 AND option_id = $5`,
         [newNoShares, newTotalNoCost, Math.round(realizedPnl), userId, optionId]
       );

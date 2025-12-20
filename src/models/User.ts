@@ -11,8 +11,8 @@ export interface User {
   username?: string | null;
   display_name?: string | null;
   avatar_url?: string | null;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
   isAdmin?: boolean;
 }
 
@@ -68,9 +68,10 @@ export class UserModel {
     }
 
     try {
+      const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
       const result = await db.query(
-        "INSERT INTO users (email, username, display_name) VALUES ($1, $2, $3) RETURNING *",
-        [email || null, username || null, display_name || null]
+        "INSERT INTO users (email, username, display_name, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, username, display_name, created_at, updated_at",
+        [email || null, username || null, display_name || null, now, now]
       );
 
       return result.rows[0];
@@ -171,7 +172,7 @@ export class UserModel {
       throw new Error("No fields to update");
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    updates.push(`updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT`);
     values.push(id);
 
     const query = `

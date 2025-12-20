@@ -197,10 +197,9 @@ export const updateCurrentUser = async (
       if (isChangingDisplayName) {
         // Check 30-day restriction
         if (currentUser.display_name_changed_at) {
-          const lastChanged = new Date(currentUser.display_name_changed_at);
-          const now = new Date();
-          const daysSinceChange =
-            (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+          const lastChanged = currentUser.display_name_changed_at;
+          const now = Math.floor(Date.now() / 1000);
+          const daysSinceChange = (now - lastChanged) / (60 * 60 * 24);
 
           if (daysSinceChange < 30) {
             const daysRemaining = Math.ceil(30 - daysSinceChange);
@@ -227,7 +226,9 @@ export const updateCurrentUser = async (
         updates.push(`display_name = $${paramCount}`);
         values.push(display_name);
         paramCount++;
-        updates.push(`display_name_changed_at = CURRENT_TIMESTAMP`);
+        updates.push(
+          `display_name_changed_at = EXTRACT(EPOCH FROM NOW())::BIGINT`
+        );
       }
     }
 
@@ -235,14 +236,14 @@ export const updateCurrentUser = async (
       return sendValidationError(res, "No valid fields to update");
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    updates.push(`updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT`);
     values.push(userId);
 
     if (updates.length === 0) {
       return sendValidationError(res, "No valid fields to update");
     }
 
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    updates.push(`updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT`);
     values.push(userId);
 
     const query = `
@@ -332,7 +333,7 @@ export const uploadAvatar = async (req: UploadAvatarRequest, res: Response) => {
     // Update user's avatar_url in database
     const result = await pool.query(
       `UPDATE users 
-       SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP 
+       SET avatar_url = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
        WHERE id = $2 
        RETURNING id, username, display_name, avatar_url, created_at, updated_at`,
       [avatarUrl, userId]

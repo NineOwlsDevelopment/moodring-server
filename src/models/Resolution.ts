@@ -25,7 +25,7 @@ export interface ResolutionSubmission {
   outcome: string;
   evidence: any | null;
   signature: string | null;
-  submitted_at: Date;
+  submitted_at: number;
 }
 
 export interface MarketResolution {
@@ -35,7 +35,7 @@ export interface MarketResolution {
   resolver_summary: any;
   resolution_trace: any;
   canonical_hash: string;
-  resolved_at: Date;
+  resolved_at: number;
 }
 
 export interface ResolutionConfig {
@@ -66,10 +66,11 @@ export class ResolutionSubmissionModel {
     client?: QueryClient
   ): Promise<ResolutionSubmission> {
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO resolution_submissions (market_id, user_id, outcome, evidence, signature)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO resolution_submissions (market_id, user_id, outcome, evidence, signature, submitted_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const values = [
@@ -78,6 +79,7 @@ export class ResolutionSubmissionModel {
       data.outcome,
       prepareJsonb(data.evidence),
       data.signature || null,
+      now,
     ];
     const result = await db.query(query, values);
     return {
@@ -138,12 +140,13 @@ export class MarketResolutionModel {
     client?: QueryClient
   ): Promise<MarketResolution> {
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
     const query = `
       INSERT INTO market_resolutions (
         market_id, final_outcome, resolution_mode,
-        resolver_summary, resolution_trace, canonical_hash
+        resolver_summary, resolution_trace, canonical_hash, resolved_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const values = [
@@ -153,6 +156,7 @@ export class MarketResolutionModel {
       prepareJsonb(data.resolver_summary),
       prepareJsonb(data.resolution_trace),
       data.canonical_hash,
+      now,
     ];
     const result = await db.query(query, values);
     return {

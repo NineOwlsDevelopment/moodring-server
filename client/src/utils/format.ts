@@ -252,23 +252,23 @@ export const normalizeDbTimestamp = (s: string): Date => {
   return new Date(iso);
 };
 
-export const formatDistanceToNow = (isoUtc: string): string => {
-  const then = new Date(isoUtc).getTime();
-  console.log("then", new Date(then).toLocaleString());
+export const formatDistanceToNow = (isoUtc: number): string => {
+  const then = Number(isoUtc);
   if (!Number.isFinite(then)) return "recently";
 
-  const diffMs = new Date(then).getTime() - Date.now();
+  // Handle both seconds and milliseconds timestamps
+  // If the number is very large (> year 2001 in seconds), it's likely milliseconds
+  const thenMs = then > 100000000000 ? then : then * 1000;
+  const diffMs = thenMs - Date.now();
 
-  const sec = Math.floor(diffMs / 1000);
+  const sec = Math.floor(Math.abs(diffMs / 1000));
   const min = Math.floor(sec / 60);
   const hr = Math.floor(min / 60);
   const day = Math.floor(hr / 24);
 
-  const suffix = diffMs >= 0 ? "ago" : "in";
+  const suffix = diffMs <= 0 ? "ago" : "in";
 
-  console.log(sec, min, hr, day);
-
-  if (sec < 60) return diffMs >= 0 ? "just now" : "in a moment";
+  if (sec < 60) return diffMs <= 0 ? "just now" : "in a moment";
   if (min < 60) return `${min}m ${suffix}`;
   if (hr < 24) return `${hr}h ${suffix}`;
   if (day < 7) return `${day}d ${suffix}`;

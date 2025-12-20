@@ -339,8 +339,8 @@ class DepositListener {
       signature: signatureInfo.signature, // Unique transaction identifier
       slot: signatureInfo.slot, // Solana slot number
       block_time: signatureInfo.blockTime
-        ? new Date(signatureInfo.blockTime * 1000) // Convert Unix timestamp to Date
-        : null,
+        ? signatureInfo.blockTime // Already a Unix timestamp in seconds
+        : undefined,
       amount: Number(tokenDeltaInfo.delta), // Amount in micro-USDC (6 decimals)
       token_symbol: "USDC",
       source: sourceAccount, // Where the deposit came from
@@ -403,7 +403,7 @@ class DepositListener {
     const { pool } = await import("../db");
     // Increment the wallet's USDC balance by the deposit amount
     await pool.query(
-      `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
       [amount, walletId]
     );
   }

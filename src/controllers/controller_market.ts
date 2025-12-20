@@ -20,6 +20,7 @@ import {
 } from "../utils/lmsr";
 import { MoodringAdminModel, MoodringModel } from "../models/Moodring";
 import { WatchlistModel } from "../models/Watchlist";
+import { LpPositionModel } from "../models/LpPosition";
 import { PoolClient } from "pg";
 import { ResolutionMode, MarketStatus } from "../models/Resolution";
 import { withTransaction, TransactionError } from "../utils/transaction";
@@ -350,7 +351,7 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       // Deduct market creation fee from wallet
       if (marketCreationFee > 0) {
         await client.query(
-          `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+          `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE user_id = $2`,
           [marketCreationFee, userId]
         );
 
@@ -401,43 +402,34 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       // Generate unique ID for shared pool vault
       const sharedPoolVault = uuidv4();
 
-      // Create market in database
-      const marketResult = await client.query(
-        `INSERT INTO markets (
-          creator_id, question, market_description, image_url,
-          expiration_timestamp, designated_resolver, shared_pool_vault,
-          is_binary, is_verified, is_resolved, is_initialized,
-          liquidity_parameter, base_liquidity_parameter, shared_pool_liquidity, total_shared_lp_shares,
-          resolution_mode, bond_amount, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-        RETURNING *`,
-        [
-          userId,
-          normalizedQuestion.trim().toLowerCase(),
-          marketDescription || "",
-          imageUrl,
-          expirationTimestamp,
-          designatedResolver || null,
-          sharedPoolVault,
-          String(isBinary) === "true",
-          false,
-          false,
-          false,
-          0,
-          DEFAULT_BASE_LIQUIDITY_PARAM,
-          0,
-          0,
-          resolutionMode,
-          bondAmount,
-          MarketStatus.OPEN,
-        ]
-      );
-      const createdMarket = marketResult.rows[0];
+      // Create market using model
+      // resolutionMode is validated above, so it's guaranteed to be defined here
+      if (!resolutionMode) {
+        throw new TransactionError(400, "Resolution mode is required");
+      }
 
-      // Add category link (exactly one category)
-      await client.query(
-        `INSERT INTO market_category_links (market_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [createdMarket.id, categoryId]
+      const createdMarket = await MarketModel.create(
+        {
+          creator_id: userId as UUID,
+          question: normalizedQuestion.trim().toLowerCase(),
+          market_description: marketDescription || "",
+          image_url: imageUrl,
+          expiration_timestamp: expirationTimestamp,
+          designated_resolver: designatedResolver || null,
+          shared_pool_vault: sharedPoolVault,
+          is_binary: String(isBinary) === "true",
+          is_verified: false,
+          is_resolved: false,
+          is_initialized: false,
+          liquidity_parameter: 0,
+          base_liquidity_parameter: DEFAULT_BASE_LIQUIDITY_PARAM,
+          shared_pool_liquidity: 0,
+          total_shared_lp_shares: 0,
+          resolution_mode: resolutionMode as ResolutionMode,
+          bond_amount: bondAmount,
+          category_ids: [categoryId],
+        },
+        client
       );
 
       return createdMarket.id;
@@ -448,7 +440,7 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       user_id: userId as UUID,
       activity_type: "market_created",
       entity_type: "market",
-      entity_id: marketId,
+      entity_id: marketId as string,
       metadata: {
         question: normalizedQuestion,
         expiration: expirationTimestamp,
@@ -573,18 +565,21 @@ export const createOption = async (req: CreateOptionRequest, res: Response) => {
         }
       }
 
-      // Create option in database (store lowercase)
-      const optionResult = await client.query(
-        `INSERT INTO market_options (market_id, option_label, option_image_url, yes_quantity, no_quantity)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
-        [market, optionLabel.trim().toLowerCase(), imageUrl, 0, 0]
+      // Create option using model (store lowercase)
+      const createdOption = await OptionModel.create(
+        {
+          market_id: market as UUID,
+          option_label: optionLabel.trim().toLowerCase(),
+          option_image_url: imageUrl,
+          yes_quantity: 0,
+          no_quantity: 0,
+        },
+        client
       );
-      const createdOption = optionResult.rows[0];
 
       // Update market total_options
       await client.query(
-        `UPDATE markets SET total_options = total_options + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE markets SET total_options = total_options + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [market]
       );
 
@@ -888,7 +883,7 @@ export const getTrendingMarkets = async (
           SUM(total_cost) as recent_volume,
           COUNT(*) as recent_trades
         FROM trades
-        WHERE created_at > NOW() - INTERVAL '24 hours' AND status = 'completed'
+        WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')::BIGINT AND status = 'completed'
         GROUP BY market_id
       ) t ON m.id = t.market_id
       WHERE m.is_resolved = FALSE AND m.is_initialized = TRUE
@@ -1304,7 +1299,7 @@ export const initializeMarket = async (
 
       // Deduct from user wallet
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
         [parsedLiquidity, wallet.id]
       );
 
@@ -1315,16 +1310,21 @@ export const initializeMarket = async (
         shared_pool_liquidity = $2,
         total_shared_lp_shares = $3,
         liquidity_parameter = $4,
-        updated_at = CURRENT_TIMESTAMP 
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
       WHERE id = $1`,
         [market, parsedLiquidity, initialShares, liquidityParam]
       );
 
-      // Create LP position for the creator
-      await client.query(
-        `INSERT INTO lp_positions (user_id, market_id, shares, deposited_amount, lp_token_balance)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [userId, market, initialShares, parsedLiquidity, initialShares]
+      // Create LP position for the creator using model
+      await LpPositionModel.create(
+        {
+          user_id: userId,
+          market_id: market,
+          shares: initialShares,
+          deposited_amount: parsedLiquidity,
+          lp_token_balance: initialShares,
+        },
+        client
       );
 
       return { options, initialShares, liquidityParam };
@@ -1480,7 +1480,7 @@ async function autoCreditWinnings(
     // Update wallets for winners
     for (const update of winnerUpdates) {
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
         [update.payout, update.walletId]
       );
     }
@@ -1495,7 +1495,7 @@ async function autoCreditWinnings(
           total_no_cost = 0,
           realized_pnl = realized_pnl + $1,
           is_claimed = TRUE,
-          updated_at = CURRENT_TIMESTAMP 
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE user_id = $2 AND option_id = $3`,
         [update.realizedPnl, update.userId, optionId]
       );
@@ -1511,7 +1511,7 @@ async function autoCreditWinnings(
           total_no_cost = 0,
           realized_pnl = realized_pnl + $1,
           is_claimed = TRUE,
-          updated_at = CURRENT_TIMESTAMP 
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
          WHERE user_id = $2 AND option_id = $3`,
         [update.realizedPnl, update.userId, optionId]
       );
@@ -1524,7 +1524,7 @@ async function autoCreditWinnings(
     await client.query(
       `UPDATE markets SET 
         shared_pool_liquidity = $1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $2`,
       [currentPoolLiquidity, marketId]
     );
@@ -1715,11 +1715,11 @@ export const resolveMarket = async (
         `UPDATE market_options SET 
         is_resolved = TRUE,
         winning_side = $1,
-        resolved_at = CURRENT_TIMESTAMP,
+        resolved_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
         resolved_reason = $2,
         resolved_by = $3,
         dispute_deadline = $4,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $5`,
         [winningSideNum, reason || null, userId, disputeDeadline, option]
       );
@@ -1728,7 +1728,7 @@ export const resolveMarket = async (
       await client.query(
         `UPDATE markets SET 
         resolved_options = resolved_options + 1,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $1`,
         [market]
       );
@@ -1744,7 +1744,7 @@ export const resolveMarket = async (
 
       if (Number(resolved) >= Number(total)) {
         await client.query(
-          `UPDATE markets SET is_resolved = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          `UPDATE markets SET is_resolved = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
           [market]
         );
       }
@@ -1833,7 +1833,7 @@ export const withdrawCreatorFee = async (
 
       // Transfer fees to creator wallet
       await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE user_id = $2`,
         [feesToWithdraw, userId]
       );
 
@@ -1846,7 +1846,7 @@ export const withdrawCreatorFee = async (
 
       // Reset collected fees
       await client.query(
-        `UPDATE markets SET creator_fees_collected = 0, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE markets SET creator_fees_collected = 0, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [market]
       );
 

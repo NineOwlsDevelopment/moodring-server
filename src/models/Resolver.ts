@@ -24,8 +24,8 @@ export interface Resolver {
   public_key: string | null;
   bond_balance: number;
   reputation_score: number;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface MarketResolver {
@@ -33,7 +33,7 @@ export interface MarketResolver {
   resolver_id: UUID;
   role: ResolverRole;
   bond_committed: number;
-  created_at: Date;
+  created_at: number;
 }
 
 export class ResolverModel {
@@ -78,9 +78,10 @@ export class ResolverModel {
     client?: QueryClient
   ): Promise<Resolver> {
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
     const query = `
-      INSERT INTO resolvers (type, name, public_key, bond_balance, reputation_score)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO resolvers (type, name, public_key, bond_balance, reputation_score, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const values = [
@@ -89,6 +90,8 @@ export class ResolverModel {
       data.public_key || null,
       data.bond_balance || 0,
       data.reputation_score || 0,
+      now,
+      now,
     ];
     const result = await db.query(query, values);
     return result.rows[0];
@@ -102,7 +105,7 @@ export class ResolverModel {
     const db = client || pool;
     const query = `
       UPDATE resolvers
-      SET bond_balance = bond_balance + $1, updated_at = CURRENT_TIMESTAMP
+      SET bond_balance = bond_balance + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2
       RETURNING *
     `;
@@ -118,7 +121,7 @@ export class ResolverModel {
     const db = client || pool;
     const query = `
       UPDATE resolvers
-      SET reputation_score = GREATEST(0, reputation_score + $1), updated_at = CURRENT_TIMESTAMP
+      SET reputation_score = GREATEST(0, reputation_score + $1), updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $2
       RETURNING *
     `;
@@ -134,9 +137,10 @@ export class ResolverModel {
     client?: QueryClient
   ): Promise<MarketResolver> {
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
     const query = `
-      INSERT INTO market_resolvers (market_id, resolver_id, role, bond_committed)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO market_resolvers (market_id, resolver_id, role, bond_committed, created_at)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (market_id, resolver_id) DO UPDATE
       SET role = EXCLUDED.role, bond_committed = EXCLUDED.bond_committed
       RETURNING *
@@ -146,6 +150,7 @@ export class ResolverModel {
       resolverId,
       role,
       bondCommitted,
+      now,
     ]);
     return result.rows[0];
   }

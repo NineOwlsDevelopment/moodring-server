@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Market } from "@/data/dummyData";
+import { Market } from "@/types/market";
 import {
   formatUSDC,
   formatTimeRemaining,
@@ -191,7 +191,7 @@ const MarketCardComponent = ({
             )}
             {/* Timestamp */}
             <span className="text-xs text-moon-grey-dark">
-              {formatDistanceToNow(market.created_at.toString())}
+              {formatDistanceToNow(market.created_at)}
             </span>
           </div>
 

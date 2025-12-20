@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { PriceHistoryPoint } from "@/data/dummyData";
+import { PriceHistoryPoint } from "@/types/market";
 import { formatProbability, formatShortDate } from "@/utils/format";
 
 interface MarketChartProps {

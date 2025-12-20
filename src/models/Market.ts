@@ -38,8 +38,8 @@ export interface Market {
   resolution_mode: ResolutionMode | null;
   bond_amount: number;
   status: MarketStatus;
-  created_at: Date;
-  updated_at: Date;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface MarketWithCategories extends Market {
@@ -62,6 +62,11 @@ export interface MarketCreateInput {
   // Resolution fields (required)
   resolution_mode: ResolutionMode;
   bond_amount?: number;
+  // Optional liquidity fields (defaults to 0)
+  liquidity_parameter?: number;
+  base_liquidity_parameter?: number;
+  shared_pool_liquidity?: number;
+  total_shared_lp_shares?: number;
 }
 
 export class MarketModel {
@@ -84,6 +89,10 @@ export class MarketModel {
       category_ids = [],
       resolution_mode,
       bond_amount = 0,
+      liquidity_parameter = 0,
+      base_liquidity_parameter = 0,
+      shared_pool_liquidity = 0,
+      total_shared_lp_shares = 0,
     } = data;
     const db = client || pool;
 
@@ -91,6 +100,8 @@ export class MarketModel {
     if (!resolution_mode) {
       throw new Error("Resolution mode is required for market creation");
     }
+
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
       INSERT INTO markets (
@@ -105,11 +116,17 @@ export class MarketModel {
         is_verified,
         is_resolved,
         is_initialized,
+        liquidity_parameter,
+        base_liquidity_parameter,
+        shared_pool_liquidity,
+        total_shared_lp_shares,
         resolution_mode,
         bond_amount,
-        status
+        status,
+        created_at,
+        updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
       ) RETURNING *
     `;
 
@@ -125,9 +142,15 @@ export class MarketModel {
       is_verified,
       is_resolved,
       is_initialized,
+      liquidity_parameter,
+      base_liquidity_parameter,
+      shared_pool_liquidity,
+      total_shared_lp_shares,
       resolution_mode,
       bond_amount,
       "OPEN",
+      now,
+      now,
     ];
 
     try {
@@ -166,13 +189,27 @@ export class MarketModel {
       values.push(marketId, categoryId);
     });
 
+    const now = Math.floor(Date.now() / 1000);
+    // Add created_at to each pair of values
+    const valuesWithTimestamps: any[] = [];
+    for (let i = 0; i < values.length; i += 2) {
+      valuesWithTimestamps.push(values[i], values[i + 1], now);
+    }
+    const placeholdersWithTimestamp: string[] = [];
+    for (let i = 0; i < categoryIds.length; i++) {
+      const offset = i * 3;
+      placeholdersWithTimestamp.push(
+        `($${offset + 1}, $${offset + 2}, $${offset + 3})`
+      );
+    }
+
     const query = `
-      INSERT INTO market_category_links (market_id, category_id)
-      VALUES ${placeholders.join(", ")}
+      INSERT INTO market_category_links (market_id, category_id, created_at)
+      VALUES ${placeholdersWithTimestamp.join(", ")}
       ON CONFLICT (market_id, category_id) DO NOTHING
     `;
 
-    await db.query(query, values);
+    await db.query(query, valuesWithTimestamps);
   }
 
   /**
@@ -284,7 +321,7 @@ export class MarketModel {
     values.push(id);
     const query = `
       UPDATE markets
-      SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
+      SET ${updates.join(", ")}, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
       WHERE id = $${paramCount}
       RETURNING *
     `;

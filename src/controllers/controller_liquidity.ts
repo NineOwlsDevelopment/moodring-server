@@ -148,7 +148,7 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
 
             // Deduct from user wallet
             await client.query(
-              `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+              `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
               [parsedAmount, wallet.id]
             );
 
@@ -170,22 +170,21 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
           shared_pool_liquidity = $1,
           total_shared_lp_shares = $2,
           liquidity_parameter = $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE id = $4`,
               [newLiquidity, newTotalShares, newLiquidityParam, marketId]
             );
 
-            // Create/update LP position with token balance
-            await client.query(
-              `INSERT INTO lp_positions (user_id, market_id, shares, deposited_amount, lp_token_balance)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (user_id, market_id) 
-         DO UPDATE SET 
-           shares = lp_positions.shares + EXCLUDED.shares,
-           deposited_amount = lp_positions.deposited_amount + EXCLUDED.deposited_amount,
-           lp_token_balance = lp_positions.lp_token_balance + EXCLUDED.lp_token_balance,
-           updated_at = CURRENT_TIMESTAMP`,
-              [userId, marketId, sharesToMint, parsedAmount, sharesToMint]
+            // Create/update LP position with token balance using model
+            await LpPositionModel.create(
+              {
+                user_id: userId,
+                market_id: marketId,
+                shares: sharesToMint,
+                deposited_amount: parsedAmount,
+                lp_token_balance: sharesToMint,
+              },
+              client
             );
 
             return {
@@ -329,7 +328,7 @@ export const removeLiquidity = async (
             } else {
               await client.query(
                 `UPDATE lp_positions 
-           SET shares = $3, deposited_amount = $4, lp_token_balance = $5, updated_at = CURRENT_TIMESTAMP
+           SET shares = $3, deposited_amount = $4, lp_token_balance = $5, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
            WHERE user_id = $1 AND market_id = $2`,
                 [
                   userId,
@@ -364,7 +363,7 @@ export const removeLiquidity = async (
           total_shared_lp_shares = $2,
           accumulated_lp_fees = $3,
           liquidity_parameter = $4,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE id = $5`,
               [
                 newPoolLiquidity,
@@ -377,7 +376,7 @@ export const removeLiquidity = async (
 
             // Credit user wallet
             await client.query(
-              `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+              `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE user_id = $2`,
               [usdcToReturn, userId]
             );
 
@@ -698,7 +697,7 @@ export const claimLpRewards = async (
            SET shares = $3, 
                deposited_amount = $4, 
                lp_token_balance = $5,
-               updated_at = CURRENT_TIMESTAMP
+               updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
            WHERE user_id = $1 AND market_id = $2`,
                 [
                   userId,
@@ -726,14 +725,14 @@ export const claimLpRewards = async (
           shared_pool_liquidity = $1,
           total_shared_lp_shares = $2,
           accumulated_lp_fees = $3,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
          WHERE id = $4`,
               [newPoolLiquidity, newTotalShares, newAccumulatedFees, marketId]
             );
 
             // Credit user wallet
             await client.query(
-              `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+              `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE user_id = $2`,
               [payout, userId]
             );
 

@@ -28,7 +28,7 @@ export interface Activity {
   entity_id: string | null;
   metadata: Record<string, any> | null;
   is_public: boolean;
-  created_at: Date;
+  created_at: number;
 }
 
 export interface ActivityCreateInput {
@@ -62,10 +62,11 @@ export class ActivityModel {
       is_public = true,
     } = data;
     const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
 
     const query = `
-      INSERT INTO activities (user_id, activity_type, entity_type, entity_id, metadata, is_public)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO activities (user_id, activity_type, entity_type, entity_id, metadata, is_public, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
@@ -76,6 +77,7 @@ export class ActivityModel {
       entity_id,
       metadata ? JSON.stringify(metadata) : null,
       is_public,
+      now,
     ]);
     return result.rows[0];
   }

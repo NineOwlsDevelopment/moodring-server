@@ -1,5 +1,5 @@
 import api from "@/config/axios";
-import { Market } from "@/data/dummyData";
+import { Market } from "@/types/market";
 import { apiCache, CACHE_TTL } from "@/utils/cache";
 
 // ============================================
