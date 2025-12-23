@@ -525,12 +525,14 @@ export const authenticateWithWallet = async (
           if (usedAt > 0) {
             throw new TransactionError(401, "Nonce has already been used");
           }
+
           if (record.wallet_address !== normalizedAddress) {
             throw new TransactionError(
               401,
               `Nonce does not match wallet address. Expected: ${normalizedAddress}, Got: ${record.wallet_address}`
             );
           }
+
           if (currentTime > expiresAt) {
             throw new TransactionError(401, "Nonce has expired");
           }

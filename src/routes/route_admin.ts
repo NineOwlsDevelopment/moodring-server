@@ -26,6 +26,9 @@ import {
   getUserSuspiciousTrades,
   toggleUserAdmin,
   createCircleHotWallet,
+  getDisputes,
+  getDispute,
+  resolveDispute,
 } from "../controllers/controller_admin";
 import { authenticateToken } from "../middleware/auth";
 import { requireAdmin } from "../middleware/admin";
@@ -84,5 +87,10 @@ router.get("/suspicious-trades", typedHandler(getSuspiciousTrades));
 router.get("/suspicious-trades/stats", getSuspiciousTradesStats);
 router.post("/suspicious-trades/:id/review", reviewSuspiciousTrade);
 router.get("/suspicious-trades/user/:userId", getUserSuspiciousTrades);
+
+// Dispute management
+router.get("/disputes", typedHandler(getDisputes));
+router.get("/disputes/:id", typedHandler(getDispute));
+router.post("/disputes/:id/resolve", typedHandler(resolveDispute));
 
 export default router;

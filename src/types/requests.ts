@@ -113,7 +113,6 @@ export interface CreateMarketRequest extends UserRequest {
     marketDescription?: string;
     marketExpirationDate: string;
     isBinary: boolean;
-    designatedResolver?: string;
     categoryIds?: string[];
     resolutionMode?: ResolutionMode;
   };
@@ -397,8 +396,6 @@ export interface RequestWithdrawalRequest extends UserRequest {
   body: {
     destination_address: string;
     amount: number;
-    // Note: idempotency_key is generated server-side for security
-    // Client-provided keys are not accepted to prevent manipulation
   };
 }
 
@@ -583,6 +580,7 @@ export interface SubmitResolutionRequest extends UserRequest {
     marketId: string;
     outcome: string;
     optionId?: string; // Optional: for option-level resolution
+    winningSide?: 1 | 2; // Optional: 1 = YES (wins), 2 = NO (loses). If provided, overrides resolution engine
     evidence?: string;
     signature?: string;
   };
@@ -606,14 +604,6 @@ export interface DisputeResolutionRequest extends UserRequest {
     optionId: string;
     reason: string;
     evidence?: string;
-  };
-}
-
-export interface FinalizeOptionResolutionRequest extends UserRequest {
-  body: {
-    marketId: string;
-    optionId: string;
-    winningSide?: 1 | 2; // Optional: directly specify YES (1) or NO (2), otherwise use resolution engine
   };
 }
 
@@ -855,5 +845,30 @@ export interface GetAdminSettingsGroupRequest extends UserRequest {
       | "dispute_controls"
       | "feature_flags"
       | "platform_fees";
+  };
+}
+
+export interface GetDisputesRequest extends UserRequest {
+  query: {
+    page?: string;
+    limit?: string;
+    status?: "pending" | "reviewed" | "resolved" | "dismissed";
+    market_id?: string;
+  };
+}
+
+export interface GetDisputeRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+}
+
+export interface ResolveDisputeRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+  body: {
+    status: "resolved" | "dismissed";
+    review_notes?: string;
   };
 }

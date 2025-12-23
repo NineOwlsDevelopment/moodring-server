@@ -9,19 +9,7 @@ import {
 } from "@/utils/format";
 import { useActivitySocket } from "@/hooks/useSocket";
 import { ActivityUpdate } from "@/services/socket";
-import {
-  BarChart3,
-  PlusCircle,
-  CheckCircle,
-  Coins,
-  Trophy,
-  Activity as ActivityIcon,
-  ArrowRight,
-  ArrowDownToLine,
-  Droplets,
-  UserPlus,
-  MessageCircle,
-} from "lucide-react";
+import { Activity as ActivityIcon, ArrowRight } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 
 interface ActivityFeedProps {
@@ -32,34 +20,6 @@ interface ActivityFeedProps {
 // Helper to get activity type - handles both 'type' and 'activity_type' from API
 const getType = (activity: any): string => {
   return activity.type || activity.activity_type || "unknown";
-};
-
-const getActivityIcon = (type: string) => {
-  switch (type) {
-    case "trade":
-      return <BarChart3 className="w-5 h-5 text-neon-iris" />;
-    case "market_created":
-    case "market_initialized":
-      return <PlusCircle className="w-5 h-5 text-aqua-pulse" />;
-    case "market_resolved":
-      return <CheckCircle className="w-5 h-5 text-brand-success" />;
-    case "deposit":
-      return <Coins className="w-5 h-5 text-brand-warning" />;
-    case "withdrawal":
-      return <ArrowDownToLine className="w-5 h-5 text-amber-400" />;
-    case "claim":
-    case "lp_rewards_claimed":
-      return <Trophy className="w-5 h-5 text-amber-400" />;
-    case "liquidity_added":
-    case "liquidity_removed":
-      return <Droplets className="w-5 h-5 text-aqua-pulse" />;
-    case "user_joined":
-      return <UserPlus className="w-5 h-5 text-neon-iris" />;
-    case "comment":
-      return <MessageCircle className="w-5 h-5 text-moon-grey" />;
-    default:
-      return <ActivityIcon className="w-5 h-5 text-moon-grey" />;
-  }
 };
 
 export const ActivityFeed = ({
@@ -346,7 +306,6 @@ export const ActivityFeed = ({
 
       <div className="space-y-2 max-h-[400px] overflow-y-auto">
         {activities.map((activity, index) => {
-          const activityType = getType(activity);
           const { market_id, market_question } = getMarketInfo(activity);
 
           return (
@@ -376,7 +335,7 @@ export const ActivityFeed = ({
                 )}
               </div>
               <div className="text-xs text-moon-grey-dark flex-shrink-0 whitespace-nowrap">
-                {formatDistanceToNow(activity.created_at)}
+                {formatDistanceToNow(Number(activity.created_at))}
               </div>
             </div>
           );

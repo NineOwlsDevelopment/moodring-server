@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { formatUSDC, formatDate, capitalizeWords } from "@/utils/format";
+import { formatUSDC, capitalizeWords } from "@/utils/format";
 import { Market } from "@/types/market";
 import {
   fetchMarkets,
-  resolveMarket,
+  submitResolution,
   toggleMarketFeatured,
   toggleMarketVerified,
-  MarketApiResponse,
 } from "@/api/api";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -55,11 +54,12 @@ export const AdminMarkets = () => {
 
     try {
       setResolvingMarketId(selectedMarket.id);
-      await resolveMarket({
-        market: selectedMarket.id,
-        option: selectedOption.id,
+      await submitResolution({
+        marketId: selectedMarket.id,
+        optionId: selectedOption.id,
+        outcome: selectedOption.option_label,
         winningSide,
-        reason: reason.trim() || undefined,
+        evidence: reason.trim() ? { notes: reason.trim() } : undefined,
       });
       toast.success("Market option resolved successfully");
       setShowResolveModal(false);
@@ -80,10 +80,10 @@ export const AdminMarkets = () => {
   const handleToggleFeatured = async (market: Market) => {
     try {
       await toggleMarketFeatured(market.id, {
-        is_featured: !market.is_featured,
+        is_featured: !(market as any).is_featured,
       });
       toast.success(
-        market.is_featured
+        (market as any).is_featured
           ? "Market unfeatured"
           : "Market featured successfully"
       );
@@ -214,7 +214,7 @@ export const AdminMarkets = () => {
                             : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                         }`}
                       >
-                        {market.is_resolved ? "Resolved" : "Active"}
+                        {(market as any).is_resolved ? "Resolved" : "Active"}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -222,12 +222,12 @@ export const AdminMarkets = () => {
                         <button
                           onClick={() => handleToggleFeatured(market)}
                           className={`text-xs px-2 py-1 rounded ${
-                            market.is_featured
+                            (market as any).is_featured
                               ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
                               : "bg-gray-700 text-gray-400 border border-gray-600"
                           }`}
                         >
-                          {market.is_featured ? "Featured" : "Feature"}
+                          {(market as any).is_featured ? "Featured" : "Feature"}
                         </button>
                         <button
                           onClick={() => handleToggleVerified(market)}
@@ -315,7 +315,7 @@ export const AdminMarkets = () => {
                     type="radio"
                     value={1}
                     checked={winningSide === 1}
-                    onChange={(e) => setWinningSide(1)}
+                    onChange={() => setWinningSide(1)}
                     className="mr-2"
                   />
                   <span className="text-gray-300">YES</span>
@@ -325,7 +325,7 @@ export const AdminMarkets = () => {
                     type="radio"
                     value={2}
                     checked={winningSide === 2}
-                    onChange={(e) => setWinningSide(2)}
+                    onChange={() => setWinningSide(2)}
                     className="mr-2"
                   />
                   <span className="text-gray-300">NO</span>

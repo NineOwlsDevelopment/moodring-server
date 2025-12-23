@@ -143,6 +143,9 @@ export const Navbar = () => {
             <span className="text-xl font-bold text-white group-hover:text-gradient transition-all hidden sm:block">
               Moodring
             </span>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neon-iris bg-neon-iris/10 border border-neon-iris/30 rounded-md">
+              Beta
+            </span>
           </Link>
 
           {/* Desktop Navigation Links */}

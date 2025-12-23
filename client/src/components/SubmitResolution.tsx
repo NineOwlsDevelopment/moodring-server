@@ -103,6 +103,7 @@ export const SubmitResolution = ({
 
       await submitResolution({
         marketId: market.id,
+        optionId: market.options?.[0]?.id,
         outcome: selectedOutcome,
         // Note: optionId can be added here if needed for option-level submissions
         evidence: Object.keys(evidenceObj).length > 0 ? evidenceObj : null,

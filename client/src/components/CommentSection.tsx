@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useUserStore } from "@/stores/userStore";
 import {
@@ -169,7 +169,9 @@ const CommentItem = ({
               {truncateUsername(comment.display_name || comment.username || "")}
             </Link>
             <span className="text-xs text-moon-grey-dark">
-              {formatDistanceToNow(comment.created_at)}
+              {formatDistanceToNow(
+                new Date(comment.created_at).getTime() / 1000
+              )}
             </span>
           </div>
 
@@ -275,7 +277,7 @@ const CommentItem = ({
   );
 };
 
-export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
+export const CommentSection = ({ marketId }: CommentSectionProps) => {
   const { user } = useUserStore();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -297,11 +299,20 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     commentId: string | null;
-  }>({ isOpen: false, commentId: null });
+    isLoading: boolean;
+  }>({ isOpen: false, commentId: null, isLoading: false });
+
+  // Track recently added comments to prevent duplicate websocket additions
+  // Track by both comment ID and content hash to catch early websocket events
+  const recentlyAddedCommentsRef = useRef<Set<string>>(new Set());
+  const pendingCommentsRef = useRef<Map<string, string>>(new Map()); // content -> commentId
 
   useEffect(() => {
     setCurrentPage(1);
     setComments([]);
+    // Clear recently added comments when market or sort changes
+    recentlyAddedCommentsRef.current.clear();
+    pendingCommentsRef.current.clear();
     loadComments(1, true);
   }, [marketId, sortBy]);
 
@@ -364,6 +375,12 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
     setIsSubmitting(true);
     setError(null);
     setCommentValidationError(null);
+
+    // Create a content hash to track this comment before API call
+    const contentHash = `${marketId}-${newComment
+      .trim()
+      .slice(0, 50)}-${Date.now()}`;
+
     try {
       const comment = await createComment({
         market_id: marketId,
@@ -371,11 +388,28 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
         parent_id: replyingTo || undefined,
       });
 
+      // Track this comment to prevent duplicate from websocket
+      // Map content hash to comment ID
+      pendingCommentsRef.current.set(contentHash, comment.id);
+      recentlyAddedCommentsRef.current.add(comment.id);
+
+      // Clean up after 10 seconds
+      setTimeout(() => {
+        recentlyAddedCommentsRef.current.delete(comment.id);
+        pendingCommentsRef.current.delete(contentHash);
+      }, 10000);
+
       if (replyingTo) {
         // Refresh to show nested reply
         await loadComments(1, true);
       } else {
-        setComments((prev) => [comment, ...prev]);
+        setComments((prev) => {
+          // Defensive check: don't add if it's already there
+          if (prev.some((c) => c.id === comment.id)) {
+            return prev;
+          }
+          return [comment, ...prev];
+        });
       }
 
       setNewComment("");
@@ -415,21 +449,24 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
   };
 
   const handleDeleteClick = (id: string) => {
-    setDeleteConfirm({ isOpen: true, commentId: id });
+    setDeleteConfirm({ isOpen: true, commentId: id, isLoading: false });
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm.commentId) return;
+
+    // Set loading state immediately
+    setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
 
     try {
       await deleteComment(deleteConfirm.commentId);
       setComments((prev) =>
         prev.filter((c) => c.id !== deleteConfirm.commentId)
       );
-      setDeleteConfirm({ isOpen: false, commentId: null });
+      setDeleteConfirm({ isOpen: false, commentId: null, isLoading: false });
     } catch (error) {
       console.error("Failed to delete comment:", error);
-      setDeleteConfirm({ isOpen: false, commentId: null });
+      setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -457,10 +494,49 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
             } else {
               // For top-level comments, add to the list
               setComments((prev) => {
-                // Don't add if it's already in the list (user's own comment)
-                if (prev.some((c) => c.id === update.comment_id)) {
+                // First check: is it already in the list?
+                const alreadyExists = prev.some(
+                  (c) => c.id === update.comment_id
+                );
+                if (alreadyExists) {
                   return prev;
                 }
+
+                // Second check: was it recently added by current user (optimistic update)?
+                const isRecentlyAdded = recentlyAddedCommentsRef.current.has(
+                  update.comment_id
+                );
+                if (isRecentlyAdded) {
+                  return prev;
+                }
+
+                // Third check: is it in pending comments?
+                const isPending = Array.from(
+                  pendingCommentsRef.current.values()
+                ).includes(update.comment_id);
+                if (isPending) {
+                  return prev;
+                }
+
+                // Fourth check: is it the current user's own comment created very recently?
+                // This catches cases where the websocket arrives before the ref is set
+                if (user && update.comment?.user_id === user.id) {
+                  if (update.comment?.created_at) {
+                    const commentTime =
+                      typeof update.comment.created_at === "number"
+                        ? update.comment.created_at
+                        : new Date(update.comment.created_at).getTime() / 1000;
+                    const now = Math.floor(Date.now() / 1000);
+                    const timeDiff = now - commentTime;
+
+                    // If comment was created in the last 10 seconds by current user, skip it
+                    // (they already added it optimistically)
+                    if (timeDiff < 10) {
+                      return prev;
+                    }
+                  }
+                }
+
                 return [update.comment, ...prev];
               });
             }
@@ -514,7 +590,7 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
           break;
       }
     },
-    [marketId]
+    [marketId, user]
   );
 
   // Subscribe to realtime comment updates
@@ -719,13 +795,16 @@ export const CommentSection = ({ marketId, market }: CommentSectionProps) => {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={deleteConfirm.isOpen}
-        onClose={() => setDeleteConfirm({ isOpen: false, commentId: null })}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, commentId: null, isLoading: false })
+        }
         onConfirm={handleDeleteConfirm}
         title="Delete Comment"
         message="Are you sure you want to delete this comment? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+        isLoading={deleteConfirm.isLoading}
       />
     </div>
   );

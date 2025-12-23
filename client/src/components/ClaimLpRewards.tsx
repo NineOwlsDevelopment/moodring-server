@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useUserStore } from "@/stores/userStore";
-import { claimLpRewards, fetchLiquidityPositions } from "@/api/api";
+import { claimLpRewards } from "@/api/api";
 import { formatUSDC } from "@/utils/format";
 import { toast } from "sonner";
 import api from "@/config/axios";
@@ -16,6 +16,7 @@ interface LpPosition {
   shares: number;
   deposited_amount: number;
   current_value: number;
+  claimable_value?: number;
   pnl: number;
 }
 
@@ -38,13 +39,14 @@ export const ClaimLpRewards = ({
       try {
         const response = await api.get(`/liquidity/position/${marketId}`);
         const pos = response.data.position;
-        
+
         // Only show if user has shares
         if (pos && Number(pos.shares) > 0) {
           setPosition({
             shares: Number(pos.shares),
             deposited_amount: Number(pos.deposited_amount),
             current_value: Number(pos.current_value),
+            claimable_value: Number(pos.claimable_value || pos.current_value),
             pnl: Number(pos.pnl),
           });
         } else {
@@ -88,6 +90,7 @@ export const ClaimLpRewards = ({
           shares: Number(pos.shares),
           deposited_amount: Number(pos.deposited_amount),
           current_value: Number(pos.current_value),
+          claimable_value: Number(pos.claimable_value || pos.current_value),
           pnl: Number(pos.pnl),
         });
       } else {
@@ -114,7 +117,9 @@ export const ClaimLpRewards = ({
 
   if (isLoadingPosition) {
     return (
-      <div className={`${compact ? "py-2" : "px-4 py-2"} text-sm text-gray-400`}>
+      <div
+        className={`${compact ? "py-2" : "px-4 py-2"} text-sm text-gray-400`}
+      >
         Loading LP position...
       </div>
     );
@@ -125,14 +130,18 @@ export const ClaimLpRewards = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-moon-grey-dark mb-1.5">Your LP Position</div>
+            <div className="text-xs text-moon-grey-dark mb-1.5">
+              Your LP Position
+            </div>
             <div className="text-lg font-bold text-white tabular-nums">
               {formatUSDC(position.current_value)}
             </div>
             {position.pnl !== 0 && (
               <div className="text-xs mt-0.5">
                 <span
-                  className={position.pnl >= 0 ? "text-success-400" : "text-danger-400"}
+                  className={
+                    position.pnl >= 0 ? "text-success-400" : "text-danger-400"
+                  }
                 >
                   {position.pnl >= 0 ? "+" : ""}
                   {formatUSDC(position.pnl)} P&L
@@ -146,7 +155,11 @@ export const ClaimLpRewards = ({
           disabled={isClaiming}
           className="w-full btn bg-success-600 hover:bg-success-700 text-white text-sm font-semibold px-4 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-success-600/25"
         >
-          {isClaiming ? "Claiming..." : `Claim ${formatUSDC(position.current_value)}`}
+          {isClaiming
+            ? "Claiming..."
+            : `Claim ${formatUSDC(
+                position.claimable_value || position.current_value
+              )}`}
         </button>
         <div className="text-[10px] text-moon-grey-dark">
           {formatUSDC(position.shares)} LP shares
@@ -175,11 +188,25 @@ export const ClaimLpRewards = ({
                 {formatUSDC(position.current_value)}
               </span>
             </div>
+            {position.claimable_value !== undefined &&
+              position.claimable_value < position.current_value && (
+                <div>
+                  Claimable:{" "}
+                  <span className="text-warning-400">
+                    {formatUSDC(position.claimable_value)}
+                  </span>
+                  <span className="text-gray-500 ml-1">
+                    (reserved for pending claims)
+                  </span>
+                </div>
+              )}
             {position.pnl !== 0 && (
               <div>
                 P&L:{" "}
                 <span
-                  className={position.pnl >= 0 ? "text-success-400" : "text-danger-400"}
+                  className={
+                    position.pnl >= 0 ? "text-success-400" : "text-danger-400"
+                  }
                 >
                   {position.pnl >= 0 ? "+" : ""}
                   {formatUSDC(position.pnl)}
@@ -193,10 +220,13 @@ export const ClaimLpRewards = ({
           disabled={isClaiming}
           className="btn bg-success-600 hover:bg-success-700 text-white text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
-          {isClaiming ? "Claiming..." : `Claim ${formatUSDC(position.current_value)}`}
+          {isClaiming
+            ? "Claiming..."
+            : `Claim ${formatUSDC(
+                position.claimable_value || position.current_value
+              )}`}
         </button>
       </div>
     </div>
   );
 };
-

@@ -646,7 +646,6 @@ export interface CreateMarketParams {
   marketExpirationDate: number;
   usdcMint: string;
   isBinary: boolean;
-  designatedResolver?: string;
   categoryIds?: string[];
   image: File;
   resolutionMode: string;
@@ -694,9 +693,6 @@ export const createMarket = async (
   );
   formData.append("usdcMint", params.usdcMint);
   formData.append("isBinary", params.isBinary.toString());
-  if (params.designatedResolver) {
-    formData.append("designatedResolver", params.designatedResolver);
-  }
   if (params.categoryIds) {
     formData.append("categoryIds", JSON.stringify(params.categoryIds));
   }
@@ -745,35 +741,14 @@ export const initializeMarket = async (
   return response.data;
 };
 
-export interface ResolveMarketParams {
-  market: string;
-  option: string;
-  winningSide: 1 | 2; // 1 = YES, 2 = NO
-  reason?: string;
-}
-
-export interface ResolveMarketResponse {
-  message: string;
-  winning_side: "yes" | "no";
-}
-
-export const resolveMarket = async (
-  params: ResolveMarketParams
-): Promise<ResolveMarketResponse> => {
-  const response = await api.post("/market/resolve", params);
-  // Invalidate market cache
-  apiCache.invalidate(`market:${params.market}`);
-  apiCache.invalidatePattern("markets:");
-  return response.data;
-};
-
 // ============================================
 // RESOLUTION SYSTEM
 // ============================================
 export interface SubmitResolutionParams {
   marketId: string;
   outcome: string;
-  optionId?: string; // Optional: for option-level resolution
+  optionId?: string; // Required: the option ID to resolve
+  winningSide?: 1 | 2; // Optional: 1 = YES (wins), 2 = NO (loses). If provided, overrides resolution engine
   evidence?: any;
   signature?: string;
 }
@@ -830,41 +805,6 @@ export const finalizeResolution = async (
   // No manual finalization needed
   throw new Error(
     "Market finalization is no longer needed. Markets auto-resolve when all options are resolved."
-  );
-};
-
-export interface FinalizeOptionResolutionParams {
-  marketId: string;
-  optionId: string;
-  winningSide?: 1 | 2; // Optional: directly specify YES (1) or NO (2)
-}
-
-export interface FinalizeOptionResolutionResponse {
-  result: {
-    option: {
-      id: string;
-      market_id: string;
-      option_label: string;
-      is_resolved: boolean;
-      winning_side: number | null;
-      resolved_at: string | null;
-      resolved_reason: string | null;
-      resolved_by: string | null;
-      dispute_deadline: string | null;
-    };
-    resolution_trace: any;
-  };
-}
-
-// DEPRECATED: Options now auto-resolve when a resolution is submitted
-// Use submitResolution with optionId instead
-export const finalizeOptionResolution = async (
-  _params: FinalizeOptionResolutionParams
-): Promise<FinalizeOptionResolutionResponse> => {
-  // Options now auto-resolve when submitResolution is called with optionId
-  // No manual finalization needed - use submitResolution instead
-  throw new Error(
-    "Option finalization is no longer needed. Use submitResolution with optionId to resolve options."
   );
 };
 
@@ -1613,6 +1553,80 @@ export const reviewSuspiciousTrade = async (
 }> => {
   const response = await api.post(
     `/admin/suspicious-trades/${tradeId}/review`,
+    params
+  );
+  return response.data;
+};
+
+// Disputes
+export interface Dispute {
+  id: string;
+  market_id: string;
+  option_id: string;
+  user_id: string;
+  reason: string;
+  evidence: string | null;
+  resolution_fee_paid: number;
+  status: "pending" | "reviewed" | "resolved" | "dismissed";
+  reviewed_by: string | null;
+  reviewed_at: number;
+  review_notes: string | null;
+  created_at: number;
+  updated_at: number;
+  market_question?: string;
+  option_label?: string;
+  user_username?: string;
+  user_display_name?: string;
+  reviewer_username?: string;
+  reviewer_display_name?: string;
+}
+
+export interface DisputesResponse {
+  disputes: Dispute[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+}
+
+export interface DisputeResponse {
+  dispute: Dispute;
+}
+
+export const fetchDisputes = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: "pending" | "reviewed" | "resolved" | "dismissed";
+  market_id?: string;
+}): Promise<DisputesResponse> => {
+  const response = await api.get("/admin/disputes", {
+    params: params ?? {},
+  });
+  return response.data;
+};
+
+export const fetchDispute = async (
+  disputeId: string
+): Promise<DisputeResponse> => {
+  const response = await api.get(`/admin/disputes/${disputeId}`);
+  return response.data;
+};
+
+export const resolveDispute = async (
+  disputeId: string,
+  params: {
+    status: "resolved" | "dismissed";
+    review_notes?: string;
+  }
+): Promise<{
+  dispute: Dispute;
+  message: string;
+}> => {
+  const response = await api.post(
+    `/admin/disputes/${disputeId}/resolve`,
     params
   );
   return response.data;

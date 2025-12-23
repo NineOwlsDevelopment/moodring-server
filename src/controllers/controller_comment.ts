@@ -184,8 +184,6 @@ export const getMarketComments = async (
       sort
     );
 
-    console.log(comments);
-
     const totalPages = Math.ceil(total / limit);
 
     return sendSuccess(res, {

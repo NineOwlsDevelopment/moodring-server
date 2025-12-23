@@ -24,6 +24,8 @@ export const validateBody = <T>(schema: ValidationSchema<T>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = schema.safeParse(req.body);
+      console.log("result", result);
+
       if (!result.success && result.error) {
         const formattedErrors: ValidationError[] = result.error.errors.map(
           (err: any) => ({
@@ -38,8 +40,10 @@ export const validateBody = <T>(schema: ValidationSchema<T>) => {
         });
       }
       req.body = result.data;
+      console.log("req.body", req.body);
       next();
     } catch (error: any) {
+      console.log(error);
       return res.status(400).json({
         error: "Invalid request body",
         message: error?.message || "Validation error",

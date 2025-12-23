@@ -55,6 +55,62 @@ function calculateShareValue(
   return Math.floor((shares * (poolLiquidity + accumulatedFees)) / totalShares);
 }
 
+/**
+ * Calculate total pending claims for a resolved market
+ * Returns the total amount of USDC needed to pay out all unclaimed winning positions
+ */
+async function calculatePendingClaims(
+  client: any,
+  marketId: string
+): Promise<number> {
+  // Get all resolved options for this market
+  const optionsResult = await client.query(
+    `SELECT id, winning_side 
+     FROM market_options 
+     WHERE market_id = $1 AND is_resolved = TRUE AND winning_side IS NOT NULL`,
+    [marketId]
+  );
+
+  if (optionsResult.rows.length === 0) {
+    return 0; // No resolved options, no pending claims
+  }
+
+  let totalPendingClaims = 0;
+
+  // For each resolved option, calculate pending claims
+  for (const option of optionsResult.rows) {
+    const optionId = option.id;
+    const winningSide = option.winning_side;
+
+    // Get all unclaimed positions for this option
+    const positionsResult = await client.query(
+      `SELECT yes_shares, no_shares 
+       FROM user_positions 
+       WHERE option_id = $1 
+         AND is_claimed = FALSE 
+         AND (yes_shares > 0 OR no_shares > 0)`,
+      [optionId]
+    );
+
+    // Calculate total payout needed for winners
+    for (const position of positionsResult.rows) {
+      const yesShares = Number(position.yes_shares || 0);
+      const noShares = Number(position.no_shares || 0);
+
+      // Payout is 1 micro-USDC per winning share
+      if (winningSide === 1) {
+        // YES won, so yes_shares are winning
+        totalPendingClaims += yesShares;
+      } else if (winningSide === 2) {
+        // NO won, so no_shares are winning
+        totalPendingClaims += noShares;
+      }
+    }
+  }
+
+  return totalPendingClaims;
+}
+
 // Solana connection for LP token balance queries
 const getConnection = () => {
   const rpcUrl = process.env.RPC_URL || "https://api.devnet.solana.com";
@@ -308,6 +364,28 @@ export const removeLiquidity = async (
             const liquidityPortion = Math.floor(poolLiquidity * shareRatio);
             const feesPortion = Math.floor(accumulatedFees * shareRatio);
 
+            // If market is resolved, check for pending claims before allowing withdrawal
+            if (market.is_resolved) {
+              const pendingClaims = await calculatePendingClaims(
+                client,
+                marketId
+              );
+              const newPoolLiquidity = poolLiquidity - liquidityPortion;
+
+              if (newPoolLiquidity < pendingClaims) {
+                const pendingClaimsFormatted = (
+                  pendingClaims / 1_000_000
+                ).toFixed(2);
+                const remainingFormatted = (
+                  newPoolLiquidity / 1_000_000
+                ).toFixed(2);
+                throw new TransactionError(
+                  400,
+                  `Cannot withdraw liquidity: ${pendingClaimsFormatted} USDC needed for pending claims, but only ${remainingFormatted} USDC would remain after withdrawal. Please wait until all claims are processed.`
+                );
+              }
+            }
+
             // Update LP position
             const newShares = Number(position.shares) - parsedShares;
             // Use BigInt for precision: (deposited_amount * newShares) / shares
@@ -444,6 +522,7 @@ export const getLpPosition = async (
           shares: 0,
           deposited_amount: 0,
           current_value: 0,
+          claimable_value: 0,
           pnl: 0,
         },
       });
@@ -452,13 +531,48 @@ export const getLpPosition = async (
     // Calculate current value
     const marketData = await MarketModel.findById(market);
     let currentValue = 0;
+    let claimableValue = 0;
+
     if (marketData && Number(marketData.total_shared_lp_shares) > 0) {
+      const poolLiquidity = Number(marketData.shared_pool_liquidity);
+      const accumulatedFees = Number(marketData.accumulated_lp_fees);
+      const totalShares = Number(marketData.total_shared_lp_shares);
+      const userShares = Number(position.shares);
+
+      // Calculate full current value (what user's shares are worth)
       currentValue = calculateShareValue(
-        Number(position.shares),
-        Number(marketData.shared_pool_liquidity),
-        Number(marketData.accumulated_lp_fees),
-        Number(marketData.total_shared_lp_shares)
+        userShares,
+        poolLiquidity,
+        accumulatedFees,
+        totalShares
       );
+
+      // For resolved markets, calculate claimable amount accounting for pending claims
+      // LP can only claim from available pool (after reserving for pending trader claims)
+      if (marketData.is_resolved) {
+        const client = await pool.connect();
+        try {
+          const pendingClaims = await calculatePendingClaims(client, market);
+
+          // Available liquidity = poolLiquidity - pendingClaims (reserved for traders)
+          const availableLiquidity = Math.max(0, poolLiquidity - pendingClaims);
+
+          // Calculate user's share ratio
+          const shareRatio = userShares / totalShares;
+
+          // LP can claim their share of available liquidity + their share of fees
+          const claimableLiquidityPortion = Math.floor(
+            availableLiquidity * shareRatio
+          );
+          const feesPortion = Math.floor(accumulatedFees * shareRatio);
+          claimableValue = claimableLiquidityPortion + feesPortion;
+        } finally {
+          client.release();
+        }
+      } else {
+        // For unresolved markets, claimable is same as current value
+        claimableValue = currentValue;
+      }
     }
 
     return sendSuccess(res, {
@@ -467,6 +581,7 @@ export const getLpPosition = async (
         shares: Number(position.shares),
         deposited_amount: Number(position.deposited_amount),
         current_value: currentValue,
+        claimable_value: claimableValue,
         pnl: currentValue - Number(position.deposited_amount),
       },
     });
@@ -655,26 +770,101 @@ export const claimLpRewards = async (
               throw new TransactionError(400, "Pool has no shares");
             }
 
-            // Calculate proportional payout (liquidity + fees)
-            // Value per share = (poolLiquidity + accumulatedFees) / totalShares
-            // Payout = sharesToClaim * valuePerShare
-            const totalPoolValue = poolLiquidity + accumulatedFees;
-            const payout = Math.floor(
-              (sharesToClaim * totalPoolValue) / totalShares
+            // Calculate pending claims first - these are liabilities that must be reserved
+            const pendingClaims = await calculatePendingClaims(
+              client,
+              marketId
             );
 
+            // LP can only claim from the available pool (after reserving for pending trader claims)
+            // Available liquidity = poolLiquidity - pendingClaims
+            const availableLiquidity = Math.max(
+              0,
+              poolLiquidity - pendingClaims
+            );
+
+            // Calculate proportional payout based on available pool + fees
+            // LP can claim their share of (availableLiquidity + accumulatedFees)
+            const shareRatio = sharesToClaim / totalShares;
+            const liquidityPortion = Math.floor(
+              availableLiquidity * shareRatio
+            );
+            const feesPortion = Math.floor(accumulatedFees * shareRatio);
+            const payout = liquidityPortion + feesPortion;
+
+            // Validate that we have enough funds to cover the payout
+            const totalAvailable = availableLiquidity + accumulatedFees;
+            const maxPayout = Math.floor(totalAvailable * shareRatio);
+
             if (payout <= 0) {
-              throw new TransactionError(400, "Calculated payout is zero");
+              throw new TransactionError(
+                400,
+                "No claimable amount available. All liquidity is reserved for pending trader claims."
+              );
+            }
+
+            // Safety check: payout should never exceed what's actually available
+            if (payout > maxPayout) {
+              throw new TransactionError(
+                400,
+                `Invalid claim amount: requested ${(payout / 1_000_000).toFixed(
+                  2
+                )} USDC but only ${(maxPayout / 1_000_000).toFixed(
+                  2
+                )} USDC available.`
+              );
+            }
+
+            // Additional safety: ensure we're not claiming more liquidity than exists
+            if (liquidityPortion > availableLiquidity) {
+              throw new TransactionError(
+                400,
+                `Invalid liquidity claim: requested ${(
+                  liquidityPortion / 1_000_000
+                ).toFixed(2)} USDC from pool but only ${(
+                  availableLiquidity / 1_000_000
+                ).toFixed(2)} USDC available.`
+              );
+            }
+
+            // Ensure we're not claiming more fees than exist
+            if (feesPortion > accumulatedFees) {
+              throw new TransactionError(
+                400,
+                `Invalid fees claim: requested ${(
+                  feesPortion / 1_000_000
+                ).toFixed(2)} USDC in fees but only ${(
+                  accumulatedFees / 1_000_000
+                ).toFixed(2)} USDC available.`
+              );
             }
 
             // Calculate breakdown
-            const shareRatio = sharesToClaim / totalShares;
-            const liquidityPortion = Math.floor(poolLiquidity * shareRatio);
-            const feesPortion = Math.floor(accumulatedFees * shareRatio);
             const proportionalDeposit = Math.floor(
               (depositedAmount * sharesToClaim) / userShares
             );
             const pnl = payout - proportionalDeposit;
+
+            // Calculate new pool liquidity after withdrawal
+            const newPoolLiquidity = Math.max(
+              0,
+              poolLiquidity - liquidityPortion
+            );
+
+            // Double-check that we're not leaving insufficient liquidity for pending claims
+            // This should never happen with the new calculation, but keep as safety check
+            if (newPoolLiquidity < pendingClaims) {
+              const pendingClaimsFormatted = (
+                pendingClaims / 1_000_000
+              ).toFixed(2);
+              const remainingFormatted = (newPoolLiquidity / 1_000_000).toFixed(
+                2
+              );
+              throw new TransactionError(
+                400,
+                `Cannot claim LP rewards: ${pendingClaimsFormatted} USDC needed for pending claims, but only ${remainingFormatted} USDC would remain after withdrawal. Please wait until all claims are processed.`
+              );
+            }
 
             // Update LP position
             const remainingShares = userShares - sharesToClaim;
@@ -710,10 +900,7 @@ export const claimLpRewards = async (
             }
 
             // Update market pool values
-            const newPoolLiquidity = Math.max(
-              0,
-              poolLiquidity - liquidityPortion
-            );
+            // newPoolLiquidity already calculated above for pending claims check
             const newAccumulatedFees = Math.max(
               0,
               accumulatedFees - feesPortion

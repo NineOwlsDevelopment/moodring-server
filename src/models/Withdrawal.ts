@@ -11,6 +11,7 @@ export interface Withdrawal {
   destination_address: string;
   amount: number;
   token_symbol: "SOL" | "USDC";
+  transaction_id: string | null;
   transaction_signature: string | null;
   status: "pending" | "processing" | "completed" | "failed";
   failure_reason: string | null;
@@ -118,6 +119,7 @@ export class WithdrawalModel {
     id: UUID | string,
     status: "pending" | "processing" | "completed" | "failed",
     transactionSignature?: string,
+    transactionId?: string,
     failureReason?: string,
     client?: QueryClient
   ): Promise<Withdrawal | null> {
@@ -130,18 +132,25 @@ export class WithdrawalModel {
       UPDATE withdrawals
       SET 
         status = $1, 
-        transaction_signature = COALESCE($2, transaction_signature),
-        failure_reason = COALESCE($3, failure_reason),
+        transaction_id = COALESCE($2, transaction_id),
+        transaction_signature = COALESCE($3, transaction_signature),
+        failure_reason = COALESCE($4, failure_reason),
         completed_at = ${
           status === "completed"
             ? "EXTRACT(EPOCH FROM NOW())::BIGINT"
             : "completed_at"
         },
         updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-      WHERE id = $4
+      WHERE id = $5
       RETURNING *
     `,
-      [status, transactionSignature || null, failureReason || null, id]
+      [
+        status,
+        transactionId || null,
+        transactionSignature || null,
+        failureReason || null,
+        id,
+      ]
     );
     return result.rows[0] || null;
   }

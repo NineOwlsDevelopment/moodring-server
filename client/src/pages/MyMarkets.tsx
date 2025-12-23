@@ -22,6 +22,7 @@ interface MarketWithDetails {
   total_options: number;
   shared_pool_liquidity: number;
   creator_fees_collected: number;
+  lifetime_creator_fees_generated?: number;
   options: any[];
   categories: { id: string; name: string }[];
   created_at: string;
@@ -308,10 +309,38 @@ export const MyMarkets = () => {
                             {formatUSDC(market.shared_pool_liquidity)}
                           </span>
                           {market.creator_fees_collected > 0 && (
-                            <span className="text-success-400">
-                              Fees: {formatUSDC(market.creator_fees_collected)}
+                            <span
+                              className="text-success-400"
+                              title="Creator fees earned from trading activity (separate from liquidity pool)"
+                            >
+                              Creator Fees:{" "}
+                              {formatUSDC(market.creator_fees_collected)}
+                              {market.lifetime_creator_fees_generated &&
+                                market.lifetime_creator_fees_generated >
+                                  market.creator_fees_collected && (
+                                  <span className="text-moon-grey-dark ml-1">
+                                    (Lifetime:{" "}
+                                    {formatUSDC(
+                                      market.lifetime_creator_fees_generated
+                                    )}
+                                    )
+                                  </span>
+                                )}
                             </span>
                           )}
+                          {market.lifetime_creator_fees_generated &&
+                            market.lifetime_creator_fees_generated > 0 &&
+                            market.creator_fees_collected === 0 && (
+                              <span
+                                className="text-moon-grey-dark"
+                                title="Total creator fees generated over market lifetime (all fees have been withdrawn)"
+                              >
+                                Lifetime Creator Fees:{" "}
+                                {formatUSDC(
+                                  market.lifetime_creator_fees_generated
+                                )}
+                              </span>
+                            )}
                         </>
                       )}
                     </div>
@@ -427,7 +456,7 @@ export const MyMarkets = () => {
                         </svg>
                         {withdrawingFees === market.id
                           ? "Withdrawing..."
-                          : "Withdraw Fees"}
+                          : "Withdraw Creator Fees"}
                       </button>
                     )}
                   </div>

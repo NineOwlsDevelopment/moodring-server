@@ -16,6 +16,7 @@ export interface MarketOption {
   resolved_at?: Date | string | null;
   resolved_reason?: string | null;
   resolved_by?: string | null;
+  dispute_deadline?: number | null; // Unix timestamp in seconds, null for OPINION mode options
 }
 
 export interface MarketCategory {

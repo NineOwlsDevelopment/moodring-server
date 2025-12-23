@@ -6,7 +6,6 @@ import {
   adjustUserBalance,
   toggleUserAdmin,
   AdminUser,
-  AdminUsersResponse,
 } from "@/api/api";
 import { toast } from "sonner";
 

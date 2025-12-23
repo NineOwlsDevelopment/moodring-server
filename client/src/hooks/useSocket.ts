@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import {
   socketService,
   TradeUpdate,
@@ -170,7 +170,9 @@ export function useCommentSocket(
     socketService.subscribeToComments(marketId);
 
     // Set up listener
-    const unsubComment = onComment ? socketService.onComment(onComment) : undefined;
+    const unsubComment = onComment
+      ? socketService.onComment(onComment)
+      : undefined;
 
     return () => {
       socketService.unsubscribeFromComments(marketId);

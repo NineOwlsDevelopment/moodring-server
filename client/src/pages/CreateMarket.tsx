@@ -12,7 +12,7 @@ import {
   getMarketCreationFee,
   Category,
 } from "@/api/api";
-import { capitalizeWords } from "@/utils/format";
+import { capitalizeWords, formatUSDC } from "@/utils/format";
 import { ResolutionMode, ResolutionConfig } from "@/stores/resolutionStore";
 import { sortCategories } from "@/utils/categorySort";
 import { validateTextContent } from "@/utils/bannedWords";
@@ -44,7 +44,7 @@ export const CreateMarket = () => {
   const [resolutionMode, setResolutionMode] = useState<ResolutionMode>(
     ResolutionMode.ORACLE
   );
-  const [resolutionConfig, setResolutionConfig] = useState<ResolutionConfig>({
+  const [_, setResolutionConfig] = useState<ResolutionConfig>({
     bondAmount: 0.5, // Stored in USDC (will be converted to microUSDC when sending)
     // Dispute window is fixed at 2 hours (non-editable)
     disputeWindowHours: 2,
@@ -313,11 +313,16 @@ export const CreateMarket = () => {
 
     // Check if user has sufficient balance for creation fee
     if (user?.wallet?.balance_usdc !== undefined && creationFee > 0) {
-      const userBalanceDisplay = user.wallet.balance_usdc / 1000; // Convert microUSDC to USDC
+      const userBalanceDisplay = user.wallet.balance_usdc / 1_000_000; // Convert microUSDC to USDC
       if (userBalanceDisplay < creationFee) {
-        const errorMsg = `Insufficient balance. Market creation fee is ${creationFee.toFixed(
-          2
-        )} USDC, but you have ${userBalanceDisplay.toFixed(2)} USDC`;
+        const formattedBalance = formatUSDC(user.wallet.balance_usdc).replace(
+          "$",
+          ""
+        );
+        const errorMsg = `Insufficient balance. Market creation fee is ${creationFee.toLocaleString(
+          undefined,
+          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+        )} USDC, but you have ${formattedBalance} USDC`;
         setError(errorMsg);
         toast.error(errorMsg);
         return;
@@ -335,12 +340,6 @@ export const CreateMarket = () => {
         new Date(expirationDate).getTime() / 1000
       );
 
-      // For AUTHORITY mode, use the user's wallet address as designatedResolver
-      const designatedResolver =
-        resolutionMode === ResolutionMode.AUTHORITY && user
-          ? user.wallet.publicKey.toBase58()
-          : undefined;
-
       const { market, creation_fee_display } = await createMarket({
         base: baseKeypair.publicKey.toBase58(),
         marketQuestion: question,
@@ -348,7 +347,6 @@ export const CreateMarket = () => {
         marketExpirationDate: expirationTimestamp,
         usdcMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
         isBinary,
-        designatedResolver,
         categoryIds: selectedCategory ? [selectedCategory] : undefined,
         image,
         resolutionMode,
@@ -1033,13 +1031,12 @@ export const CreateMarket = () => {
                     {user?.wallet?.balance_usdc !== undefined && (
                       <p
                         className={`text-xs mt-0.5 ${
-                          user.wallet.balance_usdc / 1000 >= creationFee
+                          user.wallet.balance_usdc / 1_000_000 >= creationFee
                             ? "text-success-400"
                             : "text-danger-400"
                         }`}
                       >
-                        Balance: {(user.wallet.balance_usdc / 1000).toFixed(2)}{" "}
-                        USDC
+                        Balance: {formatUSDC(user.wallet.balance_usdc)} USDC
                       </p>
                     )}
                   </div>
@@ -1055,7 +1052,7 @@ export const CreateMarket = () => {
               {(() => {
                 const userBalanceDisplay =
                   user?.wallet?.balance_usdc !== undefined
-                    ? user.wallet.balance_usdc / 1000
+                    ? user.wallet.balance_usdc / 1_000_000
                     : 0;
                 const hasEnoughBalance =
                   creationFee === 0 || userBalanceDisplay >= creationFee;
@@ -1564,8 +1561,8 @@ export const CreateMarket = () => {
               {(() => {
                 const requiredAmount = parseInt(initialLiquidity) || 0;
                 const userBalance = user?.wallet?.balance_usdc ?? 0;
-                // balance_usdc is stored in micro-units (USDC * 1000), convert to display
-                const userBalanceDisplay = userBalance / 1000;
+                // balance_usdc is stored in micro-units (USDC * 1_000_000), convert to display
+                const userBalanceDisplay = userBalance / 1_000_000;
                 const hasEnoughBalance = userBalanceDisplay >= requiredAmount;
                 const isButtonDisabled =
                   isInitializing ||
@@ -1629,11 +1626,15 @@ export const CreateMarket = () => {
                         <span>
                           Insufficient balance. You have{" "}
                           <span className="font-semibold">
-                            {userBalanceDisplay.toFixed(2)} USDC
+                            {formatUSDC(userBalance).replace("$", "")} USDC
                           </span>{" "}
                           but need at{" "}
                           <span className="font-semibold">
-                            {requiredAmount.toFixed(2)} USDC
+                            {requiredAmount.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            USDC
                           </span>{" "}
                           to launch this market.
                         </span>

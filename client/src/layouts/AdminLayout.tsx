@@ -27,6 +27,7 @@ export const AdminLayout = () => {
     { path: "/admin/users", label: "Users" },
     { path: "/admin/withdrawals", label: "Withdrawals" },
     { path: "/admin/suspicious-trades", label: "Suspicious Trades" },
+    { path: "/admin/disputes", label: "Disputes" },
     { path: "/admin/settings", label: "Settings" },
   ];
 

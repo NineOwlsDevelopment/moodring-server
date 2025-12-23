@@ -29,13 +29,11 @@ import {
  * @desc Request a USDC withdrawal using Circle API (prevents double-spending with idempotency)
  * @access Private
  */
-export const requestWithdrawal = async (
-  req: RequestWithdrawalRequest,
-  res: Response
-) => {
+export const requestWithdrawal = async (req: any, res: Response) => {
   try {
     const userId = req.id;
     const { destination_address, amount } = req.body;
+
     if (!userId) {
       return sendError(res, 401, "Unauthorized");
     }
@@ -48,12 +46,7 @@ export const requestWithdrawal = async (
     }
 
     // Validate amount
-    const amountValidation = validateNumber(
-      amount,
-      "Amount",
-      0.000001,
-      undefined
-    );
+    const amountValidation = validateNumber(amount, "Amount", 0.01, undefined);
     if (!amountValidation.isValid) {
       return sendValidationError(res, amountValidation.error!);
     }
@@ -83,7 +76,6 @@ export const requestWithdrawal = async (
     // Step 1: Create withdrawal record and deduct balance (INSIDE transaction)
     // This prevents race conditions and ensures atomicity
     let withdrawal: any;
-    let walletCircleId: string;
     try {
       const result = await withTransaction(async (client) => {
         // Get wallet with lock (prevents race conditions)
@@ -95,14 +87,6 @@ export const requestWithdrawal = async (
 
         if (!wallet) {
           throw new TransactionError(404, "Wallet not found");
-        }
-
-        // Check if wallet has Circle wallet ID
-        if (!wallet.circle_wallet_id) {
-          throw new TransactionError(
-            400,
-            "Wallet not configured for withdrawals. Please contact support."
-          );
         }
 
         // Check USDC balance
@@ -219,7 +203,6 @@ export const requestWithdrawal = async (
       });
 
       withdrawal = result.withdrawal;
-      walletCircleId = result.circleWalletId;
     } catch (error: any) {
       if (error instanceof TransactionError) {
         return sendError(res, error.statusCode, error.message, error.details);
@@ -240,24 +223,31 @@ export const requestWithdrawal = async (
 
       // Execute Circle withdrawal (this can take up to 60 seconds)
       transactionId = await circleWallet.sendUsdc(
-        walletCircleId,
+        process.env.CIRCLE_HOT_WALLET_ID as string,
         destination_address,
-        parsedAmount
+        parsedAmount / 1_000_000
+      );
+
+      // Get the transaction hash from the transaction ID
+      const transactionHash = await circleWallet.getTransactionHash(
+        transactionId
       );
 
       // Step 3: Update withdrawal as completed (INSIDE transaction for atomicity)
       await withTransaction(async (client) => {
         await client.query(
           `UPDATE withdrawals 
-           SET transaction_signature = $1, status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-           WHERE id = $2`,
-          [transactionId, withdrawal.id]
+           SET transaction_id = $1, transaction_signature = $2, status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
+           WHERE id = $3`,
+          [transactionId, transactionHash, withdrawal.id]
         );
       });
 
-      withdrawal.transaction_signature = transactionId;
+      withdrawal.transaction_id = transactionId;
+      withdrawal.transaction_signature = transactionHash;
       withdrawal.status = "completed";
     } catch (circleError: any) {
+      console.log("circleError", circleError);
       // Circle transaction failed - refund balance and mark as failed
       await withTransaction(async (client) => {
         // Get wallet with lock using wallet_id from withdrawal
@@ -290,12 +280,16 @@ export const requestWithdrawal = async (
       });
     }
 
-    const result = { withdrawal, transactionId };
+    const result = {
+      withdrawal,
+      transactionId,
+      transactionHash: withdrawal.transaction_signature,
+    };
 
     // Record activity (outside transaction for performance)
     await ActivityModel.create({
       user_id: userId as UUID,
-      activity_type: "liquidity_removed",
+      activity_type: "withdrawal",
       entity_type: "user",
       entity_id: userId,
       metadata: {
@@ -303,7 +297,8 @@ export const requestWithdrawal = async (
         amount: parsedAmount,
         token_symbol: "USDC",
         destination: destination_address,
-        transaction_signature: result.transactionId,
+        transaction_id: result.transactionId,
+        transaction_signature: result.transactionHash,
       },
       is_public: false,
     });
@@ -320,7 +315,8 @@ export const requestWithdrawal = async (
         withdrawal_id: result.withdrawal.id,
         amount: parsedAmount,
         token_symbol: "USDC",
-        transaction_signature: result.transactionId,
+        transaction_id: result.transactionId,
+        transaction_signature: result.transactionHash,
       },
     });
 
@@ -330,7 +326,8 @@ export const requestWithdrawal = async (
         id: result.withdrawal.id,
         amount: parsedAmount,
         token_symbol: "USDC",
-        transaction_signature: result.transactionId,
+        transaction_id: result.transactionId,
+        transaction_signature: result.transactionHash,
         status: "completed",
       },
     });

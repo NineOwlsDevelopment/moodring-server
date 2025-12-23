@@ -8,7 +8,6 @@ import {
   createMarket,
   createOption,
   initializeMarket,
-  resolveMarket,
   withdrawCreatorFee,
   getFairValue,
   estimateBuyCost,
@@ -46,7 +45,6 @@ router.post(
   typedHandler(createOption)
 );
 router.post("/initialize", authenticateToken, typedHandler(initializeMarket));
-router.post("/resolve", authenticateToken, typedHandler(resolveMarket));
 router.post(
   "/withdraw-creator-fee",
   authenticateToken,

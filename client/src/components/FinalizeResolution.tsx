@@ -42,7 +42,7 @@ export const FinalizeResolution = ({
     setIsFinalizing(true);
 
     try {
-      const result = await finalizeResolution({
+      await finalizeResolution({
         marketId: market.id,
       });
 

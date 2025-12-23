@@ -278,6 +278,40 @@ class CircleWalletService {
   }
 
   /**
+   * Get transaction hash from Circle transaction ID
+   * @param transactionId - Circle transaction ID
+   * @returns Transaction hash (blockchain signature) or null if not available
+   */
+  async getTransactionHash(transactionId: string): Promise<string | null> {
+    if (!this.client) {
+      throw new Error("Circle wallet client not initialized");
+    }
+
+    try {
+      const response = await this.client.getTransaction({
+        id: transactionId,
+      });
+
+      const transaction = response.data?.transaction as any;
+      // Circle API returns the blockchain transaction hash in various possible fields
+      const transactionHash =
+        transaction?.transactionHash ||
+        transaction?.hash ||
+        transaction?.signature ||
+        transaction?.txHash ||
+        null;
+
+      return transactionHash;
+    } catch (error: any) {
+      console.error(
+        `[CircleWallet] Failed to get transaction hash for ${transactionId}:`,
+        error.message
+      );
+      return null;
+    }
+  }
+
+  /**
    * Send USDC from a Circle wallet to a destination address
    * @param walletId - Source wallet ID
    * @param destinationAddress - Recipient's Solana address

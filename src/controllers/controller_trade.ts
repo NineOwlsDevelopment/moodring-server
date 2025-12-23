@@ -15,6 +15,7 @@ import {
   emitTradeUpdate,
   emitPriceUpdate,
   emitBalanceUpdate,
+  emitMarketUpdate,
 } from "../services/websocket";
 import { withTransaction, TransactionError } from "../utils/transaction";
 import { withTradeQueue } from "../services/tradeQueue";
@@ -181,6 +182,23 @@ export const buyShares = async (req: BuySharesRequest, res: Response) => {
         balance_usdc: newBalance,
         timestamp: new Date(),
       });
+
+      // Fetch and emit updated market data
+      const updatedMarket = await MarketModel.findById(market);
+      if (updatedMarket) {
+        emitMarketUpdate({
+          market_id: market,
+          event: "updated",
+          data: {
+            total_volume: updatedMarket.total_volume,
+            shared_pool_liquidity: updatedMarket.shared_pool_liquidity,
+            resolution_mode: updatedMarket.resolution_mode,
+            total_open_interest: updatedMarket.total_open_interest,
+            is_resolved: updatedMarket.is_resolved,
+          },
+          timestamp: new Date(),
+        });
+      }
     } catch (wsError) {
       console.error("WebSocket emission error:", wsError);
     }
@@ -351,49 +369,25 @@ export const sellShares = async (req: SellSharesRequest, res: Response) => {
         balance_usdc: newBalance,
         timestamp: new Date(),
       });
+
+      // Fetch and emit updated market data
+      const updatedMarket = await MarketModel.findById(market);
+      if (updatedMarket) {
+        emitMarketUpdate({
+          market_id: market,
+          event: "updated",
+          data: {
+            total_volume: updatedMarket.total_volume,
+            shared_pool_liquidity: updatedMarket.shared_pool_liquidity,
+            accumulated_lp_fees: updatedMarket.accumulated_lp_fees,
+            resolution_mode: updatedMarket.resolution_mode,
+            total_open_interest: updatedMarket.total_open_interest,
+            is_resolved: updatedMarket.is_resolved,
+          },
+          timestamp: new Date(),
+        });
+      }
     } catch (wsError) {
-      console.error("WebSocket emission error:", wsError);
-    }
-
-    // Emit real-time updates via WebSocket
-    try {
-      // Calculate new prices after trade
-      const newYesPrice =
-        calculate_yes_price(
-          new BN(result.newYesQuantity),
-          new BN(result.newNoQuantity),
-          result.liquidityParam
-        ).toNumber() / PRECISION.toNumber();
-
-      // Emit trade update
-      emitTradeUpdate({
-        market_id: market,
-        option_id: option,
-        trade_type: "sell",
-        side: result.side,
-        quantity: result.quantity,
-        price: result.pricePerShare / 1_000_000, // Convert to display price
-        timestamp: new Date(),
-      });
-
-      // Emit price update
-      emitPriceUpdate({
-        option_id: option,
-        yes_price: newYesPrice,
-        no_price: 1 - newYesPrice,
-        yes_quantity: result.newYesQuantity,
-        no_quantity: result.newNoQuantity,
-        timestamp: new Date(),
-      });
-
-      // Emit balance update
-      emitBalanceUpdate({
-        user_id: userId,
-        balance_usdc: result.newBalance,
-        timestamp: new Date(),
-      });
-    } catch (wsError) {
-      // Don't fail the trade if websocket emission fails
       console.error("WebSocket emission error:", wsError);
     }
 

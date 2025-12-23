@@ -10,7 +10,6 @@ import {
 } from "../utils/lmsr";
 import { calculateFees, getMoodringData } from "../utils/tradeUtils";
 import { TradeValidationService } from "./tradeValidation";
-import { RiskControlService } from "./riskControl";
 import { CommonTradeOperations } from "./commonTradeOperations";
 import { MoodringModel } from "../models/Moodring";
 
@@ -125,27 +124,6 @@ export class TradeService {
     const quantity = buyYes > 0 ? buyYes : buyNo;
     const pricePerShare =
       quantity > 0 ? Math.floor((rawCost * 1_000_000) / quantity) : 0;
-
-    // Perform risk checks
-    const riskCheck = await RiskControlService.performRiskChecks(client, {
-      userId,
-      marketId,
-      optionId,
-      tradeType: "buy",
-      side,
-      quantity,
-      totalAmount: totalCost,
-      pricePerShare,
-      currentYes,
-      currentNo,
-      buyYes,
-      buyNo,
-      liquidityParam,
-    });
-
-    if (!riskCheck.passed) {
-      throw new TransactionError(400, riskCheck.error!, riskCheck.details);
-    }
 
     // Check slippage
     // maxCost should be the expected total cost (including fees) that the user is willing to pay
@@ -324,27 +302,6 @@ export class TradeService {
     const pricePerShare =
       quantity > 0 ? Math.floor((netPayout * 1_000_000) / quantity) : 0;
 
-    // Perform risk checks
-    const riskCheck = await RiskControlService.performRiskChecks(client, {
-      userId,
-      marketId,
-      optionId,
-      tradeType: "sell",
-      side,
-      quantity,
-      totalAmount: rawPayout,
-      pricePerShare,
-      currentYes,
-      currentNo,
-      sellYes,
-      sellNo,
-      liquidityParam,
-    });
-
-    if (!riskCheck.passed) {
-      throw new TransactionError(400, riskCheck.error!, riskCheck.details);
-    }
-
     // Check slippage/min payout
     // For sells, slippage applies to net payout (after fees)
     // minPayout should be the expected net payout that the user is willing to accept
@@ -474,6 +431,22 @@ export class TradeService {
 
     if (!optionData.is_resolved) {
       throw new TransactionError(400, "Option is not resolved yet");
+    }
+
+    // Check if dispute deadline has passed (if one exists)
+    // OPINION mode options don't have dispute deadlines and can be claimed immediately
+    if (optionData.dispute_deadline && optionData.dispute_deadline > 0) {
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (currentTime < optionData.dispute_deadline) {
+        const timeRemaining = optionData.dispute_deadline - currentTime;
+        const hoursRemaining = Math.ceil(timeRemaining / 3600);
+        throw new TransactionError(
+          400,
+          `Resolution period has not ended yet. Please wait ${hoursRemaining} hour${
+            hoursRemaining !== 1 ? "s" : ""
+          } before claiming winnings.`
+        );
+      }
     }
 
     // Get user position with lock

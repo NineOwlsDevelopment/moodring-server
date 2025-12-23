@@ -10,12 +10,12 @@ export interface Market {
   id: UUID;
   creator_id: UUID;
   creator_fees_collected: number;
+  lifetime_creator_fees_generated: number;
   protocol_fees_collected: number;
   question: string;
   market_description: string;
   image_url: string;
   expiration_timestamp: number;
-  designated_resolver: string | null;
   total_options: number;
   total_volume: number;
   resolved_options: number;
@@ -52,7 +52,6 @@ export interface MarketCreateInput {
   market_description: string;
   image_url: string;
   expiration_timestamp: number;
-  designated_resolver?: string | null;
   shared_pool_vault: string;
   is_binary: boolean;
   is_verified?: boolean;
@@ -80,7 +79,6 @@ export class MarketModel {
       market_description,
       image_url,
       expiration_timestamp,
-      designated_resolver = null,
       shared_pool_vault,
       is_binary,
       is_verified = false,
@@ -110,7 +108,6 @@ export class MarketModel {
         market_description,
         image_url,
         expiration_timestamp,
-        designated_resolver,
         shared_pool_vault,
         is_binary,
         is_verified,
@@ -126,7 +123,7 @@ export class MarketModel {
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
       ) RETURNING *
     `;
 
@@ -136,7 +133,6 @@ export class MarketModel {
       market_description,
       image_url,
       expiration_timestamp,
-      designated_resolver,
       shared_pool_vault,
       is_binary,
       is_verified,

@@ -43,7 +43,11 @@ import {
   UpdateAdminSettingsRequest,
   GetAdminSettingsGroupRequest,
   ToggleUserAdminRequest,
+  GetDisputesRequest,
+  GetDisputeRequest,
+  ResolveDisputeRequest,
 } from "../types/requests";
+import { DisputeModel } from "../models/Dispute";
 
 /**
  * @route POST /api/admin/pause
@@ -1503,6 +1507,129 @@ export const toggleUserAdmin = async (
     }
   } catch (error: any) {
     console.error("Toggle user admin error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route GET /api/admin/disputes
+ * @desc Get all disputes with optional filtering
+ * @access Admin
+ */
+export const getDisputes = async (req: GetDisputesRequest, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = (page - 1) * limit;
+
+    const options: {
+      limit?: number;
+      offset?: number;
+      status?: "pending" | "reviewed" | "resolved" | "dismissed";
+      market_id?: string;
+    } = {
+      limit,
+      offset,
+    };
+
+    if (req.query.status) {
+      options.status = req.query.status as
+        | "pending"
+        | "reviewed"
+        | "resolved"
+        | "dismissed";
+    }
+
+    if (req.query.market_id) {
+      options.market_id = req.query.market_id;
+    }
+
+    const { disputes, total } = await DisputeModel.findAll(options);
+
+    return sendSuccess(res, {
+      disputes,
+      pagination: {
+        total,
+        page,
+        limit,
+        offset,
+        has_more: offset + limit < total,
+      },
+    });
+  } catch (error: any) {
+    console.error("Get disputes error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route GET /api/admin/disputes/:id
+ * @desc Get a specific dispute by ID
+ * @access Admin
+ */
+export const getDispute = async (req: GetDisputeRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const dispute = await DisputeModel.findById(id);
+
+    if (!dispute) {
+      return sendNotFound(res, "Dispute");
+    }
+
+    return sendSuccess(res, { dispute });
+  } catch (error: any) {
+    console.error("Get dispute error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route POST /api/admin/disputes/:id/resolve
+ * @desc Resolve or dismiss a dispute
+ * @access Admin
+ */
+export const resolveDispute = async (
+  req: ResolveDisputeRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.id;
+    const { status, review_notes } = req.body;
+
+    // Validate required fields
+    const validation = validateFields([
+      validateRequired(status, "Status"),
+      validateEnum(status, "Status", ["resolved", "dismissed"]),
+    ]);
+
+    if (!validation.isValid) {
+      return sendValidationError(res, validation.error!);
+    }
+
+    // Check if dispute exists
+    const dispute = await DisputeModel.findById(id);
+    if (!dispute) {
+      return sendNotFound(res, "Dispute");
+    }
+
+    // Update dispute status
+    const updatedDispute = await DisputeModel.update(id, {
+      status,
+      reviewed_by: adminId,
+      reviewed_at: Math.floor(Date.now() / 1000),
+      review_notes: review_notes || null,
+    });
+
+    return sendSuccess(res, {
+      dispute: updatedDispute,
+      message: `Dispute ${
+        status === "resolved" ? "resolved" : "dismissed"
+      } successfully`,
+    });
+  } catch (error: any) {
+    console.error("Resolve dispute error:", error);
     return sendError(res, 500, error.message || "Internal server error");
   }
 };

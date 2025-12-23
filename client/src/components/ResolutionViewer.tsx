@@ -48,7 +48,6 @@ export const ResolutionViewer = ({ marketId }: ResolutionViewerProps) => {
   }
 
   const {
-    market,
     resolution,
     submissions: rawSubmissions,
     resolvers: rawResolvers,

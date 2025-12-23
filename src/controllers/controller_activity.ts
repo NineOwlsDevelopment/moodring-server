@@ -205,6 +205,13 @@ export const getMyActivity = async (
       type
     );
 
+    // console share claim activity
+    for (const activity of activities) {
+      if (activity.activity_type === "claim") {
+        console.log("claim activity", activity);
+      }
+    }
+
     return sendSuccess(res, {
       activities,
       pagination: {

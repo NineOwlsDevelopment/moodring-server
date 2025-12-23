@@ -17,20 +17,386 @@ import {
   formatShares,
   calculateYesPrice,
   capitalizeWords,
+  formatDistanceToNow,
 } from "@/utils/format";
 import {
   fetchMarket,
   fetchMarketActivity,
   Activity,
-  resolveMarket,
+  submitResolution,
 } from "@/api/api";
 import { useOptionSocket, useMarketSocket } from "@/hooks/useSocket";
-import { PriceUpdate } from "@/services/socket";
+import { useCountdown } from "@/hooks/useCountdown";
+import { PriceUpdate, MarketUpdate } from "@/services/socket";
 import { useUserStore } from "@/stores/userStore";
 import { toast } from "sonner";
 import api from "@/config/axios";
 
 type Tab = "about" | "activity" | "discussion";
+
+// OptionRow component for multiple choice markets - can use hooks
+const OptionRow = ({
+  option,
+  idx,
+  market,
+  selectedOption,
+  selectedSide,
+  onSelectOption,
+  onResolved,
+  onDisputed,
+  onClaimed,
+}: {
+  option: MarketOption;
+  idx: number;
+  market: Market;
+  selectedOption: string | null;
+  selectedSide: "yes" | "no";
+  onSelectOption: (optionId: string, side: "yes" | "no") => void;
+  onResolved: () => void;
+  onDisputed: () => void;
+  onClaimed: () => void;
+}) => {
+  const resolved = option.is_resolved ?? false;
+  const winner = option.winning_side ?? null;
+  const yp = resolved
+    ? calculateYesPrice(
+        option.yes_quantity,
+        option.no_quantity,
+        market.liquidity_parameter,
+        { is_resolved: resolved, winning_side: winner }
+      )
+    : (option as any).yes_price ??
+      calculateYesPrice(
+        option.yes_quantity,
+        option.no_quantity,
+        market.liquidity_parameter,
+        { is_resolved: resolved, winning_side: winner }
+      );
+  const yc = (yp * 100).toFixed(1);
+  const nc = ((1 - yp) * 100).toFixed(1);
+  const sel = selectedOption === option.id;
+
+  // Check dispute deadline - hooks can be used here
+  const disputeDeadline = option.dispute_deadline
+    ? Number(option.dispute_deadline)
+    : null;
+  const disputeCountdown = useCountdown(disputeDeadline);
+  const disputePeriodActive =
+    resolved && disputeDeadline !== null && !disputeCountdown.hasEnded;
+  const disputePeriodEnded =
+    resolved && disputeDeadline !== null && disputeCountdown.hasEnded;
+
+  return (
+    <div>
+      <div
+        onClick={() => !resolved && onSelectOption(option.id, "yes")}
+        className={`relative rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 transition-all ${
+          resolved
+            ? "opacity-60 cursor-default"
+            : sel
+            ? "bg-white/[0.08] ring-1 ring-neon-iris/50 cursor-pointer"
+            : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer"
+        }`}
+      >
+        {/* Progress Bar */}
+        <div className="absolute inset-0 rounded-xl overflow-visible">
+          <div
+            className={`h-full transition-all ${
+              parseFloat(yc) >= 50
+                ? "bg-emerald-500/[0.08]"
+                : parseFloat(yc) >= 25
+                ? "bg-amber-500/[0.08]"
+                : "bg-rose-500/[0.08]"
+            }`}
+            style={{ width: `${yc}%` }}
+          />
+        </div>
+
+        {/* Rank/Image */}
+        {option.option_image_url ? (
+          <img
+            src={option.option_image_url}
+            alt=""
+            className="relative w-9 h-9 rounded-lg object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="relative w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center text-xs font-bold text-moon-grey flex-shrink-0">
+            {idx + 1}
+          </div>
+        )}
+
+        {/* Label */}
+        <div className="relative flex-1 min-w-0 pr-2">
+          <span className="text-sm text-white font-medium break-words line-clamp-2">
+            {capitalizeWords(option.option_label)}
+          </span>
+        </div>
+
+        {/* Percentage */}
+        <span
+          className={`relative text-sm sm:text-base font-bold tabular-nums mr-2 flex-shrink-0 ${
+            parseFloat(yc) >= 50
+              ? "text-emerald-400"
+              : parseFloat(yc) >= 25
+              ? "text-amber-400"
+              : "text-rose-400"
+          }`}
+        >
+          {yc}%
+        </span>
+
+        {/* Action Buttons */}
+        {!resolved && (
+          <div className="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectOption(option.id, "yes");
+              }}
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
+                sel && selectedSide === "yes"
+                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                  : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+              }`}
+            >
+              Yes {yc}¢
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectOption(option.id, "no");
+              }}
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
+                sel && selectedSide === "no"
+                  ? "bg-rose-500 text-white shadow-lg shadow-rose-500/25"
+                  : "bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+              }`}
+            >
+              No {nc}¢
+            </button>
+            <ResolveButton
+              market={market}
+              option={option}
+              onResolved={onResolved}
+            />
+          </div>
+        )}
+
+        {/* Resolved state - show dispute button in action area if dispute period active */}
+        {resolved && (
+          <div className="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-wrap">
+            <span className="relative px-2 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-[11px] font-semibold">
+              {winner === 1 ? "YES" : "NO"} Won
+            </span>
+            {disputePeriodActive && (
+              <div className="ml-auto">
+                <DisputeResolution
+                  market={market}
+                  option={option}
+                  onDisputed={onDisputed}
+                  compact={true}
+                  countdown={disputeCountdown}
+                />
+              </div>
+            )}
+            {disputePeriodEnded && (
+              <span className="relative px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 text-[11px] font-semibold flex items-center gap-1 ml-auto">
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Final
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {resolved && (
+        <div className="mt-2 ml-0 sm:ml-12">
+          <ClaimWinnings
+            market={market}
+            option={option}
+            onClaimed={onClaimed}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// BinaryOptionRow component for binary markets - can use hooks
+const BinaryOptionRow = ({
+  option,
+  market,
+  selectedSide,
+  onSelectOption,
+  onResolved,
+  onDisputed,
+  onClaimed,
+}: {
+  option: MarketOption;
+  market: Market;
+  selectedSide: "yes" | "no";
+  onSelectOption: (optionId: string, side: "yes" | "no") => void;
+  onResolved: () => void;
+  onDisputed: () => void;
+  onClaimed: () => void;
+}) => {
+  const resolved = option?.is_resolved ?? false;
+  const winner = option?.winning_side ?? null;
+  const yp = resolved
+    ? calculateYesPrice(
+        option?.yes_quantity || 0,
+        option?.no_quantity || 0,
+        market.liquidity_parameter || 100000,
+        { is_resolved: resolved, winning_side: winner }
+      )
+    : (option as any)?.yes_price ??
+      calculateYesPrice(
+        option?.yes_quantity || 0,
+        option?.no_quantity || 0,
+        market.liquidity_parameter || 100000,
+        { is_resolved: resolved, winning_side: winner }
+      );
+  const yc = (yp * 100).toFixed(1);
+  const nc = ((1 - yp) * 100).toFixed(1);
+
+  // Check dispute deadline - hooks can be used here
+  const disputeDeadline = option?.dispute_deadline
+    ? Number(option.dispute_deadline)
+    : null;
+  const disputeCountdown = useCountdown(disputeDeadline);
+  const disputePeriodActive =
+    resolved && disputeDeadline !== null && !disputeCountdown.hasEnded;
+  const disputePeriodEnded =
+    resolved && disputeDeadline !== null && disputeCountdown.hasEnded;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <button
+          onClick={() => !resolved && onSelectOption(option?.id || "", "yes")}
+          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
+            resolved
+              ? winner === 1
+                ? "ring-2 ring-emerald-500/50"
+                : "opacity-40"
+              : selectedSide === "yes"
+              ? "ring-2 ring-emerald-500/50"
+              : "hover:bg-emerald-500/10"
+          }`}
+        >
+          <div className="absolute inset-0 bg-emerald-500/10" />
+          <div className="relative">
+            <div className="text-emerald-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
+              Yes {resolved && winner === 1 && "✓"}
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-emerald-400 tabular-nums">
+              {resolved && winner === 1 ? "$1" : `${yc}¢`}
+            </div>
+            <div className="text-emerald-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
+              {formatShares(option?.yes_quantity || 0)} shares
+            </div>
+          </div>
+        </button>
+        <button
+          onClick={() => !resolved && onSelectOption(option?.id || "", "no")}
+          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
+            resolved
+              ? winner === 2
+                ? "ring-2 ring-rose-500/50"
+                : "opacity-40"
+              : selectedSide === "no"
+              ? "ring-2 ring-rose-500/50"
+              : "hover:bg-rose-500/10"
+          }`}
+        >
+          <div className="absolute inset-0 bg-rose-500/10" />
+          <div className="relative">
+            <div className="text-rose-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
+              No {resolved && winner === 2 && "✓"}
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-rose-400 tabular-nums">
+              {resolved && winner === 2 ? "$1" : `${nc}¢`}
+            </div>
+            <div className="text-rose-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
+              {formatShares(option?.no_quantity || 0)} shares
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* Binary Resolve Button */}
+      {!resolved && option && (
+        <div className="mt-3 flex justify-end">
+          <ResolveButton
+            market={market}
+            option={option}
+            onResolved={onResolved}
+          />
+        </div>
+      )}
+
+      {/* Resolved state with integrated dispute period info */}
+      {resolved && option && (
+        <div className="mt-3 space-y-2">
+          {/* Dispute period active - show countdown and dispute button */}
+          {disputePeriodActive && (
+            <div className="flex items-center justify-end gap-2">
+              <DisputeResolution
+                market={market}
+                option={option}
+                onDisputed={onDisputed}
+                compact={true}
+                countdown={disputeCountdown}
+              />
+            </div>
+          )}
+
+          {/* Dispute period ended - show final indicator */}
+          {disputePeriodEnded && (
+            <div className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <div className="flex items-center gap-2 text-xs text-emerald-300">
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="font-medium">
+                  Dispute period ended - Resolution is final
+                </span>
+              </div>
+            </div>
+          )}
+
+          <ClaimWinnings
+            market={market}
+            option={option}
+            onClaimed={onClaimed}
+          />
+        </div>
+      )}
+    </>
+  );
+};
 
 // ResolveButton wrapper - uses ResolveOption for new resolution system, old logic for legacy
 const ResolveButton = ({
@@ -59,12 +425,8 @@ const ResolveButton = ({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Legacy system: creator, admin, or designated resolver
-  const hasAuthority =
-    user &&
-    (user.id === market.creator_id ||
-      isAdmin ||
-      (market as any).designated_resolver === user.id);
+  // Legacy system: creator or admin
+  const hasAuthority = user && (user.id === market.creator_id || isAdmin);
 
   if (!hasAuthority || (option as any).is_resolved) return null;
 
@@ -73,11 +435,12 @@ const ResolveButton = ({
     setError(null);
     setIsResolving(true);
     try {
-      await resolveMarket({
-        market: market.id,
-        option: option.id,
+      await submitResolution({
+        marketId: market.id,
+        optionId: option.id,
+        outcome: option.option_label,
         winningSide,
-        reason: reason.trim() || undefined,
+        evidence: reason.trim() ? { notes: reason.trim() } : undefined,
       });
       setShowModal(false);
       setReason("");
@@ -306,14 +669,53 @@ export const MarketDetail = () => {
     });
   }, []);
 
+  const handleMarketUpdate = useCallback((update: MarketUpdate) => {
+    if (update.event === "updated" && update.data) {
+      setMarket((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          total_volume: update.data.total_volume ?? prev.total_volume,
+          shared_pool_liquidity:
+            update.data.shared_pool_liquidity !== undefined
+              ? Number(update.data.shared_pool_liquidity)
+              : Number((prev as any).shared_pool_liquidity) || 0,
+          accumulated_lp_fees:
+            update.data.accumulated_lp_fees !== undefined
+              ? Number(update.data.accumulated_lp_fees)
+              : Number((prev as any).accumulated_lp_fees) || 0,
+          resolution_mode:
+            update.data.resolution_mode ?? (prev as any).resolution_mode,
+          is_resolved: update.data.is_resolved ?? prev.is_resolved,
+        };
+      });
+    }
+  }, []);
+
   useOptionSocket(optionIds, { onPrice: handlePriceUpdate });
-  useMarketSocket(id, {});
+  useMarketSocket(id, { onMarket: handleMarketUpdate });
 
   useEffect(() => {
     if (market?.options && market.options.length > 1 && !selectedOption) {
-      const sorted = [...market.options].sort(
-        (a, b) => (Number(b.yes_quantity) || 0) - (Number(a.yes_quantity) || 0)
-      );
+      const sorted = [...market.options].sort((a, b) => {
+        const aYesPrice =
+          (a as any).yes_price ??
+          calculateYesPrice(
+            a.yes_quantity || 0,
+            a.no_quantity || 0,
+            market.liquidity_parameter,
+            market.is_resolved
+          );
+        const bYesPrice =
+          (b as any).yes_price ??
+          calculateYesPrice(
+            b.yes_quantity || 0,
+            b.no_quantity || 0,
+            market.liquidity_parameter,
+            market.is_resolved
+          );
+        return bYesPrice - aYesPrice;
+      });
       setSelectedOption(sorted[0]?.id || null);
     }
   }, [market]);
@@ -800,8 +1202,24 @@ export const MarketDetail = () => {
                   <div className="flex items-center gap-1.5">
                     <span className="text-moon-grey-dark">Liquidity</span>
                     <span className="text-white font-semibold tabular-nums">
-                      {formatUSDC((market as any).shared_pool_liquidity || 0)}
+                      {formatUSDC(
+                        Number((market as any).shared_pool_liquidity || 0) +
+                          Number((market as any).accumulated_lp_fees || 0)
+                      )}
                     </span>
+                    {Number((market as any).accumulated_lp_fees || 0) > 0 && (
+                      <span className="text-moon-grey-dark text-[10px]">
+                        (pool:{" "}
+                        {formatUSDC(
+                          Number((market as any).shared_pool_liquidity || 0)
+                        )}{" "}
+                        + fees:{" "}
+                        {formatUSDC(
+                          Number((market as any).accumulated_lp_fees || 0)
+                        )}
+                        )
+                      </span>
+                    )}
                   </div>
                   <div className="w-px h-4 bg-white/10 hidden sm:block" />
                   <div className="flex items-center gap-1.5">
@@ -834,7 +1252,11 @@ export const MarketDetail = () => {
                   liquidityParameter={market.liquidity_parameter}
                   isMultipleChoice={isMultipleChoice}
                   isResolved={market.is_resolved}
-                  createdAt={market.created_at}
+                  createdAt={
+                    new Date(Number(market.created_at) * 1000).toISOString() as
+                      | Date
+                      | string
+                  }
                 />
               </div>
             )}
@@ -859,6 +1281,15 @@ export const MarketDetail = () => {
                 <div className="space-y-2">
                   {market.options
                     ?.sort((a, b) => {
+                      // First, separate resolved and unresolved options
+                      const aResolved = a.is_resolved ?? false;
+                      const bResolved = b.is_resolved ?? false;
+
+                      // Resolved options go to the bottom
+                      if (aResolved && !bResolved) return 1;
+                      if (!aResolved && bResolved) return -1;
+
+                      // Within each group, sort by price
                       const pa =
                         (a as any).yes_price ??
                         calculateYesPrice(
@@ -877,256 +1308,34 @@ export const MarketDetail = () => {
                         );
                       return pb - pa;
                     })
-                    .map((option, idx) => {
-                      const resolved = option.is_resolved ?? false;
-                      const winner = option.winning_side ?? null;
-                      const yp = resolved
-                        ? calculateYesPrice(
-                            option.yes_quantity,
-                            option.no_quantity,
-                            market.liquidity_parameter,
-                            { is_resolved: resolved, winning_side: winner }
-                          )
-                        : (option as any).yes_price ??
-                          calculateYesPrice(
-                            option.yes_quantity,
-                            option.no_quantity,
-                            market.liquidity_parameter,
-                            { is_resolved: resolved, winning_side: winner }
-                          );
-                      const yc = (yp * 100).toFixed(1);
-                      const nc = ((1 - yp) * 100).toFixed(1);
-                      const sel = selectedOption === option.id;
-
-                      return (
-                        <div key={option.id}>
-                          <div
-                            onClick={() =>
-                              !resolved && handleSelectOption(option.id, "yes")
-                            }
-                            className={`relative rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 transition-all ${
-                              resolved
-                                ? "opacity-60 cursor-default"
-                                : sel
-                                ? "bg-white/[0.08] ring-1 ring-neon-iris/50 cursor-pointer"
-                                : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer"
-                            }`}
-                          >
-                            {/* Progress Bar */}
-                            <div className="absolute inset-0 rounded-xl overflow-visible">
-                              <div
-                                className={`h-full transition-all ${
-                                  parseFloat(yc) >= 50
-                                    ? "bg-emerald-500/[0.08]"
-                                    : parseFloat(yc) >= 25
-                                    ? "bg-amber-500/[0.08]"
-                                    : "bg-rose-500/[0.08]"
-                                }`}
-                                style={{ width: `${yc}%` }}
-                              />
-                            </div>
-
-                            {/* Rank/Image */}
-                            {option.option_image_url ? (
-                              <img
-                                src={option.option_image_url}
-                                alt=""
-                                className="relative w-9 h-9 rounded-lg object-cover flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="relative w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center text-xs font-bold text-moon-grey flex-shrink-0">
-                                {idx + 1}
-                              </div>
-                            )}
-
-                            {/* Label */}
-                            <div className="relative flex-1 min-w-0 pr-2">
-                              <span className="text-sm text-white font-medium break-words line-clamp-2">
-                                {capitalizeWords(option.option_label)}
-                              </span>
-                            </div>
-
-                            {/* Percentage */}
-                            <span
-                              className={`relative text-sm sm:text-base font-bold tabular-nums mr-2 flex-shrink-0 ${
-                                parseFloat(yc) >= 50
-                                  ? "text-emerald-400"
-                                  : parseFloat(yc) >= 25
-                                  ? "text-amber-400"
-                                  : "text-rose-400"
-                              }`}
-                            >
-                              {yc}%
-                            </span>
-
-                            {/* Action Buttons */}
-                            {!resolved && (
-                              <div className="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectOption(option.id, "yes");
-                                  }}
-                                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
-                                    sel && selectedSide === "yes"
-                                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                                      : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
-                                  }`}
-                                >
-                                  Yes {yc}¢
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectOption(option.id, "no");
-                                  }}
-                                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
-                                    sel && selectedSide === "no"
-                                      ? "bg-rose-500 text-white shadow-lg shadow-rose-500/25"
-                                      : "bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
-                                  }`}
-                                >
-                                  No {nc}¢
-                                </button>
-                                <ResolveButton
-                                  market={market}
-                                  option={option}
-                                  onResolved={() => id && fetchMarketData(id)}
-                                />
-                              </div>
-                            )}
-
-                            {resolved && (
-                              <span className="relative px-2 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-[11px] font-semibold">
-                                {winner === 1 ? "YES" : "NO"} Won
-                              </span>
-                            )}
-                          </div>
-
-                          {resolved && (
-                            <div className="mt-2 ml-0 sm:ml-12 space-y-2">
-                              <ClaimWinnings
-                                market={market}
-                                option={option}
-                                onClaimed={() => id && fetchMarketData(id)}
-                              />
-                              <DisputeResolution
-                                market={market}
-                                option={option}
-                                onDisputed={() => id && fetchMarketData(id)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                    .map((option, idx) => (
+                      <OptionRow
+                        key={option.id}
+                        option={option}
+                        idx={idx}
+                        market={market}
+                        selectedOption={selectedOption}
+                        selectedSide={selectedSide}
+                        onSelectOption={handleSelectOption}
+                        onResolved={() => id && fetchMarketData(id)}
+                        onDisputed={() => id && fetchMarketData(id)}
+                        onClaimed={() => id && fetchMarketData(id)}
+                      />
+                    ))}
                 </div>
               ) : (
                 // Binary Market
-                (() => {
-                  const opt = market.options[0];
-                  const resolved = opt?.is_resolved ?? false;
-                  const winner = opt?.winning_side ?? null;
-                  const yp = resolved
-                    ? calculateYesPrice(
-                        opt?.yes_quantity || 0,
-                        opt?.no_quantity || 0,
-                        market.liquidity_parameter || 100000,
-                        { is_resolved: resolved, winning_side: winner }
-                      )
-                    : (opt as any)?.yes_price ??
-                      calculateYesPrice(
-                        opt?.yes_quantity || 0,
-                        opt?.no_quantity || 0,
-                        market.liquidity_parameter || 100000,
-                        { is_resolved: resolved, winning_side: winner }
-                      );
-                  const yc = (yp * 100).toFixed(1);
-                  const nc = ((1 - yp) * 100).toFixed(1);
-
-                  return (
-                    <>
-                      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                        <button
-                          onClick={() =>
-                            !resolved &&
-                            handleSelectOption(opt?.id || "", "yes")
-                          }
-                          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
-                            resolved
-                              ? winner === 1
-                                ? "ring-2 ring-emerald-500/50"
-                                : "opacity-40"
-                              : selectedSide === "yes"
-                              ? "ring-2 ring-emerald-500/50"
-                              : "hover:bg-emerald-500/10"
-                          }`}
-                        >
-                          <div className="absolute inset-0 bg-emerald-500/10" />
-                          <div className="relative">
-                            <div className="text-emerald-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
-                              Yes {resolved && winner === 1 && "✓"}
-                            </div>
-                            <div className="text-2xl sm:text-3xl font-bold text-emerald-400 tabular-nums">
-                              {resolved && winner === 1 ? "$1" : `${yc}¢`}
-                            </div>
-                            <div className="text-emerald-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
-                              {formatShares(opt?.yes_quantity || 0)} shares
-                            </div>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() =>
-                            !resolved && handleSelectOption(opt?.id || "", "no")
-                          }
-                          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
-                            resolved
-                              ? winner === 2
-                                ? "ring-2 ring-rose-500/50"
-                                : "opacity-40"
-                              : selectedSide === "no"
-                              ? "ring-2 ring-rose-500/50"
-                              : "hover:bg-rose-500/10"
-                          }`}
-                        >
-                          <div className="absolute inset-0 bg-rose-500/10" />
-                          <div className="relative">
-                            <div className="text-rose-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
-                              No {resolved && winner === 2 && "✓"}
-                            </div>
-                            <div className="text-2xl sm:text-3xl font-bold text-rose-400 tabular-nums">
-                              {resolved && winner === 2 ? "$1" : `${nc}¢`}
-                            </div>
-                            <div className="text-rose-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
-                              {formatShares(opt?.no_quantity || 0)} shares
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-
-                      {/* Binary Resolve Button */}
-                      {!resolved && opt && (
-                        <div className="mt-3 flex justify-end">
-                          <ResolveButton
-                            market={market}
-                            option={opt}
-                            onResolved={() => id && fetchMarketData(id)}
-                          />
-                        </div>
-                      )}
-
-                      {resolved && opt && (
-                        <div className="mt-4">
-                          <ClaimWinnings
-                            market={market}
-                            option={opt}
-                            onClaimed={() => id && fetchMarketData(id)}
-                          />
-                        </div>
-                      )}
-                    </>
-                  );
-                })()
+                market.options?.[0] && (
+                  <BinaryOptionRow
+                    option={market.options[0]}
+                    market={market}
+                    selectedSide={selectedSide}
+                    onSelectOption={handleSelectOption}
+                    onResolved={() => id && fetchMarketData(id)}
+                    onDisputed={() => id && fetchMarketData(id)}
+                    onClaimed={() => id && fetchMarketData(id)}
+                  />
+                )
               )}
             </div>
 
@@ -1329,7 +1538,7 @@ export const MarketDetail = () => {
                                     </p>
                                   )}
                                   <p className="text-moon-grey-dark text-[11px]">
-                                    {formatDate(a.created_at)}
+                                    {formatDistanceToNow(Number(a.created_at))}
                                   </p>
                                 </div>
                               </div>

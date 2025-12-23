@@ -90,6 +90,11 @@ const AdminSuspiciousTrades = lazy(() =>
     default: m.AdminSuspiciousTrades,
   }))
 );
+const AdminDisputes = lazy(() =>
+  import("@/pages/admin/Disputes").then((m) => ({
+    default: m.AdminDisputes,
+  }))
+);
 
 // Loading fallback component
 const PageLoader = () => (
@@ -213,6 +218,7 @@ function App() {
                 path="suspicious-trades"
                 element={<AdminSuspiciousTrades />}
               />
+              <Route path="disputes" element={<AdminDisputes />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
 

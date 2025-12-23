@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   ComposedChart,
   Line,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -116,11 +115,14 @@ export const PriceChart = ({
   const initialLoadDone = useRef(false);
   const pendingUpdates = useRef<PriceUpdate[]>([]);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref to store current chart data for incremental updates
+  const chartDataRef = useRef<any[]>([]);
+  const [chartDataKey, setChartDataKey] = useState(0);
 
   // Get option IDs for websocket subscription
   const optionIds = useMemo(() => options.map((opt) => opt.id), [options]);
 
-  // Handle real-time price updates from websocket - batched for performance
+  // Handle real-time price updates from websocket - incremental updates for smooth animation
   const handlePriceUpdate = useCallback(
     (update: PriceUpdate) => {
       // Add to pending updates
@@ -131,20 +133,20 @@ export const PriceChart = ({
         clearTimeout(updateTimeoutRef.current);
       }
 
-      // Batch updates: process immediately for first update, then batch subsequent ones
+      // Process updates incrementally to avoid full rerenders
       const processUpdates = () => {
         const updates = [...pendingUpdates.current];
         pendingUpdates.current = [];
 
-        if (updates.length === 0) return;
+        if (updates.length === 0 || !initialLoadDone.current) return;
 
+        // Update price history state (for historical data)
         setPriceHistory((prev) => {
           if (isMultipleChoice) {
             const historyRecord = prev as Record<string, PriceHistoryPoint[]>;
             const updatedRecord = { ...historyRecord };
 
             updates.forEach((update) => {
-              console.log(update);
               const timestamp =
                 update.timestamp instanceof Date
                   ? update.timestamp.getTime()
@@ -169,20 +171,18 @@ export const PriceChart = ({
                 updated[existingIndex] = newPoint;
                 updatedRecord[update.option_id] = updated;
               } else {
-                // Add new point - append to end if timestamp is newer, otherwise insert
+                // Add new point - append to end if timestamp is newer
                 const lastTimestamp =
                   optionHistory.length > 0
                     ? optionHistory[optionHistory.length - 1].timestamp
                     : 0;
 
                 if (timestamp >= lastTimestamp) {
-                  // Append to end (most common case - new trades)
                   updatedRecord[update.option_id] = [
                     ...optionHistory,
                     newPoint,
                   ];
                 } else {
-                  // Insert in correct position (rare - out of order updates)
                   const sorted = [...optionHistory, newPoint].sort(
                     (a, b) => a.timestamp - b.timestamp
                   );
@@ -193,7 +193,6 @@ export const PriceChart = ({
 
             return updatedRecord;
           } else {
-            // Binary market: update the single option's history
             let history = prev as PriceHistoryPoint[];
 
             updates.forEach((update) => {
@@ -202,7 +201,6 @@ export const PriceChart = ({
                   ? update.timestamp.getTime()
                   : new Date(update.timestamp).getTime();
 
-              // Check if we already have a point at this timestamp (within 1 second)
               const existingIndex = history.findIndex(
                 (p) => Math.abs(p.timestamp - timestamp) < 1000
               );
@@ -214,22 +212,18 @@ export const PriceChart = ({
               };
 
               if (existingIndex >= 0) {
-                // Update existing point
                 const updated = [...history];
                 updated[existingIndex] = newPoint;
                 history = updated;
               } else {
-                // Add new point - append to end if timestamp is newer
                 const lastTimestamp =
                   history.length > 0
                     ? history[history.length - 1].timestamp
                     : 0;
 
                 if (timestamp >= lastTimestamp) {
-                  // Append to end (most common case)
                   history = [...history, newPoint];
                 } else {
-                  // Insert in correct position (rare)
                   history = [...history, newPoint].sort(
                     (a, b) => a.timestamp - b.timestamp
                   );
@@ -240,19 +234,119 @@ export const PriceChart = ({
             return history;
           }
         });
+
+        // Incrementally update chart data ref for smooth rendering
+        if (chartDataRef.current.length > 0) {
+          let currentData = [...chartDataRef.current];
+          let dataChanged = false;
+
+          updates.forEach((update) => {
+            const timestamp =
+              update.timestamp instanceof Date
+                ? update.timestamp.getTime()
+                : new Date(update.timestamp).getTime();
+
+            if (isMultipleChoice) {
+              // For multiple choice, update the specific option's value
+              const lastPoint = currentData[currentData.length - 1];
+              if (
+                lastPoint &&
+                Math.abs(lastPoint.timestamp - timestamp) < 1000
+              ) {
+                // Update existing point - create new object to trigger rerender
+                const updatedPoint = { ...lastPoint };
+                updatedPoint[update.option_id] = update.yes_price;
+                currentData = [...currentData.slice(0, -1), updatedPoint];
+                dataChanged = true;
+              } else {
+                // Create new point with all current values
+                const newPoint: any = { timestamp, volume: 0 };
+                const optionsToShow = selectedOption
+                  ? options.filter((o) => o.id === selectedOption)
+                  : options.slice(0, 6);
+
+                optionsToShow.forEach((opt) => {
+                  if (opt.id === update.option_id) {
+                    newPoint[opt.id] = update.yes_price;
+                  } else {
+                    // Carry forward previous value from last point
+                    const prevValue = lastPoint?.[opt.id];
+                    newPoint[opt.id] =
+                      prevValue ??
+                      (opt as any).yes_price ??
+                      calculateYesPrice(
+                        opt.yes_quantity,
+                        opt.no_quantity,
+                        liquidityParameter,
+                        isResolved
+                      );
+                  }
+                });
+                currentData = [...currentData, newPoint];
+                dataChanged = true;
+              }
+            } else {
+              // Binary market: update YES/NO prices
+              const lastPoint = currentData[currentData.length - 1];
+              if (
+                lastPoint &&
+                Math.abs(lastPoint.timestamp - timestamp) < 1000
+              ) {
+                // Update existing point - create new object to trigger rerender
+                currentData = [
+                  ...currentData.slice(0, -1),
+                  {
+                    ...lastPoint,
+                    yesPrice: update.yes_price,
+                    noPrice: update.no_price,
+                  },
+                ];
+                dataChanged = true;
+              } else {
+                // Append new point
+                currentData = [
+                  ...currentData,
+                  {
+                    timestamp,
+                    yesPrice: update.yes_price,
+                    noPrice: update.no_price,
+                  },
+                ];
+                dataChanged = true;
+              }
+            }
+          });
+
+          if (dataChanged) {
+            // Limit data points to prevent memory issues (keep last 1000 points)
+            const cutoff = getCutoffTime(timeRange);
+            if (currentData.length > 1000) {
+              currentData = currentData.filter((p) => p.timestamp >= cutoff);
+            }
+            chartDataRef.current = currentData;
+
+            // Trigger rerender with minimal state update
+            setChartDataKey((k) => k + 1);
+          }
+        }
       };
 
-      // Process first update immediately, batch subsequent ones
+      // Process updates with minimal delay for smooth animation
       if (pendingUpdates.current.length === 1) {
         processUpdates();
-        // Batch subsequent updates within 100ms
-        updateTimeoutRef.current = setTimeout(processUpdates, 100);
+        updateTimeoutRef.current = setTimeout(processUpdates, 50);
       } else {
-        // Already batching, just extend the timeout
-        updateTimeoutRef.current = setTimeout(processUpdates, 100);
+        updateTimeoutRef.current = setTimeout(processUpdates, 50);
       }
     },
-    [isMultipleChoice]
+    [
+      isMultipleChoice,
+      options,
+      liquidityParameter,
+      isResolved,
+      timeRange,
+      selectedOption,
+    ]
   );
 
   // Subscribe to websocket price updates
@@ -262,6 +356,9 @@ export const PriceChart = ({
   useEffect(() => {
     const loadPriceHistory = async () => {
       setIsLoading(true);
+      // Reset chart data ref when loading new history
+      chartDataRef.current = [];
+      setChartDataKey(0);
       try {
         if (isMultipleChoice) {
           // Fetch history for all options in the market
@@ -295,6 +392,8 @@ export const PriceChart = ({
     initialLoadDone.current = false;
     // Clear pending updates when market changes
     pendingUpdates.current = [];
+    chartDataRef.current = [];
+    setChartDataKey(0);
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
@@ -310,16 +409,27 @@ export const PriceChart = ({
     };
   }, []);
 
-  // Build chart data from price history
+  // Build chart data from price history - use ref for incremental updates
   const chartData = useMemo(() => {
+    // If we have ref data and initial load is done, use ref (for smooth updates)
+    // Otherwise, build from priceHistory (initial load or time range change)
+    const useRefData =
+      initialLoadDone.current &&
+      chartDataRef.current.length > 0 &&
+      chartDataKey > 0;
+
     if (isMultipleChoice) {
-      // Multiple choice: merge price history for each option
       const historyRecord = priceHistory as Record<string, PriceHistoryPoint[]>;
       const optionsToShow = selectedOption
         ? options.filter((o) => o.id === selectedOption)
         : options.slice(0, 6);
 
-      // Get all unique timestamps across all options
+      if (useRefData) {
+        // Use ref data for smooth incremental updates
+        return chartDataRef.current;
+      }
+
+      // Initial load: build from price history
       const allTimestamps = new Set<number>();
       optionsToShow.forEach((opt) => {
         const optHistory = historyRecord[opt.id] || [];
@@ -327,12 +437,11 @@ export const PriceChart = ({
       });
 
       if (allTimestamps.size === 0) {
-        // No history - generate flat line at current prices
         const now = Date.now();
         const cutoff = getCutoffTime(timeRange);
         const interval = (now - cutoff) / 20;
 
-        return Array.from({ length: 20 }, (_, i) => {
+        const data = Array.from({ length: 20 }, (_, i) => {
           const point: any = {
             timestamp: cutoff + interval * i,
           };
@@ -349,13 +458,13 @@ export const PriceChart = ({
           });
           return point;
         });
+        chartDataRef.current = data;
+        return data;
       }
 
-      // Build merged data points
       const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
       const lastPrices: Record<string, number> = {};
 
-      // Initialize with current prices
       optionsToShow.forEach((opt) => {
         lastPrices[opt.id] =
           (opt as any).yes_price ??
@@ -367,7 +476,7 @@ export const PriceChart = ({
           );
       });
 
-      return sortedTimestamps.map((ts) => {
+      const data = sortedTimestamps.map((ts) => {
         const point: any = { timestamp: ts, volume: 0 };
         optionsToShow.forEach((opt) => {
           const optHistory = historyRecord[opt.id] || [];
@@ -381,8 +490,10 @@ export const PriceChart = ({
         });
         return point;
       });
+      chartDataRef.current = data;
+      return data;
     } else {
-      // Binary market: show YES and NO price lines
+      // Binary market
       const history = priceHistory as PriceHistoryPoint[];
       const option = options[0];
       if (!option) return [];
@@ -396,27 +507,32 @@ export const PriceChart = ({
           isResolved
         );
 
+      if (useRefData) {
+        // Use ref data for smooth incremental updates
+        return chartDataRef.current;
+      }
+
+      // Initial load: build from price history
       if (!history || history.length === 0) {
-        // No history - generate flat line at current price
         const now = Date.now();
         const cutoff = getCutoffTime(timeRange);
         const interval = (now - cutoff) / 30;
 
-        return Array.from({ length: 31 }, (_, i) => ({
+        const data = Array.from({ length: 31 }, (_, i) => ({
           timestamp: cutoff + interval * i,
           yesPrice: currentYesPrice,
           noPrice: 1 - currentYesPrice,
         }));
+        chartDataRef.current = data;
+        return data;
       }
 
-      // Use backend-provided history directly
       const dataPoints = history.map((point) => ({
         timestamp: point.timestamp,
         yesPrice: point.yesPrice,
         noPrice: point.noPrice,
       }));
 
-      // Add current price as last point if not already there
       const lastPoint = dataPoints[dataPoints.length - 1];
       if (!lastPoint || Date.now() - lastPoint.timestamp > 60000) {
         dataPoints.push({
@@ -426,6 +542,7 @@ export const PriceChart = ({
         });
       }
 
+      chartDataRef.current = dataPoints;
       return dataPoints;
     }
   }, [
@@ -436,6 +553,7 @@ export const PriceChart = ({
     isMultipleChoice,
     selectedOption,
     isResolved,
+    chartDataKey, // Include key to trigger update when ref changes
   ]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -680,8 +798,8 @@ export const PriceChart = ({
                     strokeWidth: 2,
                     fill: "#ffffff",
                   }}
-                  isAnimationActive={true}
-                  animationDuration={300}
+                  isAnimationActive={chartDataKey === 0}
+                  animationDuration={chartDataKey === 0 ? 300 : 0}
                 />
               ))}
             </ComposedChart>
@@ -734,8 +852,8 @@ export const PriceChart = ({
                 strokeWidth={2}
                 dot={false}
                 name="YES"
-                isAnimationActive={true}
-                animationDuration={300}
+                isAnimationActive={chartDataKey === 0}
+                animationDuration={chartDataKey === 0 ? 300 : 0}
                 activeDot={{
                   r: 4,
                   stroke: "#10b981",
@@ -752,8 +870,8 @@ export const PriceChart = ({
                 strokeWidth={2}
                 dot={false}
                 name="NO"
-                isAnimationActive={true}
-                animationDuration={300}
+                isAnimationActive={chartDataKey === 0}
+                animationDuration={chartDataKey === 0 ? 300 : 0}
                 activeDot={{
                   r: 4,
                   stroke: "#ef4444",

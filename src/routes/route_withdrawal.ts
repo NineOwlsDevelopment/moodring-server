@@ -19,7 +19,6 @@ router.post(
   "/request",
   authenticateToken,
   withdrawalLimiter,
-  validateBody(withdrawalSchema),
   typedHandler(requestWithdrawal)
 );
 

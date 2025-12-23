@@ -233,7 +233,9 @@ export const NotificationDropdown = () => {
                           {notification.message}
                         </p>
                         <p className="text-xs text-moon-grey-dark mt-1">
-                          {formatDistanceToNow(notification.created_at)}
+                          {formatDistanceToNow(
+                            new Date(notification.created_at).getTime() / 1000
+                          )}
                         </p>
                       </div>
                     </Link>
@@ -269,113 +271,115 @@ export const NotificationDropdown = () => {
             />
 
             <div className="fixed inset-x-0 bottom-0 md:hidden w-full max-h-[85vh] bg-graphite-deep rounded-t-2xl shadow-2xl z-[60] animate-slide-up overflow-hidden notification-dropdown-mobile">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] bg-graphite-light/50">
-              {/* Mobile handle */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20 md:hidden" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] bg-graphite-light/50">
+                {/* Mobile handle */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20 md:hidden" />
 
-              <h3 className="font-semibold text-white pt-2 md:pt-0">
-                Notifications
-              </h3>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllAsRead}
-                    className="text-xs text-neon-iris hover:text-neon-iris-light font-medium transition-colors"
-                  >
-                    Mark all read
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1 text-moon-grey hover:text-white rounded-lg hover:bg-white/5 md:hidden"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Notifications List */}
-            <div className="max-h-[calc(85vh-140px)] md:max-h-[380px] overflow-y-auto overscroll-contain">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-neon-iris border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="py-12 text-center px-4">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-graphite-light flex items-center justify-center">
-                    <Bell className="w-8 h-8 text-moon-grey-dark" />
-                  </div>
-                  <p className="text-moon-grey font-medium">
-                    No notifications yet
-                  </p>
-                  <p className="text-moon-grey-dark text-sm mt-1">
-                    We'll let you know when something happens
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-white/5">
-                  {notifications.map((notification) => (
-                    <Link
-                      key={notification.id}
-                      to={getNotificationLink(notification)}
-                      onClick={() => {
-                        if (!notification.is_read) {
-                          handleMarkAsRead(notification.id);
-                        }
-                        setIsOpen(false);
-                      }}
-                      className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${
-                        !notification.is_read ? "bg-neon-iris/5" : ""
-                      }`}
+                <h3 className="font-semibold text-white pt-2 md:pt-0">
+                  Notifications
+                </h3>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs text-neon-iris hover:text-neon-iris-light font-medium transition-colors"
                     >
-                      <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-graphite-light flex items-center justify-center">
-                        {notificationIcons[notification.type] || (
-                          <BellRing className="w-5 h-5 text-moon-grey" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={`text-sm font-medium line-clamp-1 ${
-                              notification.is_read
-                                ? "text-moon-grey"
-                                : "text-white"
-                            }`}
-                          >
-                            {notification.title}
-                          </p>
-                          {!notification.is_read && (
-                            <span className="flex-shrink-0 w-2 h-2 mt-1.5 bg-neon-iris rounded-full" />
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-1 text-moon-grey hover:text-white rounded-lg hover:bg-white/5 md:hidden"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Notifications List */}
+              <div className="max-h-[calc(85vh-140px)] md:max-h-[380px] overflow-y-auto overscroll-contain">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-neon-iris border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="py-12 text-center px-4">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-graphite-light flex items-center justify-center">
+                      <Bell className="w-8 h-8 text-moon-grey-dark" />
+                    </div>
+                    <p className="text-moon-grey font-medium">
+                      No notifications yet
+                    </p>
+                    <p className="text-moon-grey-dark text-sm mt-1">
+                      We'll let you know when something happens
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {notifications.map((notification) => (
+                      <Link
+                        key={notification.id}
+                        to={getNotificationLink(notification)}
+                        onClick={() => {
+                          if (!notification.is_read) {
+                            handleMarkAsRead(notification.id);
+                          }
+                          setIsOpen(false);
+                        }}
+                        className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${
+                          !notification.is_read ? "bg-neon-iris/5" : ""
+                        }`}
+                      >
+                        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-graphite-light flex items-center justify-center">
+                          {notificationIcons[notification.type] || (
+                            <BellRing className="w-5 h-5 text-moon-grey" />
                           )}
                         </div>
-                        <p className="text-xs text-moon-grey-dark line-clamp-2 mt-0.5">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-moon-grey-dark mt-1">
-                          {formatDistanceToNow(notification.created_at)}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p
+                              className={`text-sm font-medium line-clamp-1 ${
+                                notification.is_read
+                                  ? "text-moon-grey"
+                                  : "text-white"
+                              }`}
+                            >
+                              {notification.title}
+                            </p>
+                            {!notification.is_read && (
+                              <span className="flex-shrink-0 w-2 h-2 mt-1.5 bg-neon-iris rounded-full" />
+                            )}
+                          </div>
+                          <p className="text-xs text-moon-grey-dark line-clamp-2 mt-0.5">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-moon-grey-dark mt-1">
+                            {formatDistanceToNow(
+                              new Date(notification.created_at).getTime() / 1000
+                            )}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Footer */}
-            <div className="border-t border-white/5 px-4 py-3 bg-graphite-light/50">
-              <Link
-                to="/settings"
-                onClick={() => setIsOpen(false)}
-                className="text-sm text-moon-grey hover:text-neon-iris transition-colors flex items-center gap-1"
-              >
-                Notification settings
-                <span className="text-moon-grey-dark">→</span>
-              </Link>
+              {/* Footer */}
+              <div className="border-t border-white/5 px-4 py-3 bg-graphite-light/50">
+                <Link
+                  to="/settings"
+                  onClick={() => setIsOpen(false)}
+                  className="text-sm text-moon-grey hover:text-neon-iris transition-colors flex items-center gap-1"
+                >
+                  Notification settings
+                  <span className="text-moon-grey-dark">→</span>
+                </Link>
+              </div>
             </div>
-          </div>
           </>,
           document.body
         )}

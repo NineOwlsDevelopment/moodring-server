@@ -33,17 +33,11 @@ import {
   Bell,
   Shield,
   BarChart3,
-  PlusCircle,
-  CheckCircle,
-  Coins,
   ArrowDownToLine,
-  Trophy,
   TrendingUp,
   Wallet,
   Clock,
   Droplets,
-  UserPlus,
-  MessageCircle,
   Laptop,
   CreditCard,
 } from "lucide-react";
@@ -54,62 +48,6 @@ type PositionFilter = "open" | "closed" | "all";
 // Helper to get activity type - handles both 'type' and 'activity_type' from API
 const getType = (activity: any): string => {
   return activity.type || activity.activity_type || "unknown";
-};
-
-const getActivityIcon = (type: string) => {
-  switch (type) {
-    case "trade":
-      return <BarChart3 className="w-5 h-5 text-neon-iris" />;
-    case "market_created":
-    case "market_initialized":
-      return <PlusCircle className="w-5 h-5 text-aqua-pulse" />;
-    case "market_resolved":
-      return <CheckCircle className="w-5 h-5 text-brand-success" />;
-    case "deposit":
-      return <Coins className="w-5 h-5 text-brand-warning" />;
-    case "withdrawal":
-      return <ArrowDownToLine className="w-5 h-5 text-amber-400" />;
-    case "claim":
-    case "lp_rewards_claimed":
-      return <Trophy className="w-5 h-5 text-amber-400" />;
-    case "liquidity_added":
-    case "liquidity_removed":
-      return <Droplets className="w-5 h-5 text-aqua-pulse" />;
-    case "user_joined":
-      return <UserPlus className="w-5 h-5 text-neon-iris" />;
-    case "comment":
-      return <MessageCircle className="w-5 h-5 text-moon-grey" />;
-    default:
-      return <ActivityIcon className="w-5 h-5 text-moon-grey" />;
-  }
-};
-
-const getActivityBgColor = (type: string) => {
-  switch (type) {
-    case "trade":
-      return "bg-neon-iris/10";
-    case "market_created":
-    case "market_initialized":
-      return "bg-aqua-pulse/10";
-    case "market_resolved":
-      return "bg-brand-success/10";
-    case "deposit":
-      return "bg-brand-warning/10";
-    case "withdrawal":
-      return "bg-amber-400/10";
-    case "claim":
-    case "lp_rewards_claimed":
-      return "bg-amber-400/10";
-    case "liquidity_added":
-    case "liquidity_removed":
-      return "bg-aqua-pulse/10";
-    case "user_joined":
-      return "bg-neon-iris/10";
-    case "comment":
-      return "bg-moon-grey/10";
-    default:
-      return "bg-graphite-light";
-  }
 };
 
 export const Settings = () => {
@@ -552,10 +490,16 @@ export const Settings = () => {
             <div className="flex items-center gap-1 text-[10px] sm:text-xs text-moon-grey-dark flex-shrink-0 whitespace-nowrap ml-1">
               <Clock className="w-3 h-3 flex-shrink-0" />
               <span className="hidden sm:inline">
-                {formatDistanceToNow(activity.created_at)}
+                {formatDistanceToNow(
+                  new Date(activity.created_at).getTime() / 1000
+                )}
               </span>
               <span className="sm:hidden">
-                {formatDistanceToNow(activity.created_at).split(" ")[0]}
+                {
+                  formatDistanceToNow(
+                    new Date(activity.created_at).getTime() / 1000
+                  ).split(" ")[0]
+                }
               </span>
             </div>
           </div>

@@ -91,6 +91,7 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
       setDestinationAddress("");
       onClose();
     } catch (error: any) {
+      console.log(error);
       const errorMessage =
         error.response?.data?.error ||
         error.message ||
@@ -319,7 +320,7 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
                 <div className="relative">
                   <input
                     type="number"
-                    step="1.00"
+                    step="any"
                     min="0"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}

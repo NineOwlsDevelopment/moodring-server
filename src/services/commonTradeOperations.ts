@@ -23,6 +23,7 @@ export interface OptionData {
   no_quantity: number;
   is_resolved: boolean;
   winning_side?: number;
+  dispute_deadline?: number;
 }
 
 export interface WalletData {
@@ -258,6 +259,7 @@ export class CommonTradeOperations {
         total_volume = total_volume + $1,
         total_open_interest = GREATEST(0, total_open_interest + $2),
         creator_fees_collected = creator_fees_collected + $3,
+        lifetime_creator_fees_generated = lifetime_creator_fees_generated + $3,
         protocol_fees_collected = protocol_fees_collected + $4,
         accumulated_lp_fees = accumulated_lp_fees + $5,
         shared_pool_liquidity = GREATEST(0, shared_pool_liquidity + $6),

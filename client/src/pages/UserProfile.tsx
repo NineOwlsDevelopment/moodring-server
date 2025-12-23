@@ -327,7 +327,9 @@ const ReplySection = ({
                       </span>
                       <span className="text-xs text-gray-500">
                         {comment.created_at
-                          ? formatDistanceToNow(comment.created_at)
+                          ? formatDistanceToNow(
+                              new Date(comment.created_at).getTime() / 1000
+                            )
                           : "now"}
                       </span>
                     </div>
@@ -423,7 +425,11 @@ const ProfilePostCard = ({
               )}
               <span className="text-gray-500">·</span>
               <span className="text-xs text-gray-500">
-                {post.created_at ? formatDistanceToNow(post.created_at) : "now"}
+                {post.created_at
+                  ? formatDistanceToNow(
+                      new Date(post.created_at).getTime() / 1000
+                    )
+                  : "now"}
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-0.5">@{profile.username}</p>

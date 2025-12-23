@@ -15,7 +15,6 @@ import {
   formatUSDC,
   formatProbability,
   formatShares,
-  capitalize,
   capitalizeWords,
 } from "@/utils/format";
 
@@ -378,8 +377,7 @@ export const Portfolio = () => {
                       </h3>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                         <span>
-                          Provided:{" "}
-                          {formatUSDC(position.liquidity_provided)}
+                          Provided: {formatUSDC(position.liquidity_provided)}
                         </span>
                         <span>
                           Fees earned:{" "}

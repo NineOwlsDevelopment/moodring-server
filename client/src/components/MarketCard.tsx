@@ -10,7 +10,6 @@ import {
 } from "@/utils/format";
 import { Clock, TrendingUp, ChevronDown } from "lucide-react";
 import { GradientAccent } from "./GradientAccent";
-import { WatchlistButton } from "./WatchlistButton";
 import { UserAvatar } from "./UserAvatar";
 
 interface MarketCardProps {

@@ -76,6 +76,7 @@ export class RiskControlService {
 
   /**
    * Check circuit breaker for recent market volume
+   * DISABLED: No longer blocks trades, only logs for monitoring
    */
   static async checkCircuitBreaker(
     client: PoolClient,
@@ -101,7 +102,7 @@ export class RiskControlService {
     const recentVolume = Number(recentVolumeResult.rows[0]?.recent_volume || 0);
 
     if (recentVolume >= moodring.circuit_breaker_threshold) {
-      // Log the circuit breaker trigger as a suspicious activity
+      // Log the circuit breaker trigger as a suspicious activity (for monitoring only)
       await SuspiciousTradeModel.create(
         {
           user_id: userId,
@@ -121,20 +122,13 @@ export class RiskControlService {
             option_id: optionId,
           },
           risk_score: 100, // Circuit breaker triggers are high risk
-          automated_action_taken: true, // Circuit breaker halts trading
+          automated_action_taken: false, // No longer halting trading
         },
         client
       );
 
-      return {
-        passed: false,
-        error: `Circuit breaker triggered: Recent market volume (${recentVolume}) exceeds threshold (${moodring.circuit_breaker_threshold}). Trading temporarily halted.`,
-        details: {
-          circuit_breaker_triggered: true,
-          recent_volume: recentVolume,
-          threshold: moodring.circuit_breaker_threshold,
-        },
-      };
+      // Circuit breaker check disabled - always pass
+      return { passed: true };
     }
 
     return { passed: true };
@@ -196,26 +190,7 @@ export class RiskControlService {
     }
     // Well-established markets use the base threshold
 
-    if (volatilityBps > adjustedThreshold) {
-      return {
-        passed: false,
-        error: `Trade rejected: Price volatility (${volatilityBps} bps) exceeds adjusted threshold (${adjustedThreshold} bps) for market maturity level`,
-        currentPrice,
-        newPrice,
-        volatilityBps,
-        adjustedThreshold,
-        details: {
-          volatility_detected: true,
-          current_price: currentPrice,
-          new_price: newPrice,
-          volatility_bps: volatilityBps,
-          base_threshold_bps: moodring.max_market_volatility_threshold,
-          adjusted_threshold_bps: adjustedThreshold,
-          market_maturity_ratio: totalSharesBefore / tradeSize,
-        },
-      };
-    }
-
+    // Volatility check disabled - always pass
     return {
       passed: true,
       currentPrice,
@@ -278,26 +253,7 @@ export class RiskControlService {
       adjustedThreshold *= 2;
     }
 
-    if (volatilityBps > adjustedThreshold) {
-      return {
-        passed: false,
-        error: `Trade rejected: Price volatility (${volatilityBps} bps) exceeds adjusted threshold (${adjustedThreshold} bps) for market maturity level`,
-        currentPrice,
-        newPrice,
-        volatilityBps,
-        adjustedThreshold,
-        details: {
-          volatility_detected: true,
-          current_price: currentPrice,
-          new_price: newPrice,
-          volatility_bps: volatilityBps,
-          base_threshold_bps: moodring.max_market_volatility_threshold,
-          adjusted_threshold_bps: adjustedThreshold,
-          market_maturity_ratio: totalSharesBefore / tradeSize,
-        },
-      };
-    }
-
+    // Volatility check disabled - always pass
     return {
       passed: true,
       currentPrice,

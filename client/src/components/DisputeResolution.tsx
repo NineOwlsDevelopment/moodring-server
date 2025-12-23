@@ -1,19 +1,30 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Market, MarketOption } from "@/types/market";
 import { disputeResolution } from "@/api/api";
 import { useUserStore } from "@/stores/userStore";
 import { toast } from "sonner";
+import { getModalRoot } from "@/utils/modal";
 
 interface DisputeResolutionProps {
   market: Market;
   option: MarketOption;
   onDisputed?: () => void;
+  compact?: boolean; // If true, shows a compact button suitable for action buttons area
+  countdown?: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+    hasEnded: boolean;
+  }; // Optional countdown to display in the button
 }
 
 export const DisputeResolution = ({
   market,
   option,
   onDisputed,
+  compact = false,
+  countdown,
 }: DisputeResolutionProps) => {
   const { user } = useUserStore();
   const [showModal, setShowModal] = useState(false);
@@ -32,6 +43,11 @@ export const DisputeResolution = ({
   const disputeDeadline = (option as any).dispute_deadline
     ? new Date((option as any).dispute_deadline)
     : null;
+
+  // Only show if user is logged in
+  if (!user) {
+    return null;
+  }
 
   // Only show if option is resolved and has a dispute deadline (OPINION mode options don't have dispute deadlines)
   if (!(option as any).is_resolved) {
@@ -106,10 +122,17 @@ export const DisputeResolution = ({
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="px-4 py-2 text-sm font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg transition-all border border-rose-500/30"
+        className={
+          compact
+            ? "px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold text-white hover:text-white bg-rose-500 hover:bg-rose-600 transition-all whitespace-nowrap border border-rose-500 flex items-center gap-1"
+            : "px-4 py-2 text-sm font-medium text-white hover:text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-all border border-rose-500 flex items-center gap-1.5"
+        }
+        title={compact ? "Dispute Resolution" : undefined}
       >
         <svg
-          className="w-4 h-4 inline mr-1.5"
+          className={
+            compact ? "w-3 h-3 flex-shrink-0" : "w-4 h-4 flex-shrink-0"
+          }
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -121,151 +144,184 @@ export const DisputeResolution = ({
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
-        Dispute Resolution
+        <span>{compact ? "Dispute" : "Dispute Resolution"}</span>
+        {countdown && !countdown.hasEnded && (
+          <>
+            <span className="text-amber-300">•</span>
+            <svg
+              className={
+                compact ? "w-3 h-3 flex-shrink-0" : "w-4 h-4 flex-shrink-0"
+              }
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-amber-300 tabular-nums">
+              {countdown.hours > 0
+                ? `${countdown.hours}h ${countdown.minutes}m`
+                : `${countdown.minutes}m ${countdown.seconds}s`}
+            </span>
+          </>
+        )}
       </button>
 
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowModal(false)}
-        >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      {showModal &&
+        getModalRoot() &&
+        createPortal(
           <div
-            className="relative overflow-hidden bg-graphite-deep rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            onClick={() => setShowModal(false)}
           >
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/50 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <div
+              className="relative bg-graphite-deep rounded-2xl border border-white/10 p-6 max-w-lg w-full shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/50 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
 
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">
-                Dispute Resolution
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-moon-grey hover:text-white transition-colors"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">
+                  Dispute Resolution
+                </h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-moon-grey hover:text-white transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <p className="text-moon-grey text-sm mb-6">
-              Disputing this option's resolution will mark the market as
-              DISPUTED and may trigger escalation procedures. Dispute window is
-              2 hours from when resolution began. A $100 USDC resolution fee is
-              required to submit a dispute.
-            </p>
-
-            {disputeDeadline && (
-              <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                <p className="text-xs text-amber-300">
-                  <strong>Option:</strong> {option.option_label}
-                  <br />
-                  <strong>Dispute window closes:</strong>{" "}
-                  {disputeDeadline.toLocaleString()}
-                </p>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
-            )}
 
-            {user && (
-              <div className="mb-4 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                <p className="text-xs text-blue-300">
-                  <strong>Your Balance:</strong>{" "}
-                  {((user.wallet?.balance_usdc || 0) / 1_000_000).toFixed(2)}{" "}
-                  USDC
-                </p>
-              </div>
-            )}
-
-            <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-              <p className="text-xs text-amber-300">
-                <strong>Resolution Fee:</strong> ${DISPUTE_RESOLUTION_FEE_USDC}{" "}
-                USDC
-                <br />
-                <span className="text-amber-300/70">
-                  This fee will be deducted from your wallet and kept by the
-                  platform as a resolution processing fee.
-                </span>
+              <p className="text-moon-grey text-sm mb-6">
+                Disputing this option's resolution will mark the market as
+                DISPUTED and may trigger escalation procedures. Dispute window
+                is 2 hours from when resolution began. A $100 USDC resolution
+                fee is required to submit a dispute.
               </p>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2 block">
-                  Reason for Dispute *
-                </label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  disabled={isDisputing}
-                  placeholder="Explain why you believe this resolution is incorrect..."
-                  className="w-full px-4 py-3 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white text-sm placeholder-gray-600 focus:border-rose-500 focus:ring-0 resize-none transition-all"
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2 block">
-                  Evidence (Optional)
-                </label>
-                <textarea
-                  value={evidence}
-                  onChange={(e) => setEvidence(e.target.value)}
-                  disabled={isDisputing}
-                  placeholder='JSON object or plain text. Example: {"source": "https://example.com", "note": "On-chain data shows different outcome"}'
-                  className="w-full px-4 py-3 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white text-sm placeholder-gray-600 focus:border-rose-500 focus:ring-0 resize-none transition-all font-mono"
-                  rows={3}
-                />
-              </div>
-
-              {error && (
-                <div className="px-4 py-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
-                  {error}
+              {disputeDeadline && (
+                <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                  <p className="text-xs text-amber-300">
+                    <strong>Option:</strong> {option.option_label}
+                    <br />
+                    <strong>Dispute window closes:</strong>{" "}
+                    {disputeDeadline.toLocaleString()}
+                  </p>
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    setError(null);
-                    setReason("");
-                    setEvidence("");
-                  }}
-                  disabled={isDisputing}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-moon-grey rounded-xl font-medium text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDispute}
-                  disabled={
-                    isDisputing ||
-                    !reason.trim() ||
-                    (user?.wallet?.balance_usdc || 0) <
-                      DISPUTE_RESOLUTION_FEE_MICROUSDC
-                  }
-                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-500/90 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isDisputing ? "Submitting..." : "Submit Dispute"}
-                </button>
+              {user && (
+                <div className="mb-4 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                  <p className="text-xs text-blue-300">
+                    <strong>Your Balance:</strong>{" "}
+                    {(
+                      (user.wallet?.balance_usdc || 0) / 1_000_000
+                    ).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    USDC
+                  </p>
+                </div>
+              )}
+
+              <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                <p className="text-xs text-amber-300">
+                  <strong>Resolution Fee:</strong> $
+                  {DISPUTE_RESOLUTION_FEE_USDC} USDC
+                  <br />
+                  <span className="text-amber-300/70">
+                    This fee will be deducted from your wallet and kept by the
+                    platform as a resolution processing fee.
+                  </span>
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2 block">
+                    Reason for Dispute *
+                  </label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    disabled={isDisputing}
+                    placeholder="Explain why you believe this resolution is incorrect..."
+                    className="w-full px-4 py-3 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white text-sm placeholder-gray-600 focus:border-rose-500 focus:ring-0 resize-none transition-all"
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2 block">
+                    Evidence (Optional)
+                  </label>
+                  <textarea
+                    value={evidence}
+                    onChange={(e) => setEvidence(e.target.value)}
+                    disabled={isDisputing}
+                    placeholder="Provides links or other evidence to support your dispute."
+                    className="w-full px-4 py-3 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white text-sm placeholder-gray-600 focus:border-rose-500 focus:ring-0 resize-none transition-all font-mono"
+                    rows={3}
+                  />
+                </div>
+
+                {error && (
+                  <div className="px-4 py-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowModal(false);
+                      setError(null);
+                      setReason("");
+                      setEvidence("");
+                    }}
+                    disabled={isDisputing}
+                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-moon-grey rounded-xl font-medium text-sm transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDispute}
+                    disabled={
+                      isDisputing ||
+                      !reason.trim() ||
+                      (user?.wallet?.balance_usdc || 0) <
+                        DISPUTE_RESOLUTION_FEE_MICROUSDC
+                    }
+                    className="flex-1 py-3 bg-rose-500 hover:bg-rose-500/90 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDisputing ? "Submitting..." : "Submit Dispute"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          getModalRoot()!
+        )}
     </>
   );
 };

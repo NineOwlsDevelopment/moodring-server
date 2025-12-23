@@ -1,4 +1,4 @@
-import { clusterApiUrl, Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { AnchorProvider } from "@coral-xyz/anchor";
 
 // Solana network configuration

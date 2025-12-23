@@ -24,6 +24,15 @@ export const ClaimWinnings = ({
   const optionIsResolved = option.is_resolved ?? false;
   const winningSide = option.winning_side ?? null;
 
+  // Check if dispute deadline has passed (if one exists)
+  // OPINION mode options don't have dispute deadlines and can be claimed immediately
+  const disputeDeadline = option.dispute_deadline
+    ? option.dispute_deadline * 1000
+    : null; // Convert to milliseconds
+  const canClaim = disputeDeadline
+    ? new Date() >= new Date(disputeDeadline)
+    : true; // If no dispute deadline, can claim immediately (OPINION mode)
+
   // Fetch user position to check if they have winning shares
   // Fetch all positions (not just "open") to include resolved options
   useEffect(() => {
@@ -125,6 +134,31 @@ export const ClaimWinnings = ({
     return (
       <div className="px-4 py-2 bg-primary-500/10 rounded-lg text-sm text-gray-400">
         Checking position...
+      </div>
+    );
+  }
+
+  // Show message if dispute deadline hasn't passed yet
+  if (!canClaim && disputeDeadline) {
+    const timeRemaining = disputeDeadline - Date.now();
+    const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
+    const minutesRemaining = Math.ceil(timeRemaining / (1000 * 60));
+
+    return (
+      <div className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
+        <div className="flex items-center gap-2 text-yellow-400">
+          <span>⏳</span>
+          <span className="font-semibold">Resolution period active</span>
+        </div>
+        <div className="mt-1 text-yellow-300/80">
+          {hoursRemaining > 1
+            ? `You can claim winnings in ${hoursRemaining} hour${
+                hoursRemaining !== 1 ? "s" : ""
+              }`
+            : `You can claim winnings in ${minutesRemaining} minute${
+                minutesRemaining !== 1 ? "s" : ""
+              }`}
+        </div>
       </div>
     );
   }

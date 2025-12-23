@@ -121,7 +121,6 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       marketDescription,
       marketExpirationDate,
       isBinary,
-      designatedResolver,
       categoryIds,
       resolutionMode,
     } = req.body;
@@ -415,7 +414,6 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
           market_description: marketDescription || "",
           image_url: imageUrl,
           expiration_timestamp: expirationTimestamp,
-          designated_resolver: designatedResolver || null,
           shared_pool_vault: sharedPoolVault,
           is_binary: String(isBinary) === "true",
           is_verified: false,
@@ -1630,161 +1628,6 @@ async function autoCreditWinnings(
     client.release();
   }
 }
-
-/**
- * @route POST /api/market/resolve
- * @desc Resolve a market option
- * @access Private
- */
-export const resolveMarket = async (
-  req: ResolveMarketRequest,
-  res: Response
-) => {
-  try {
-    const userId = req.id;
-    if (!userId) {
-      return sendError(res, 401, "Unauthorized");
-    }
-    const { market, option, winningSide, reason } = req.body;
-
-    // Validate required fields
-    const validation = validateFields([
-      validateRequired(market, "Market ID"),
-      validateRequired(option, "Option ID"),
-    ]);
-    if (!validation.isValid) {
-      return sendValidationError(res, validation.error!);
-    }
-
-    // Convert winningSide to number and validate
-    // winningSide: 1 = YES, 2 = NO
-    const winningSideNum = Number(winningSide);
-    const sideValidation = validateEnum(winningSideNum, "Winning side", [1, 2]);
-    if (!sideValidation.isValid || isNaN(winningSideNum)) {
-      return sendValidationError(res, "winningSide must be 1 (YES) or 2 (NO)");
-    }
-
-    await withTransaction(async (client) => {
-      // Get market with lock
-      const marketResult = await client.query(
-        `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
-        [market]
-      );
-      const selectedMarket = marketResult.rows[0];
-
-      if (!selectedMarket) {
-        throw new TransactionError(404, "Market not found");
-      }
-
-      // Check resolver authority (using creator_id)
-      const isCreator = selectedMarket.creator_id === userId;
-      const isDesignatedResolver =
-        selectedMarket.designated_resolver === userId;
-      const isAdmin = await MoodringAdminModel.isAdmin(userId, client);
-
-      if (!isCreator && !isDesignatedResolver && !isAdmin) {
-        throw new TransactionError(
-          403,
-          "You are not authorized to resolve this market"
-        );
-      }
-
-      // Get option with lock (using id)
-      const optionResult = await client.query(
-        `SELECT * FROM market_options WHERE id = $1 FOR UPDATE`,
-        [option]
-      );
-      const selectedOption = optionResult.rows[0];
-
-      if (!selectedOption) {
-        throw new TransactionError(404, "Option not found");
-      }
-
-      if (selectedOption.is_resolved) {
-        throw new TransactionError(400, "Option is already resolved");
-      }
-
-      // Resolve the option and set dispute deadline
-      // Dispute window is always exactly 2 hours from resolution time
-      const disputeWindowHours = 2;
-      const disputeDeadline = new Date(
-        Date.now() + disputeWindowHours * 60 * 60 * 1000
-      );
-
-      await client.query(
-        `UPDATE market_options SET 
-        is_resolved = TRUE,
-        winning_side = $1,
-        resolved_at = EXTRACT(EPOCH FROM NOW())::BIGINT,
-        resolved_reason = $2,
-        resolved_by = $3,
-        dispute_deadline = $4,
-        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-       WHERE id = $5`,
-        [winningSideNum, reason || null, userId, disputeDeadline, option]
-      );
-
-      // Update market resolved_options count
-      await client.query(
-        `UPDATE markets SET 
-        resolved_options = resolved_options + 1,
-        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-       WHERE id = $1`,
-        [market]
-      );
-
-      // Check if all options are resolved
-      const allOptionsResult = await client.query(
-        `SELECT COUNT(*) as total, 
-              SUM(CASE WHEN is_resolved THEN 1 ELSE 0 END) as resolved
-       FROM market_options WHERE market_id = $1`,
-        [market]
-      );
-      const { total, resolved } = allOptionsResult.rows[0];
-
-      if (Number(resolved) >= Number(total)) {
-        await client.query(
-          `UPDATE markets SET is_resolved = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
-          [market]
-        );
-      }
-    });
-
-    // Auto-credit winnings to all winners (non-blocking, runs after commit)
-    // This improves UX by automatically crediting balances when options resolve
-    // Note: autoCreditWinnings creates its own client connection, so we pass null
-    autoCreditWinnings(option, winningSideNum, market, null as any).catch(
-      (error) => {
-        console.error("Error auto-crediting winnings:", error);
-        // Don't fail the resolution if auto-credit fails - users can still manually claim
-      }
-    );
-
-    // Record activity
-    await ActivityModel.create({
-      user_id: userId as UUID,
-      activity_type: "market_resolved",
-      entity_type: "option",
-      entity_id: option,
-      metadata: {
-        market_id: market,
-        winning_side: winningSideNum === 1 ? "yes" : "no",
-        reason: reason || null,
-      },
-    });
-
-    return sendSuccess(res, {
-      message: "Market resolved successfully",
-      winning_side: winningSideNum === 1 ? "yes" : "no",
-    });
-  } catch (error: any) {
-    if (error instanceof TransactionError) {
-      return sendError(res, error.statusCode, error.message, error.details);
-    }
-    console.error("Resolve market error:", error);
-    return sendError(res, 500, error.message || "Internal server error");
-  }
-};
 
 /**
  * @route POST /api/market/withdraw/creator-fee

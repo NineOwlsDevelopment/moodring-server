@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { zIndex } from "@/design-system";
 
 interface TooltipProps {
   content: string | ReactNode;
@@ -12,7 +11,7 @@ interface TooltipProps {
 
 /**
  * Tooltip Component
- * 
+ *
  * A reusable tooltip that appears on hover to provide contextual information.
  * Matches Moodring design system with graphite backgrounds and neon accents.
  */
@@ -35,7 +34,7 @@ export const Tooltip = ({
 
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    
+
     // Use getBoundingClientRect which gives viewport coordinates
     let top = 0;
     let left = 0;
@@ -118,7 +117,7 @@ export const Tooltip = ({
           calculatePosition();
         });
       });
-      
+
       const handleScroll = () => {
         requestAnimationFrame(calculatePosition);
       };
@@ -190,8 +189,8 @@ export const Tooltip = ({
       >
         {children}
       </div>
-      {typeof document !== "undefined" && createPortal(tooltipContent, document.body)}
+      {typeof document !== "undefined" &&
+        createPortal(tooltipContent, document.body)}
     </>
   );
 };
-

@@ -34,6 +34,7 @@ export function sendValidationError(
   message: string,
   field?: string
 ): void {
+  console.log("sendValidationError", message, field);
   sendError(res, 400, message, field ? { field } : undefined);
 }
 
@@ -41,6 +42,7 @@ export function sendValidationError(
  * Not found error helper
  */
 export function sendNotFound(res: Response, resource: string): void {
+  console.log("sendNotFound", resource);
   sendError(res, 404, `${resource} not found`);
 }
 
@@ -48,6 +50,7 @@ export function sendNotFound(res: Response, resource: string): void {
  * Unauthorized error helper
  */
 export function sendUnauthorized(res: Response, message?: string): void {
+  console.log("sendUnauthorized", message);
   sendError(
     res,
     403,
@@ -59,5 +62,6 @@ export function sendUnauthorized(res: Response, message?: string): void {
  * Forbidden error helper
  */
 export function sendForbidden(res: Response, message?: string): void {
+  console.log("sendForbidden", message);
   sendError(res, 403, message || "Access forbidden");
 }

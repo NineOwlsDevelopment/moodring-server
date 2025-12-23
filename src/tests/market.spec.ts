@@ -85,7 +85,6 @@ describe("Market Tests", function () {
         (Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60).toString()
       );
       form.append("isBinary", "false");
-      form.append("designatedResolver", wallet.publicKey.toBase58());
       form.append("categoryIds", JSON.stringify([sportsCategory.id]));
       form.append("resolutionMode", "AUTHORITY");
 
