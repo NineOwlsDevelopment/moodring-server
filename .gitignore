@@ -15,7 +15,7 @@ node_modules/
 */node_modules/
 
 # Build outputs
-dist/
+dev-dist/
 build/
 *.tsbuildinfo
 
