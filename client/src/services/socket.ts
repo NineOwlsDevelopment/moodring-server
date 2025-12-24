@@ -2,9 +2,7 @@ import { io, Socket } from "socket.io-client";
 
 // Socket server URL - strip /api suffix if present since Socket.IO uses root namespace
 const getSocketUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_WSS_URL || "ws://127.0.0.1:5001";
-  // Remove /api suffix if present, as Socket.IO treats paths as namespaces
-  return apiUrl.replace(/\/api\/?$/, "");
+  return import.meta.env.VITE_WSS_URL || "http://127.0.0.1:5001";
 };
 const SOCKET_URL = getSocketUrl();
 
