@@ -17,11 +17,9 @@
 CREATE INDEX IF NOT EXISTS idx_jwt_revoked_tokens_hash_expires 
 ON jwt_revoked_tokens(token_hash, expires_at);
 
--- Covering index for active revoked tokens (partial index)
--- Only indexes non-expired tokens for better performance
-CREATE INDEX IF NOT EXISTS idx_jwt_revoked_tokens_hash_active
-ON jwt_revoked_tokens(token_hash)
-WHERE expires_at > EXTRACT(EPOCH FROM NOW())::BIGINT;
+-- Note: Partial index with NOW() predicate removed because NOW() is not IMMUTABLE
+-- The composite index above can efficiently filter for active tokens in queries
+-- by using: WHERE token_hash = ? AND expires_at > EXTRACT(EPOCH FROM NOW())::BIGINT
 
 -- =====================================================
 -- 2. WALLET NONCE UNIQUE CONSTRAINT
@@ -48,7 +46,7 @@ CREATE TABLE IF NOT EXISTS balance_adjustment_audit (
   reason TEXT,
   previous_balance BIGINT NOT NULL,
   new_balance BIGINT NOT NULL,
-  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
+  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
   updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
 );
 
@@ -72,7 +70,9 @@ ON balance_adjustment_audit(created_at DESC);
 -- - Immutable audit trail for balance adjustments
 -- =====================================================
 
--- add remaining alter for RLS
-ALTER TABLE disputes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resolution_submissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE resolution_time_locks ENABLE ROW LEVEL SECURITY;
+-- =====================================================
+-- 4. ROW LEVEL SECURITY (RLS)
+-- =====================================================
+-- Enable RLS on new tables created in this migration
+
+ALTER TABLE balance_adjustment_audit ENABLE ROW LEVEL SECURITY;

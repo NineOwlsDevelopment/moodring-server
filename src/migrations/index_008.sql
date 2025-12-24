@@ -49,17 +49,38 @@ ALTER TABLE markets
 ADD COLUMN IF NOT EXISTS reserved_liquidity BIGINT NOT NULL DEFAULT 0;
 
 -- Add CHECK constraint to prevent negative pool liquidity
-ALTER TABLE markets 
-ADD CONSTRAINT IF NOT EXISTS chk_markets_pool_liquidity_non_negative 
-CHECK (shared_pool_liquidity >= 0);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_markets_pool_liquidity_non_negative'
+  ) THEN
+    ALTER TABLE markets 
+    ADD CONSTRAINT chk_markets_pool_liquidity_non_negative 
+    CHECK (shared_pool_liquidity >= 0);
+  END IF;
+END $$;
 
-ALTER TABLE markets 
-ADD CONSTRAINT IF NOT EXISTS chk_markets_reserved_liquidity_non_negative 
-CHECK (reserved_liquidity >= 0);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_markets_reserved_liquidity_non_negative'
+  ) THEN
+    ALTER TABLE markets 
+    ADD CONSTRAINT chk_markets_reserved_liquidity_non_negative 
+    CHECK (reserved_liquidity >= 0);
+  END IF;
+END $$;
 
-ALTER TABLE markets 
-ADD CONSTRAINT IF NOT EXISTS chk_markets_reserved_liquidity_bounds 
-CHECK (reserved_liquidity <= shared_pool_liquidity);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_markets_reserved_liquidity_bounds'
+  ) THEN
+    ALTER TABLE markets 
+    ADD CONSTRAINT chk_markets_reserved_liquidity_bounds 
+    CHECK (reserved_liquidity <= shared_pool_liquidity);
+  END IF;
+END $$;
 
 -- =====================================================
 -- 3. ADMIN SESSIONS AND MFA (CVE-003)
@@ -78,8 +99,11 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
   last_used_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
 );
 
+-- Note: Partial index with NOW() predicate removed because NOW() is not IMMUTABLE
+-- The index below can efficiently filter for active sessions in queries
+-- by using: WHERE session_token = ? AND expires_at > EXTRACT(EPOCH FROM NOW())::BIGINT
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_token 
-ON admin_sessions(session_token) WHERE expires_at > EXTRACT(EPOCH FROM NOW())::BIGINT;
+ON admin_sessions(session_token, expires_at);
 
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin 
 ON admin_sessions(admin_user_id, expires_at DESC);
@@ -139,13 +163,27 @@ WHERE status IN ('pending', 'processing');
 -- =====================================================
 -- Prevent negative balances at database level
 
-ALTER TABLE wallets 
-ADD CONSTRAINT IF NOT EXISTS chk_wallets_balance_usdc_non_negative 
-CHECK (balance_usdc >= 0);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_wallets_balance_usdc_non_negative'
+  ) THEN
+    ALTER TABLE wallets 
+    ADD CONSTRAINT chk_wallets_balance_usdc_non_negative 
+    CHECK (balance_usdc >= 0);
+  END IF;
+END $$;
 
-ALTER TABLE wallets 
-ADD CONSTRAINT IF NOT EXISTS chk_wallets_balance_sol_non_negative 
-CHECK (balance_sol >= 0);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_wallets_balance_sol_non_negative'
+  ) THEN
+    ALTER TABLE wallets 
+    ADD CONSTRAINT chk_wallets_balance_sol_non_negative 
+    CHECK (balance_sol >= 0);
+  END IF;
+END $$;
 
 -- =====================================================
 -- 6. MARKET CREATION BOND TRACKING (CVE-008)
@@ -191,6 +229,18 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_state (
   created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
   updated_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
 );
+
+-- =====================================================
+-- 9. ROW LEVEL SECURITY (RLS)
+-- =====================================================
+-- Enable RLS on new tables created in this migration
+
+ALTER TABLE resolution_approvals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_mfa_secrets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_rate_limits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE circuit_breaker_state ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- MIGRATION COMPLETE

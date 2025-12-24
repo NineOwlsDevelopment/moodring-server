@@ -3,175 +3,94 @@ source ../.env
 
 echo "Dropping all database tables..."
 
-# Drop tables in reverse dependency order, using CASCADE to handle foreign keys
+# Drop all tables dynamically by querying the database schema
+# This approach automatically discovers all tables and drops them in the correct order
 PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME <<EOF
 
 -- =====================================================
--- DROP MOODRING TABLES
+-- DROP ALL TABLES DYNAMICALLY
 -- =====================================================
-DROP TABLE IF EXISTS moodring CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS wallets CASCADE;
-DROP TABLE IF EXISTS wallet_deposits CASCADE;
-DROP TABLE IF EXISTS transactions CASCADE;
-DROP TABLE IF EXISTS market_category_links CASCADE;
-DROP TABLE IF EXISTS market_options CASCADE;
-DROP TABLE IF EXISTS markets CASCADE;
-DROP TABLE IF EXISTS market_categories CASCADE;
-DROP TABLE IF EXISTS moodring_admins CASCADE;
+-- This script automatically discovers and drops all tables
+-- in the public schema, handling foreign key dependencies
+-- with CASCADE
+
+DO \$\$
+DECLARE
+    r RECORD;
+    drop_cmd TEXT;
+BEGIN
+    -- Drop all tables in the public schema
+    FOR r IN (
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+        ORDER BY tablename
+    ) LOOP
+        drop_cmd := 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+        EXECUTE drop_cmd;
+        RAISE NOTICE 'Dropped table: %', r.tablename;
+    END LOOP;
+END \$\$;
 
 -- =====================================================
 -- DROP VIEWS
 -- =====================================================
-DROP VIEW IF EXISTS active_live_rooms_view CASCADE;
-
--- =====================================================
--- DROP TRIGGERS
--- =====================================================
-DROP TRIGGER IF EXISTS trigger_live_room_updated ON live_rooms;
+DO \$\$
+DECLARE
+    r RECORD;
+    drop_cmd TEXT;
+BEGIN
+    FOR r IN (
+        SELECT viewname 
+        FROM pg_views 
+        WHERE schemaname = 'public'
+    ) LOOP
+        drop_cmd := 'DROP VIEW IF EXISTS ' || quote_ident(r.viewname) || ' CASCADE';
+        EXECUTE drop_cmd;
+        RAISE NOTICE 'Dropped view: %', r.viewname;
+    END LOOP;
+END \$\$;
 
 -- =====================================================
 -- DROP FUNCTIONS
 -- =====================================================
-DROP FUNCTION IF EXISTS update_live_room_timestamp CASCADE;
+DO \$\$
+DECLARE
+    r RECORD;
+    drop_cmd TEXT;
+BEGIN
+    FOR r IN (
+        SELECT routine_name, routine_type
+        FROM information_schema.routines
+        WHERE routine_schema = 'public'
+        AND routine_type IN ('FUNCTION', 'PROCEDURE')
+    ) LOOP
+        drop_cmd := 'DROP ' || r.routine_type || ' IF EXISTS ' || quote_ident(r.routine_name) || ' CASCADE';
+        EXECUTE drop_cmd;
+        RAISE NOTICE 'Dropped %: %', r.routine_type, r.routine_name;
+    END LOOP;
+END \$\$;
 
 -- =====================================================
--- DROP LIVE ROOM TABLES
+-- DROP TRIGGERS
 -- =====================================================
-DROP TABLE IF EXISTS live_room_messages CASCADE;
-DROP TABLE IF EXISTS live_room_participants CASCADE;
-DROP TABLE IF EXISTS live_rooms CASCADE;
-
--- =====================================================
--- DROP ADMIN & PLATFORM TABLES
--- =====================================================
-DROP TABLE IF EXISTS admin_actions CASCADE;
-DROP TABLE IF EXISTS platform_settings CASCADE;
-DROP TABLE IF EXISTS platform_stats CASCADE;
-DROP TABLE IF EXISTS creator_stats CASCADE;
-DROP TABLE IF EXISTS balance_adjustment_requests CASCADE;
-
--- =====================================================
--- DROP REFERRAL TABLES
--- =====================================================
-DROP TABLE IF EXISTS referrals CASCADE;
-DROP TABLE IF EXISTS referral_codes CASCADE;
-
--- =====================================================
--- DROP COMMENT TABLES
--- =====================================================
-DROP TABLE IF EXISTS comment_votes CASCADE;
-DROP TABLE IF EXISTS comments CASCADE;
-
--- =====================================================
--- DROP USER STATISTICS & NOTIFICATIONS
--- =====================================================
-DROP TABLE IF EXISTS user_stats CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS activities CASCADE;
-DROP TABLE IF EXISTS daily_volume_tracking CASCADE;
-
--- =====================================================
--- DROP POSITION TABLES
--- =====================================================
-DROP TABLE IF EXISTS user_positions CASCADE;
-DROP TABLE IF EXISTS lp_positions CASCADE;
-
--- =====================================================
--- DROP LIQUIDITY MONITORING TABLES
--- =====================================================
-DROP TABLE IF EXISTS liquidity_alerts CASCADE;
-
--- =====================================================
--- DROP TRADE & WITHDRAWAL TABLES
--- =====================================================
-DROP TABLE IF EXISTS suspicious_trades CASCADE;
-DROP TABLE IF EXISTS trades CASCADE;
-DROP TABLE IF EXISTS withdrawals CASCADE;
-DROP TABLE IF EXISTS copy_trade_queue CASCADE;
-
--- =====================================================
--- DROP WALLET TABLES
--- =====================================================
-DROP TABLE IF EXISTS wallet_sweeps CASCADE;
-DROP TABLE IF EXISTS wallet_deposits CASCADE;
-DROP TABLE IF EXISTS wallets CASCADE;
-
--- =====================================================
--- DROP AUTHENTICATION TABLES
--- =====================================================
-DROP TABLE IF EXISTS jwt_revoked_tokens CASCADE;
-DROP TABLE IF EXISTS magic_links CASCADE;
-
--- =====================================================
--- DROP TRANSACTION TABLE
--- =====================================================
-DROP TABLE IF EXISTS transactions CASCADE;
-
--- =====================================================
--- DROP MARKET TABLES
--- =====================================================
-DROP TABLE IF EXISTS market_category_links CASCADE;
-DROP TABLE IF EXISTS market_options CASCADE;
-DROP TABLE IF EXISTS markets CASCADE;
-DROP TABLE IF EXISTS market_categories CASCADE;
-
--- =====================================================
--- DROP RESOLUTION SYSTEM TABLES
--- =====================================================
-DROP TABLE IF EXISTS market_resolutions CASCADE;
-DROP TABLE IF EXISTS resolution_submissions CASCADE;
-DROP TABLE IF EXISTS resolution_time_locks CASCADE;
-
--- =====================================================
--- DROP WATCHLIST TABLE
--- =====================================================
-DROP TABLE IF EXISTS watchlist CASCADE;
-
--- =====================================================
--- DROP PRICE SNAPSHOT TABLES
--- =====================================================
-DROP TABLE IF EXISTS price_ohlc CASCADE;
-DROP TABLE IF EXISTS price_snapshots CASCADE;
-
--- =====================================================
--- DROP SOCIAL/TRADER TABLES
--- =====================================================
-DROP TABLE IF EXISTS user_follows CASCADE;
-DROP TABLE IF EXISTS post_comments CASCADE;
-DROP TABLE IF EXISTS post_likes CASCADE;
-DROP TABLE IF EXISTS posts CASCADE;
-DROP TABLE IF EXISTS copied_trades CASCADE;
-DROP TABLE IF EXISTS trader_follows CASCADE;
-
--- =====================================================
--- DROP WALLET AUTH TABLES
--- =====================================================
-DROP TABLE IF EXISTS otp_attempts CASCADE;
-DROP TABLE IF EXISTS wallet_auth_nonces CASCADE;
-DROP TABLE IF EXISTS user_device_fingerprints CASCADE;
-
--- =====================================================
--- DROP BALANCE ADJUSTMENT REQUESTS TABLE
--- =====================================================
-DROP TABLE IF EXISTS balance_adjustment_requests CASCADE;
-DROP TABLE IF EXISTS balance_adjustment_audit CASCADE;
-DROP TABLE IF EXISTS disputes CASCADE;
-# resolution submissions table
-DROP TABLE IF EXISTS resolution_submissions CASCADE;
-# resolution time locks table
-DROP TABLE IF EXISTS resolution_time_locks CASCADE;
-# resolution system table
-DROP TABLE IF EXISTS resolution_system CASCADE;
-# resolution system table
-
-
--- =====================================================
--- DROP CORE TABLES
--- =====================================================
-DROP TABLE IF EXISTS moodring CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+DO \$\$
+DECLARE
+    r RECORD;
+    drop_cmd TEXT;
+BEGIN
+    FOR r IN (
+        SELECT trigger_name, event_object_table
+        FROM information_schema.triggers
+        WHERE trigger_schema = 'public'
+    ) LOOP
+        drop_cmd := 'DROP TRIGGER IF EXISTS ' || quote_ident(r.trigger_name) || 
+                   ' ON ' || quote_ident(r.event_object_table) || ' CASCADE';
+        EXECUTE drop_cmd;
+        RAISE NOTICE 'Dropped trigger: % on %', r.trigger_name, r.event_object_table;
+    END LOOP;
+END \$\$;
 
 EOF
 
-echo "All tables dropped successfully!"
+echo "All tables, views, functions, and triggers dropped successfully!"
