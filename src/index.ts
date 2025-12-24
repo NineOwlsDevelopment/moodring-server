@@ -125,41 +125,41 @@ if (process.env.NODE_ENV === "production") {
   })();
 }
 
-// Helmet.js - Security headers
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
-        connectSrc: [
-          "'self'",
-          process.env.CLIENT_URL || "http://localhost:3000",
-          "http://moodring.io",
-          "https://moodring.io",
-          "wss://moodring.io",
-          "ws://moodring.io",
-          "http://172.105.155.223",
-          "https://172.105.155.223",
-          "wss://172.105.155.223",
-          "ws://172.105.155.223",
-        ],
-        fontSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        upgradeInsecureRequests:
-          process.env.NODE_ENV === "production" ? [] : null,
-      },
-    },
-    crossOriginEmbedderPolicy: false, // Disable for compatibility
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubDomains: true,
-      preload: true,
-    },
-  })
-);
+// // Helmet.js - Security headers
+// app.use(
+//   helmet({
+//     contentSecurityPolicy: {
+//       directives: {
+//         defaultSrc: ["'self'"],
+//         styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+//         scriptSrc: ["'self'"],
+//         imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
+//         connectSrc: [
+//           "'self'",
+//           process.env.CLIENT_URL || "http://localhost:3000",
+//           "http://moodring.io",
+//           "https://moodring.io",
+//           "wss://moodring.io",
+//           "ws://moodring.io",
+//           "http://172.105.155.223",
+//           "https://172.105.155.223",
+//           "wss://172.105.155.223",
+//           "ws://172.105.155.223",
+//         ],
+//         fontSrc: ["'self'", "data:"],
+//         objectSrc: ["'none'"],
+//         upgradeInsecureRequests:
+//           process.env.NODE_ENV === "production" ? [] : null,
+//       },
+//     },
+//     crossOriginEmbedderPolicy: false, // Disable for compatibility
+//     hsts: {
+//       maxAge: 31536000, // 1 year
+//       includeSubDomains: true,
+//       preload: true,
+//     },
+//   })
+// );
 
 // Global IP blacklist (applied to all routes)
 app.use(globalIPBlacklist);
