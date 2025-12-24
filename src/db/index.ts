@@ -50,7 +50,7 @@ export async function initializePool(): Promise<Pool> {
       host: dbHost,
       database: process.env.DB_NAME,
       password: dbPassword,
-      port: 5432,
+      port: parseInt(process.env.DB_PORT || "5432"),
       ssl:
         process.env.DB_SSL === "true"
           ? {
