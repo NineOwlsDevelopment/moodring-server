@@ -121,41 +121,29 @@ const PORT = process.env.PORT || 5001;
 // ============================================================================
 // Security Middleware
 // ============================================================================
-// Initialize secrets manager
+// Initialize secrets manager and database pool
 // CRITICAL: In production, this must be blocking to ensure secrets are loaded
-if (process.env.NODE_ENV === "production") {
-  (async () => {
-    try {
-      await initializeSecrets();
-      console.log("✅ Secrets manager initialized successfully");
-      // Initialize database pool after secrets are loaded
-      await initializePool();
-      console.log("✅ Database pool initialized successfully");
-      // Initialize Redis revocation cache (optional, graceful fallback)
-      const { initializeRevocationCache } = await import("./utils/revocation");
-      await initializeRevocationCache();
-    } catch (error) {
+const initPromise = (async () => {
+  try {
+    await initializeSecrets();
+    console.log("✅ Secrets manager initialized successfully");
+    // Initialize database pool after secrets are loaded
+    await initializePool();
+    console.log("✅ Database pool initialized successfully");
+    // Initialize Redis revocation cache (optional, graceful fallback)
+    const { initializeRevocationCache } = await import("./utils/revocation");
+    await initializeRevocationCache();
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
       console.error(
         "❌ CRITICAL: Secrets manager initialization failed. Exiting."
       );
       process.exit(1);
-    }
-  })();
-} else {
-  // Development: non-blocking with warning
-  (async () => {
-    try {
-      await initializeSecrets();
-      await initializePool();
-      console.log("✅ Secrets manager and database pool initialized");
-      // Initialize Redis revocation cache (optional, graceful fallback)
-      const { initializeRevocationCache } = await import("./utils/revocation");
-      await initializeRevocationCache();
-    } catch (error) {
+    } else {
       console.warn("⚠️  Secrets manager not available, using env vars:", error);
     }
-  })();
-}
+  }
+})();
 
 // Helmet.js - Security headers
 app.use(
@@ -275,8 +263,12 @@ app.use("/api/admin", adminIPWhitelist, route_admin);
 // ============================================================================
 // Service Initialization
 // ============================================================================
-// Initialize Circle wallet service for user wallets
+// Initialize services after database pool is ready
 (async () => {
+  // Wait for secrets and database pool to be initialized
+  await initPromise;
+
+  // Initialize Circle wallet service for user wallets
   const circleWalletInitialized = await initializeCircleWallet();
   if (circleWalletInitialized) {
     console.log(`✅ Circle wallet service initialized`);
@@ -285,23 +277,23 @@ app.use("/api/admin", adminIPWhitelist, route_admin);
       "⚠️  Circle wallet service not configured. Set CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET in .env for user wallet creation."
     );
   }
+
+  // Start deposit listener to detect and sweep user deposits
+  if (process.env.RPC_URL) {
+    startDepositListener();
+    console.log("✅ Deposit listener started");
+  } else {
+    console.warn("⚠️  RPC_URL not set. Deposit listener disabled.");
+  }
+
+  // Start resolution processor to handle automatic payouts and market resolution
+  startResolutionProcessor();
+  console.log("✅ Resolution processor started");
+
+  // Initialize withdrawal job queue (SECURITY FIX: CVE-004)
+  initializeWithdrawalQueue();
+  console.log("✅ Withdrawal queue initialized");
 })();
-
-// Start deposit listener to detect and sweep user deposits
-if (process.env.RPC_URL) {
-  startDepositListener();
-  console.log("✅ Deposit listener started");
-} else {
-  console.warn("⚠️  RPC_URL not set. Deposit listener disabled.");
-}
-
-// Start resolution processor to handle automatic payouts and market resolution
-startResolutionProcessor();
-console.log("✅ Resolution processor started");
-
-// Initialize withdrawal job queue (SECURITY FIX: CVE-004)
-initializeWithdrawalQueue();
-console.log("✅ Withdrawal queue initialized");
 
 // ============================================================================
 // Production-Specific Middleware
