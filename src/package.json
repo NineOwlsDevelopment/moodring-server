@@ -9,7 +9,8 @@
     "test": "NODE_OPTIONS=--max-old-space-size=4096 mocha --require ts-node/register tests/**/*spec.ts",
     "migrate": "NODE_OPTIONS=--max-old-space-size=4096 ts-node migrations/migrate.ts",
     "generate-markets": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/generate_markets.ts",
-    "setup-circle": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/setup_circle.ts"
+    "setup-circle": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/setup_circle.ts",
+    "setup-prod-circle": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/setup_prod_circle.ts"
   },
   "author": "",
   "license": "ISC",

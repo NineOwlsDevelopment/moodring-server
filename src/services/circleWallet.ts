@@ -132,7 +132,7 @@ class CircleWalletService {
 
       const response = await this.client.createWallets({
         accountType: "EOA",
-        blockchains: ["SOL-DEVNET"],
+        blockchains: [(process.env.CIRCLE_BLOCKCHAIN as any) || "SOL-DEVNET"],
         count: 1,
         walletSetId: walletSetId,
       });
