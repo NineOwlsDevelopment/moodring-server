@@ -69,15 +69,14 @@ export const initializeWebSocket = (server: HttpServer): Server => {
   io = new Server(server, {
     cors: {
       origin: [
-        process.env.CLIENT_URL || "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        process.env.CLIENT_URL || "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://localhost:3000",
         "https://moodring.io",
-        "https://dev.moodring.io",
-        "wss://dev.moodring.io",
-        "ws://127.0.0.1:5173",
+        "https://www.moodring.io",
+        "http://moodring.io",
+        "http://www.moodring.io",
+        "wss://moodring.io",
+        "ws://moodring.io",
       ],
       methods: ["GET", "POST"],
       credentials: true,
