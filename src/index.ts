@@ -248,7 +248,6 @@ if (process.env.NODE_ENV === "production") {
   //   if (req.header("x-forwarded-proto") !== "https") {
   //     return res.redirect(`https://${req.header("host")}${req.url}`);
   //   }
-
   //   // Replace www with non-www
   //   if (req.header("host")?.startsWith("www.")) {
   //     return res.redirect(
@@ -256,17 +255,14 @@ if (process.env.NODE_ENV === "production") {
   //       `https://${req.header("host")?.replace("www.", "")}${req.url}`
   //     );
   //   }
-
   //   next();
   // });
-
-  // Serve static files from client build folder
-  console.log("Production environment");
-  app.use(express.static(path.join(__dirname, "../client/dist")));
-
-  app.get("*", (_, res) => {
-    res.sendFile(path.resolve(__dirname, "../client/dist", "index.html"));
-  });
+  // // Serve static files from client build folder
+  // console.log("Production environment");
+  // app.use(express.static(path.join(__dirname, "../client/dist")));
+  // app.get("*", (_, res) => {
+  //   res.sendFile(path.resolve(__dirname, "../client/dist", "index.html"));
+  // });
 }
 
 // ============================================================================
