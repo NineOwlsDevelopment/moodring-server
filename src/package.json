@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node ./dist/index.js",
-    "build": "tsc",
-    "dev": "nodemon --exec ts-node index.ts",
-    "test": "mocha --require ts-node/register tests/**/*spec.ts",
-    "migrate": "ts-node migrations/migrate.ts",
-    "generate-markets": "ts-node scripts/generate_markets.ts",
-    "setup-circle": "ts-node scripts/setup_circle.ts"
+    "start": "NODE_OPTIONS=--max-old-space-size=4096 node ./dist/index.js",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc",
+    "dev": "NODE_OPTIONS=--max-old-space-size=4096 nodemon --exec ts-node index.ts",
+    "test": "NODE_OPTIONS=--max-old-space-size=4096 mocha --require ts-node/register tests/**/*spec.ts",
+    "migrate": "NODE_OPTIONS=--max-old-space-size=4096 ts-node migrations/migrate.ts",
+    "generate-markets": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/generate_markets.ts",
+    "setup-circle": "NODE_OPTIONS=--max-old-space-size=4096 ts-node scripts/setup_circle.ts"
   },
   "author": "",
   "license": "ISC",
