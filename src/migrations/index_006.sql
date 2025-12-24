@@ -20,8 +20,16 @@ COMMENT ON COLUMN market_options.auto_credit_status IS
 'Status of auto-credit process: NULL = not started, in_progress = currently processing, completed = finished. Prevents concurrent processing race conditions.';
 
 -- Add check constraint to ensure valid status values
-ALTER TABLE market_options 
-ADD CONSTRAINT IF NOT EXISTS check_auto_credit_status 
-CHECK (auto_credit_status IS NULL OR auto_credit_status IN ('in_progress', 'completed'));
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'check_auto_credit_status'
+    ) THEN
+        ALTER TABLE market_options 
+        ADD CONSTRAINT check_auto_credit_status 
+        CHECK (auto_credit_status IS NULL OR auto_credit_status IN ('in_progress', 'completed'));
+    END IF;
+END $$;
 
 
