@@ -83,6 +83,9 @@ const CookiePolicy = lazy(() =>
 const Disclaimer = lazy(() =>
   import("@/pages/Disclaimer").then((m) => ({ default: m.Disclaimer }))
 );
+const HowItWorks = lazy(() =>
+  import("@/pages/HowItWorks").then((m) => ({ default: m.HowItWorks }))
+);
 
 // Admin Pages - lazy loaded since rarely accessed
 const AdminDashboard = lazy(() =>
@@ -212,6 +215,7 @@ function App() {
               <Route path="/market/:id" element={<MarketDetail />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
               {/* Legal Pages */}
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />

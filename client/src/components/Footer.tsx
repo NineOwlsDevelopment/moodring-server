@@ -36,17 +36,17 @@ export const Footer = () => {
             {/* Social Links */}
             <div className="flex items-center gap-3">
               <SocialLink
-                href="https://twitter.com/moodringapp"
+                href="https://twitter.com/moodring_io"
                 label="Twitter"
                 icon={<TwitterIcon />}
               />
               <SocialLink
-                href="https://discord.gg/moodring"
+                href="https://discord.gg/sTBq4deetm"
                 label="Discord"
                 icon={<DiscordIcon />}
               />
               <SocialLink
-                href="https://t.me/moodringapp"
+                href="https://t.me/moodring_io"
                 label="Telegram"
                 icon={<TelegramIcon />}
               />
@@ -80,7 +80,7 @@ export const Footer = () => {
               <FooterLink to="/markets">All Markets</FooterLink>
               <FooterLink to="/leaderboard">Leaderboard</FooterLink>
               <FooterLink to="/create">Create Market</FooterLink>
-              <FooterLink to="/#how-it-works">How it Works</FooterLink>
+              <FooterLink to="/how-it-works">How it Works</FooterLink>
             </ul>
           </div>
 
