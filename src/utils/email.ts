@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 import { secretsManager } from "./secrets";
 
 // Create transporter
@@ -58,7 +58,7 @@ const createTransporter = async () => {
   }
 };
 
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 /**
  * Generate a cryptographically secure 6-digit OTP code
