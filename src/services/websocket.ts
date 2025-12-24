@@ -79,7 +79,7 @@ export const initializeWebSocket = (server: HttpServer): Server => {
       methods: ["GET", "POST"],
       credentials: true,
     },
-    transports: ["websocket", "polling"],
+    transports: ["websocket"],
   });
 
   io.on("connection", async (socket: AuthenticatedSocket) => {
