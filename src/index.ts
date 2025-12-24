@@ -64,7 +64,12 @@ const app = express();
 const cors_options = {
   credentials: true,
   exposedHeaders: ["Set-Cookie"],
-  allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Set-Cookie",
+    "Access-Control-Allow-Origin",
+  ],
   origin: [
     process.env.CLIENT_URL || "http://localhost:5173",
     "https://moodring.io",
@@ -132,10 +137,14 @@ app.use(
         connectSrc: [
           "'self'",
           process.env.CLIENT_URL || "http://localhost:3000",
-          "http://localhost:5173",
+          "http://moodring.io",
           "https://moodring.io",
-          "https://dev.moodring.io",
-          "wss://dev.moodring.io",
+          "wss://moodring.io",
+          "ws://moodring.io",
+          "http://172.105.155.223",
+          "https://172.105.155.223",
+          "wss://172.105.155.223",
+          "ws://172.105.155.223",
         ],
         fontSrc: ["'self'", "data:"],
         objectSrc: ["'none'"],
