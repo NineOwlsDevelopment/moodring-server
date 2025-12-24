@@ -242,23 +242,23 @@ console.log("✅ Withdrawal queue initialized");
 // Production-Specific Middleware
 // ============================================================================
 if (process.env.NODE_ENV === "production") {
-  // Redirect http to https and remove www from URL
-  app.use((req, res, next) => {
-    // Redirect http to https
-    if (req.header("x-forwarded-proto") !== "https") {
-      return res.redirect(`https://${req.header("host")}${req.url}`);
-    }
+  // // Redirect http to https and remove www from URL
+  // app.use((req, res, next) => {
+  //   // Redirect http to https
+  //   if (req.header("x-forwarded-proto") !== "https") {
+  //     return res.redirect(`https://${req.header("host")}${req.url}`);
+  //   }
 
-    // Replace www with non-www
-    if (req.header("host")?.startsWith("www.")) {
-      return res.redirect(
-        301,
-        `https://${req.header("host")?.replace("www.", "")}${req.url}`
-      );
-    }
+  //   // Replace www with non-www
+  //   if (req.header("host")?.startsWith("www.")) {
+  //     return res.redirect(
+  //       301,
+  //       `https://${req.header("host")?.replace("www.", "")}${req.url}`
+  //     );
+  //   }
 
-    next();
-  });
+  //   next();
+  // });
 
   // Serve static files from client build folder
   console.log("Production environment");
