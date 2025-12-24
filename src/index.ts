@@ -65,7 +65,13 @@ const cors_options = {
   credentials: true,
   exposedHeaders: ["Set-Cookie"],
   allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
-  origin: [process.env.CLIENT_URL || "http://localhost:5173"],
+  origin: [
+    process.env.CLIENT_URL || "http://localhost:5173",
+    "https://moodring.io",
+    "wss://moodring.io",
+    "https://172.105.155.223",
+    "wss://172.105.155.223",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
 
