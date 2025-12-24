@@ -2,7 +2,7 @@ import { Response } from "express";
 import crypto from "crypto";
 import { pool } from "../db";
 import { UserModel } from "../models/User";
-import { generateOTP, sendOTPEmail, sendWelcomeEmail } from "../utils/email";
+import { generateOTP, sendOTPEmail } from "../utils/email";
 import {
   generateTokenPair,
   verifyRefreshToken,
@@ -295,13 +295,6 @@ export const verifyMagicLink = async (
 
       return { user, wallet, isNewUser };
     });
-
-    // Send welcome email (non-blocking, outside transaction)
-    if (result.isNewUser) {
-      sendWelcomeEmail(email.toLowerCase()).catch((err) =>
-        console.error("Failed to send welcome email:", err)
-      );
-    }
 
     // Generate JWT tokens
     const tokens = await generateTokenPair({

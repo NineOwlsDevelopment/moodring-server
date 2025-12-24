@@ -82,84 +82,128 @@ export const sendOTPEmail = async (
   const mailOptions = {
     from: process.env.EMAIL_FROM || '"MoodRing" <noreply@moodring.app>',
     to: email,
-    subject: "Your MoodRing Login Code",
-    text: `Your one-time password (OTP) is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.`,
+    subject: "Your MoodRing Authentication Code",
+    text: `Your authentication code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you did not request this code, please ignore this email or contact support if you have concerns.`,
     html: `
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
               line-height: 1.6;
-              color: #333;
+              color: #1a1a1a;
+              background-color: #f5f5f5;
+              margin: 0;
+              padding: 0;
+            }
+            .email-wrapper {
               max-width: 600px;
               margin: 0 auto;
-              padding: 20px;
+              background-color: #ffffff;
             }
-            .container {
-              background-color: #f9f9f9;
-              border-radius: 10px;
-              padding: 30px;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            .email-container {
+              padding: 40px 32px;
             }
             .header {
+              border-bottom: 1px solid #e5e5e5;
+              padding-bottom: 24px;
+              margin-bottom: 32px;
+            }
+            .logo {
+              font-size: 24px;
+              font-weight: 600;
+              color: #1a1a1a;
+              letter-spacing: -0.5px;
+            }
+            .content {
+              margin-bottom: 32px;
+            }
+            .content p {
+              margin: 0 0 16px 0;
+              color: #4a4a4a;
+              font-size: 15px;
+            }
+            .otp-container {
+              background-color: #f8f9fa;
+              border: 1px solid #e5e7eb;
+              border-radius: 6px;
+              padding: 24px;
+              margin: 32px 0;
               text-align: center;
-              margin-bottom: 30px;
             }
             .otp-code {
-              background-color: #fff;
-              border: 2px solid #007bff;
-              border-radius: 8px;
-              font-size: 32px;
-              font-weight: bold;
-              letter-spacing: 8px;
+              font-size: 36px;
+              font-weight: 600;
+              letter-spacing: 12px;
+              color: #1a1a1a;
+              font-family: 'Courier New', monospace;
+              margin: 0;
+            }
+            .expiry-notice {
               text-align: center;
-              padding: 20px;
-              margin: 20px 0;
-              color: #007bff;
+              color: #6b7280;
+              font-size: 14px;
+              margin-top: 16px;
+            }
+            .security-notice {
+              background-color: #fef3c7;
+              border-left: 3px solid #f59e0b;
+              padding: 16px;
+              margin-top: 24px;
+              border-radius: 4px;
+            }
+            .security-notice p {
+              margin: 0;
+              font-size: 14px;
+              color: #92400e;
+              line-height: 1.5;
             }
             .footer {
-              margin-top: 30px;
+              margin-top: 40px;
+              padding-top: 24px;
+              border-top: 1px solid #e5e5e5;
               text-align: center;
-              font-size: 14px;
-              color: #666;
             }
-            .warning {
-              background-color: #fff3cd;
-              border-left: 4px solid #ffc107;
-              padding: 12px;
-              margin-top: 20px;
-              border-radius: 4px;
+            .footer p {
+              margin: 0 0 8px 0;
+              font-size: 13px;
+              color: #9ca3af;
+            }
+            .footer-text {
+              font-size: 12px;
+              color: #9ca3af;
+              margin-top: 16px;
             }
           </style>
         </head>
         <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎭 MoodRing Login</h1>
-            </div>
-            
-            <p>Hello,</p>
-            <p>You've requested to log in to your MoodRing account. Use the code below to complete your login:</p>
-            
-            <div class="otp-code">
-              ${otp}
-            </div>
-            
-            <p style="text-align: center; color: #666;">
-              This code will expire in <strong>10 minutes</strong>
-            </p>
-            
-            <div class="warning">
-              <strong>⚠️ Security Note:</strong> If you didn't request this code, please ignore this email. Never share this code with anyone.
-            </div>
-            
-            <div class="footer">
-              <p>Thank you for using MoodRing!</p>
-              <p style="font-size: 12px; color: #999;">
-                This is an automated message, please do not reply to this email.
-              </p>
+          <div class="email-wrapper">
+            <div class="email-container">
+              <div class="header">
+                <div class="logo">MoodRing</div>
+              </div>
+              
+              <div class="content">
+                <p>You have requested to sign in to your MoodRing account. Use the authentication code below to complete your login:</p>
+                
+                <div class="otp-container">
+                  <div class="otp-code">${otp}</div>
+                </div>
+                
+                <p class="expiry-notice">This code will expire in 10 minutes.</p>
+                
+                <div class="security-notice">
+                  <p><strong>Security Notice:</strong> If you did not request this code, please ignore this email. Never share this code with anyone. MoodRing staff will never ask for your authentication code.</p>
+                </div>
+              </div>
+              
+              <div class="footer">
+                <p>MoodRing</p>
+                <p class="footer-text">This is an automated message. Please do not reply to this email.</p>
+              </div>
             </div>
           </div>
         </body>
@@ -173,76 +217,5 @@ export const sendOTPEmail = async (
   } catch (error) {
     console.error("Error sending OTP email:", error);
     throw new Error("Failed to send OTP email");
-  }
-};
-
-/**
- * Send welcome email to new users
- */
-export const sendWelcomeEmail = async (email: string): Promise<void> => {
-  const transporter = await createTransporter();
-
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || '"MoodRing" <noreply@moodring.app>',
-    to: email,
-    subject: "Welcome to MoodRing! 🎭",
-    text: `Welcome to MoodRing!\n\nThank you for joining us. We're excited to have you on board!\n\nBest regards,\nThe MoodRing Team`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 600px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .container {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              border-radius: 10px;
-              padding: 40px;
-              color: white;
-              text-align: center;
-            }
-            h1 {
-              font-size: 36px;
-              margin-bottom: 20px;
-            }
-            .content {
-              background-color: rgba(255, 255, 255, 0.1);
-              border-radius: 8px;
-              padding: 20px;
-              margin: 20px 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>🎭 Welcome to MoodRing!</h1>
-            
-            <div class="content">
-              <p>Thank you for joining us. We're excited to have you on board!</p>
-              <p>Get started by exploring your dashboard and connecting your wallet.</p>
-            </div>
-            
-            <p style="margin-top: 30px; font-size: 14px;">
-              Best regards,<br/>
-              The MoodRing Team
-            </p>
-          </div>
-        </body>
-      </html>
-    `,
-  };
-
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Welcome email sent to ${email}`);
-  } catch (error) {
-    console.error("Error sending welcome email:", error);
-    // Don't throw error for welcome email, it's not critical
   }
 };
