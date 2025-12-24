@@ -54,7 +54,10 @@ import { initializePool } from "./db";
 // ============================================================================
 const app = express();
 
-app.set("trust proxy", true);
+// SECURITY FIX: Set trust proxy to 1 (number of proxies) instead of true
+// This prevents IP spoofing attacks while still allowing Cloudflare to work
+// Setting to 1 means we trust only the first proxy (Cloudflare)
+app.set("trust proxy", 1);
 
 // ============================================================================
 // Configuration

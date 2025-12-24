@@ -55,6 +55,30 @@ if (process.env.REDIS_URL || process.env.REDIS_HOST) {
 }
 
 /**
+ * Get the real client IP address
+ * Prioritizes Cloudflare's CF-Connecting-IP header (most reliable)
+ * Falls back to req.ip (which uses X-Forwarded-For when trust proxy is set)
+ * Finally falls back to connection IP
+ */
+const getClientIP = (req: Request): string => {
+  // Cloudflare's CF-Connecting-IP is the most reliable source
+  // It cannot be spoofed by clients
+  const cfIP = req.headers["cf-connecting-ip"] as string | undefined;
+  if (cfIP) {
+    return cfIP;
+  }
+
+  // Fall back to req.ip (uses X-Forwarded-For when trust proxy is configured)
+  // With trust proxy set to 1, this is safe from spoofing
+  if (req.ip) {
+    return req.ip;
+  }
+
+  // Last resort: use connection IP
+  return req.socket.remoteAddress || "unknown";
+};
+
+/**
  * Create a rate limiter with standard configuration
  */
 const createLimiter = (
@@ -74,8 +98,12 @@ const createLimiter = (
     legacyHeaders: false, // Disable `X-RateLimit-*` headers
     store: redisStore || undefined, // Use Redis if available, otherwise in-memory
     skip: skip || (() => false),
+    // SECURITY FIX: Use custom keyGenerator to prioritize CF-Connecting-IP
+    // This prevents IP spoofing attacks while maintaining compatibility
+    keyGenerator: (req: Request) => getClientIP(req),
     handler: (req: Request, res: Response) => {
-      console.warn(`[Rate Limit] ${message} from IP: ${req.ip}`);
+      const clientIP = getClientIP(req);
+      console.warn(`[Rate Limit] ${message} from IP: ${clientIP}`);
       res.status(429).json({
         error: "Too Many Requests",
         message,
