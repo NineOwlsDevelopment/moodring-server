@@ -425,7 +425,13 @@ export const CreateMarket = () => {
   const handleInitializeMarket = async () => {
     if (!createdMarketKey) return;
 
-    const liquidityAmount = parseInt(initialLiquidity);
+    // Validate liquidity amount before submitting
+    if (!initialLiquidity || initialLiquidity.trim() === "") {
+      setError("Please enter an initial liquidity amount");
+      return;
+    }
+
+    const liquidityAmount = parseFloat(initialLiquidity);
 
     if (isNaN(liquidityAmount) || liquidityAmount < 100) {
       setError("Minimum initial liquidity is 100 USDC");
@@ -1463,30 +1469,8 @@ export const CreateMarket = () => {
                   value={initialLiquidity}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === "") {
-                      setInitialLiquidity("");
-                      return;
-                    }
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                      // Round up to nearest integer
-                      const rounded = Math.ceil(numValue);
-                      setInitialLiquidity(String(Math.max(100, rounded)));
-                    } else {
-                      setInitialLiquidity(value);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = e.target.value;
-                    if (value === "") {
-                      setInitialLiquidity("100");
-                      return;
-                    }
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                      const rounded = Math.ceil(numValue);
-                      setInitialLiquidity(String(Math.max(100, rounded)));
-                    }
+                    // Allow free editing - validation happens on submit
+                    setInitialLiquidity(value);
                   }}
                   min="100"
                   step="1"

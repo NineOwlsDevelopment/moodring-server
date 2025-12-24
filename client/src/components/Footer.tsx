@@ -101,14 +101,13 @@ export const Footer = () => {
           {/* Company Column */}
           <div>
             <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">
-              Company
+              Legal
             </h3>
             <ul className="space-y-3">
-              <FooterLink href="#">About</FooterLink>
-              <FooterLink href="#">Blog</FooterLink>
-              <FooterLink href="#">Careers</FooterLink>
-              <FooterLink href="#">Terms of Service</FooterLink>
-              <FooterLink href="#">Privacy Policy</FooterLink>
+              <FooterLink to="/terms">Terms of Service</FooterLink>
+              <FooterLink to="/privacy">Privacy Policy</FooterLink>
+              <FooterLink to="/cookies">Cookie Policy</FooterLink>
+              <FooterLink to="/disclaimer">Disclaimer</FooterLink>
             </ul>
           </div>
         </div>

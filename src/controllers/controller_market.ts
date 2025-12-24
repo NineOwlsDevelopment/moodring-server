@@ -616,6 +616,12 @@ export const getMarkets = async (req: GetMarketsRequest, res: Response) => {
     const search = req.query.search as string;
     const featured = req.query.featured === "true";
     const creator = req.query.creator as string;
+    const creatorType = req.query.creator_type as
+      | "platform"
+      | "admin"
+      | "user"
+      | "all"
+      | undefined; // "platform", "admin", "user", or "all"
 
     // Build WHERE clause
     const conditions: string[] = [];
@@ -662,6 +668,26 @@ export const getMarkets = async (req: GetMarketsRequest, res: Response) => {
       paramCount++;
     }
 
+    // Filter by creator type: platform, admin, user, or all
+    if (creatorType && creatorType !== "all") {
+      if (creatorType === "platform") {
+        // Platform markets are identified by is_verified = true
+        conditions.push("m.is_verified = TRUE");
+      } else if (creatorType === "admin") {
+        // Admin markets: creator_id is in moodring_admins
+        conditions.push(`EXISTS (
+          SELECT 1 FROM moodring_admins ma
+          WHERE ma.user_id = m.creator_id
+        )`);
+      } else if (creatorType === "user") {
+        // User markets: not verified and creator_id is not in moodring_admins
+        conditions.push(`m.is_verified = FALSE AND NOT EXISTS (
+          SELECT 1 FROM moodring_admins ma
+          WHERE ma.user_id = m.creator_id
+        )`);
+      }
+    }
+
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -685,9 +711,11 @@ export const getMarkets = async (req: GetMarketsRequest, res: Response) => {
           m.*,
           u.username as creator_username,
           u.display_name as creator_display_name,
-          u.avatar_url as creator_avatar_url
+          u.avatar_url as creator_avatar_url,
+          CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
         FROM markets m
         LEFT JOIN users u ON m.creator_id = u.id
+        LEFT JOIN moodring_admins ma ON m.creator_id = ma.user_id
         ${whereClause}
         ORDER BY ${orderBy}
         LIMIT $${paramCount} OFFSET $${paramCount + 1}
@@ -748,7 +776,7 @@ export const getMarkets = async (req: GetMarketsRequest, res: Response) => {
             const noQty = new BN(Math.floor(Number(option.no_quantity)));
 
             yesPrice =
-              calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
               PRECISION.toNumber();
             noPrice = 1 - yesPrice;
           } catch (e) {
@@ -789,6 +817,7 @@ export const getMarkets = async (req: GetMarketsRequest, res: Response) => {
         search,
         featured,
         creator,
+        creator_type: creatorType,
       },
     });
   } catch (error: any) {
@@ -811,13 +840,15 @@ export const getFeaturedMarkets = async (
 
     const result = await pool.query(
       `
-      SELECT 
+      SELECT
         m.*,
         u.username as creator_username,
         u.display_name as creator_display_name,
-        u.avatar_url as creator_avatar_url
+        u.avatar_url as creator_avatar_url,
+        CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
       FROM markets m
       LEFT JOIN users u ON m.creator_id = u.id
+      LEFT JOIN moodring_admins ma ON m.creator_id = ma.user_id
       WHERE m.is_featured = TRUE AND m.is_resolved = FALSE AND m.is_initialized = TRUE
       ORDER BY m.featured_order ASC NULLS LAST, m.total_volume DESC
       LIMIT $1
@@ -842,7 +873,7 @@ export const getFeaturedMarkets = async (
             const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
             const noQty = new BN(Math.floor(Number(option.no_quantity)));
             yesPrice =
-              calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
               PRECISION.toNumber();
           } catch (e) {}
         }
@@ -909,7 +940,7 @@ export const getTrendingMarkets = async (
             const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
             const noQty = new BN(Math.floor(Number(option.no_quantity)));
             yesPrice =
-              calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
               PRECISION.toNumber();
           } catch (e) {}
         }
@@ -978,9 +1009,11 @@ export const getMyMarkets = async (req: GetMyMarketsRequest, res: Response) => {
           m.*,
           u.username as creator_username,
           u.display_name as creator_display_name,
-          u.avatar_url as creator_avatar_url
+          u.avatar_url as creator_avatar_url,
+          CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
         FROM markets m
         LEFT JOIN users u ON m.creator_id = u.id
+        LEFT JOIN moodring_admins ma ON m.creator_id = ma.user_id
         ${whereClause}
         ORDER BY m.created_at DESC
         LIMIT $${paramCount} OFFSET $${paramCount + 1}
@@ -1038,7 +1071,7 @@ export const getMyMarkets = async (req: GetMyMarketsRequest, res: Response) => {
             const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
             const noQty = new BN(Math.floor(Number(option.no_quantity)));
             yesPrice =
-              calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
               PRECISION.toNumber();
           } catch (e) {}
         }
@@ -1114,9 +1147,18 @@ export const getMarket = async (req: GetMarketRequest, res: Response) => {
       return sendNotFound(res, "Market");
     }
 
-    // Fetch creator info
+    // Fetch creator info and admin status
     const creatorResult = await pool.query(
-      `SELECT username, display_name, avatar_url FROM users WHERE id = $1`,
+      `
+      SELECT 
+        u.username, 
+        u.display_name, 
+        u.avatar_url,
+        CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
+      FROM users u
+      LEFT JOIN moodring_admins ma ON u.id = ma.user_id
+      WHERE u.id = $1
+      `,
       [market.creator_id]
     );
     const creator = creatorResult.rows[0] || null;
@@ -1151,7 +1193,7 @@ export const getMarket = async (req: GetMarketRequest, res: Response) => {
           const noQty = new BN(Math.floor(Number(option.no_quantity)));
 
           yesPrice =
-            calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+            calculate_yes_price(yesQty, noQty, liquidityParam) /
             PRECISION.toNumber();
           noPrice = 1 - yesPrice;
         } catch (e) {
@@ -1172,6 +1214,7 @@ export const getMarket = async (req: GetMarketRequest, res: Response) => {
         creator_username: creator?.username || null,
         creator_display_name: creator?.display_name || null,
         creator_avatar_url: creator?.avatar_url || null,
+        is_admin_creator: creator?.is_admin_creator || false,
         options: optionsWithPrices,
         categories,
       },
@@ -1285,7 +1328,9 @@ export const initializeMarket = async (
 
       // Calculate liquidity parameter based on initial liquidity
       // Liquidity param should be on same scale as quantities (micro-units)
-      // Using formula: b = max(base_param * 1000, sqrt(liquidity) * 10000)
+      // Formula: b = max(base_param * 1000, sqrt(liquidity) * 10000)
+      // Note: At initialization, there are no shares yet, so we only use liquidity
+      // When liquidity is added later, the formula will also consider total shares
       // This ensures price changes are gradual, not extreme
       const baseLiquidityParam =
         Number(selectedMarket.base_liquidity_parameter) ||
@@ -1389,6 +1434,63 @@ async function autoCreditWinnings(
 
   try {
     await client.query("BEGIN");
+
+    // SECURITY FIX: Atomic update to prevent race condition
+    // Only one process can set status to 'in_progress' if it's currently NULL
+    // This eliminates the race condition window between SELECT and UPDATE
+    const updateResult = await client.query(
+      `UPDATE market_options 
+       SET auto_credit_status = 'in_progress', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
+       WHERE id = $1 
+         AND auto_credit_status IS NULL
+       RETURNING id, is_resolved`,
+      [optionId]
+    );
+
+    // If no rows updated, another process already started or option doesn't exist
+    if (updateResult.rows.length === 0) {
+      // Check if option exists and what its status is
+      const checkResult = await client.query(
+        `SELECT id, auto_credit_status FROM market_options WHERE id = $1`,
+        [optionId]
+      );
+
+      if (checkResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return;
+      }
+
+      const option = checkResult.rows[0];
+      if (
+        option.auto_credit_status === "in_progress" ||
+        option.auto_credit_status === "completed"
+      ) {
+        await client.query("COMMIT");
+        console.log(
+          `[Auto-Credit] Option ${optionId} already processed or in progress`
+        );
+        return;
+      }
+
+      // Status is not NULL but also not in_progress/completed - unexpected state
+      await client.query("ROLLBACK");
+      console.error(
+        `[Auto-Credit] Option ${optionId} has unexpected status: ${option.auto_credit_status}`
+      );
+      return;
+    }
+
+    const option = updateResult.rows[0];
+
+    // Verify option is resolved before processing
+    if (!option.is_resolved) {
+      // Rollback the status update
+      await client.query("ROLLBACK");
+      console.warn(
+        `[Auto-Credit] Option ${optionId} is not resolved, skipping auto-credit`
+      );
+      return;
+    }
 
     // Get ALL positions for this option that haven't been claimed (both winners and losers)
     const positionsResult = await client.query(
@@ -1525,6 +1627,14 @@ async function autoCreditWinnings(
         updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
        WHERE id = $2`,
       [currentPoolLiquidity, marketId]
+    );
+
+    // SECURITY FIX: Mark auto-credit as completed to prevent reprocessing
+    await client.query(
+      `UPDATE market_options 
+       SET auto_credit_status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
+       WHERE id = $1`,
+      [optionId]
     );
 
     await client.query("COMMIT");
@@ -1768,7 +1878,7 @@ export const getFairValue = async (req: GetFairValueRequest, res: Response) => {
 
     try {
       yesPrice =
-        calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+        calculate_yes_price(yesQty, noQty, liquidityParam) /
         PRECISION.toNumber();
       noPrice = 1 - yesPrice;
     } catch (e) {
@@ -1848,7 +1958,7 @@ export const estimateBuyCost = async (
         new BN(parsedBuyNo),
         liquidityParam
       );
-      cost = costBn.toNumber();
+      cost = costBn;
     } catch (error) {
       return res.status(400).send({ error: "Failed to calculate cost" });
     }
@@ -1862,8 +1972,7 @@ export const estimateBuyCost = async (
     const newYes = currentYes.add(new BN(parsedBuyYes));
     const newNo = currentNo.add(new BN(parsedBuyNo));
     const newYesPrice =
-      calculate_yes_price(newYes, newNo, liquidityParam).toNumber() /
-      PRECISION.toNumber();
+      calculate_yes_price(newYes, newNo, liquidityParam) / PRECISION.toNumber();
 
     return sendSuccess(res, {
       cost,
@@ -1950,7 +2059,7 @@ export const estimateSellPayout = async (
         new BN(parsedSellNo),
         liquidityParam
       );
-      payout = payoutBn.toNumber();
+      payout = payoutBn;
     } catch (error) {
       return res.status(400).send({ error: "Failed to calculate payout" });
     }
@@ -1964,8 +2073,7 @@ export const estimateSellPayout = async (
     const newYes = currentYes.sub(new BN(parsedSellYes));
     const newNo = currentNo.sub(new BN(parsedSellNo));
     const newYesPrice =
-      calculate_yes_price(newYes, newNo, liquidityParam).toNumber() /
-      PRECISION.toNumber();
+      calculate_yes_price(newYes, newNo, liquidityParam) / PRECISION.toNumber();
 
     return sendSuccess(res, {
       payout,
@@ -2101,9 +2209,11 @@ export const getWatchlist = async (req: GetWatchlistRequest, res: Response) => {
         m.*,
         u.username as creator_username,
         u.display_name as creator_display_name,
-        u.avatar_url as creator_avatar_url
+        u.avatar_url as creator_avatar_url,
+        CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
       FROM markets m
       LEFT JOIN users u ON m.creator_id = u.id
+      LEFT JOIN moodring_admins ma ON m.creator_id = ma.user_id
       WHERE m.id = ANY($1::uuid[])
       ORDER BY m.created_at DESC
       LIMIT $2 OFFSET $3
@@ -2162,7 +2272,7 @@ export const getWatchlist = async (req: GetWatchlistRequest, res: Response) => {
             const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
             const noQty = new BN(Math.floor(Number(option.no_quantity)));
             yesPrice =
-              calculate_yes_price(yesQty, noQty, liquidityParam).toNumber() /
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
               PRECISION.toNumber();
           } catch (e) {}
         }

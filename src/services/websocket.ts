@@ -110,7 +110,7 @@ export const initializeWebSocket = (server: HttpServer): Server => {
 
     if (token) {
       try {
-        const payload = verifyAccessToken(token);
+        const payload = await verifyAccessToken(token);
         const isRevoked = await isTokenRevoked(token);
 
         if (!isRevoked) {

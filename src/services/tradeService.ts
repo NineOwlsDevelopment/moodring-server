@@ -74,7 +74,7 @@ export class TradeService {
     const currentYes = new BN(Math.floor(Number(optionData.yes_quantity)));
     const currentNo = new BN(Math.floor(Number(optionData.no_quantity)));
 
-    let cost: BN;
+    let cost: number;
     try {
       cost = calculate_buy_cost(
         currentYes,
@@ -88,11 +88,11 @@ export class TradeService {
     }
 
     // Minimum cost check
-    if (Number(cost) < 0.01) {
-      cost = new BN(0.01 * 1_000_000);
+    if (cost < 0.01) {
+      cost = 0.01 * 1_000_000;
     }
 
-    const rawCost = Number(cost);
+    const rawCost = cost;
     const moodring = await getMoodringData(client);
 
     // Calculate fees
@@ -183,6 +183,16 @@ export class TradeService {
       rawCost
     );
 
+    // Update liquidity parameter to scale with new share quantities
+    // This ensures prices remain stable as markets grow through trading
+    const baseLiquidityParam =
+      Number(marketData.base_liquidity_parameter) || 100000;
+    await CommonTradeOperations.updateLiquidityParameter(
+      client,
+      marketId,
+      baseLiquidityParam
+    );
+
     // Track protocol fees
     if (protocolFee > 0) {
       await MoodringModel.recordFees(creatorFee, protocolFee, client);
@@ -257,7 +267,7 @@ export class TradeService {
     const currentYes = new BN(Math.floor(Number(optionData.yes_quantity)));
     const currentNo = new BN(Math.floor(Number(optionData.no_quantity)));
 
-    let payout: BN;
+    let payout: number;
     try {
       payout = calculate_sell_payout(
         currentYes,
@@ -270,7 +280,7 @@ export class TradeService {
       throw new TransactionError(400, "Failed to calculate payout");
     }
 
-    const rawPayout = payout.toNumber();
+    const rawPayout = payout;
     const moodring = await getMoodringData(client);
 
     // Calculate fees (fees are deducted from payout)
@@ -384,6 +394,16 @@ export class TradeService {
       protocolFee,
       lpFee,
       -rawPayout
+    );
+
+    // Update liquidity parameter to scale with new share quantities
+    // This ensures prices remain stable as markets grow through trading
+    const baseLiquidityParam =
+      Number(marketData.base_liquidity_parameter) || 100000;
+    await CommonTradeOperations.updateLiquidityParameter(
+      client,
+      marketId,
+      baseLiquidityParam
     );
 
     // Track protocol fees

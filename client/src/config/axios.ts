@@ -146,7 +146,7 @@ api.interceptors.response.use(
     // Add minimum delay to all other responses (about 1 second with variation)
     // This makes the UI feel more natural and less jarring
     // The response is already received, we're just delaying when it's returned to the caller
-    await withMinimumDelay(Promise.resolve(response), 500, 50);
+    await withMinimumDelay(Promise.resolve(response), 100, 50);
     return response;
   },
   async (error: AxiosError) => {

@@ -8,6 +8,7 @@ import api from "@/config/axios";
 
 type SortOption = "volume" | "newest" | "oldest";
 type StatusOption = "active" | "resolved" | "all";
+type CreatorTypeOption = "all" | "admin" | "user";
 
 // Load exactly 5 markets per "Load More" click
 const MARKETS_PER_PAGE = 9;
@@ -24,6 +25,7 @@ const fetchMarketsDirect = async (params: {
   sort?: string;
   order?: "asc" | "desc";
   status?: string;
+  creator_type?: "admin" | "user" | "all";
 }): Promise<MarketsApiResponse> => {
   const response = await api.get<MarketsApiResponse>("/market", {
     params: {
@@ -37,6 +39,10 @@ const fetchMarketsDirect = async (params: {
       sort: params.sort,
       order: params.order,
       status: params.status,
+      creator_type:
+        params.creator_type && params.creator_type !== "all"
+          ? params.creator_type
+          : undefined,
     },
   });
   return response.data;
@@ -73,6 +79,7 @@ export const Markets = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("volume");
   const [status, setStatus] = useState<StatusOption>("active");
+  const [creatorType, setCreatorType] = useState<CreatorTypeOption>("admin");
 
   // Refs to track current filter values for race condition prevention
   const loadingRequestIdRef = useRef(0);
@@ -80,6 +87,7 @@ export const Markets = () => {
   const searchRef = useRef(debouncedSearch);
   const sortRef = useRef<SortOption>("volume");
   const statusRef = useRef<StatusOption>("active");
+  const creatorTypeRef = useRef<CreatorTypeOption>("admin");
 
   // Reload trigger - increments when filters change to force effect re-run
   const [reloadTrigger, setReloadTrigger] = useState(0);
@@ -161,15 +169,19 @@ export const Markets = () => {
     statusRef.current = status;
   }, [status]);
 
+  useEffect(() => {
+    creatorTypeRef.current = creatorType;
+  }, [creatorType]);
+
   // Reset when search changes
   useEffect(() => {
     resetAndReload();
   }, [debouncedSearch, resetAndReload]);
 
-  // Reset when sort or status changes
+  // Reset when sort, status, or creator type changes
   useEffect(() => {
     resetAndReload();
-  }, [sortBy, status, resetAndReload]);
+  }, [sortBy, status, creatorType, resetAndReload]);
 
   const handleCategoryChange = (category: string) => {
     if (category === selectedCategory) return;
@@ -223,6 +235,7 @@ export const Markets = () => {
           sort,
           order,
           status: statusRef.current === "all" ? "all" : statusRef.current,
+          creator_type: creatorTypeRef.current,
         };
 
         const result = await fetchMarketsDirect(fetchParams);
@@ -307,6 +320,7 @@ export const Markets = () => {
         sort,
         order,
         status: statusRef.current === "all" ? "all" : statusRef.current,
+        creator_type: creatorTypeRef.current,
       };
 
       const result = await fetchMarketsDirect(fetchParams);
@@ -361,7 +375,7 @@ export const Markets = () => {
    * Used only for the new batch being loaded (not initial load)
    */
   const renderSkeletonPlaceholders = (count: number = MARKETS_PER_PAGE) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4 mt-4">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={`skeleton-loading-${index}`}
@@ -379,35 +393,63 @@ export const Markets = () => {
     !isInitialLoading && initialLoaded && !markets.length && !error;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20 md:pb-8">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 md:pb-8">
+      {/* Header - Minimal */}
+      <div className="mb-5">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">
           Markets
         </h1>
-        <p className="text-moon-grey text-sm sm:text-base">
-          Trade on your predictions about future events
-        </p>
+
+        {/* Creator Type Tabs - Integrated design */}
+        <div className="flex items-center gap-2 bg-graphite-deep rounded-xl p-1 border border-graphite-light inline-flex">
+          <button
+            onClick={() => {
+              setCreatorType("admin");
+              resetAndReload();
+            }}
+            className={`px-4 py-1.5 rounded-lg font-medium text-sm transition-all ${
+              creatorType === "admin"
+                ? "bg-neon-iris text-white shadow-md shadow-neon-iris/20"
+                : "text-moon-grey hover:text-white hover:bg-graphite-light/50"
+            }`}
+          >
+            Official
+          </button>
+          <button
+            onClick={() => {
+              setCreatorType("user");
+              resetAndReload();
+            }}
+            className={`px-4 py-1.5 rounded-lg font-medium text-sm transition-all ${
+              creatorType === "user"
+                ? "bg-neon-iris text-white shadow-md shadow-neon-iris/20"
+                : "text-moon-grey hover:text-white hover:bg-graphite-light/50"
+            }`}
+          >
+            Community
+          </button>
+          <button
+            onClick={() => {
+              setCreatorType("all");
+              resetAndReload();
+            }}
+            className={`px-4 py-1.5 rounded-lg font-medium text-sm transition-all ${
+              creatorType === "all"
+                ? "bg-neon-iris text-white shadow-md shadow-neon-iris/20"
+                : "text-moon-grey hover:text-white hover:bg-graphite-light/50"
+            }`}
+          >
+            All
+          </button>
+        </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search markets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input w-full sm:max-w-md text-base"
-          />
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn btn-secondary flex items-center gap-2"
-          >
+      {/* Search and Filters - Single row */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-2">
+        <div className="flex-1 relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 text-moon-grey-dark"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -416,7 +458,54 @@ export const Markets = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search markets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input w-full pl-10 pr-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-moon-grey-dark hover:text-white transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="btn btn-secondary flex items-center gap-1.5 whitespace-nowrap px-3"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
             Filters
@@ -430,27 +519,24 @@ export const Markets = () => {
                 onClick={() => setShowFilters(false)}
               />
               {/* Dropdown */}
-              <div className="absolute right-0 mt-2 w-64 bg-graphite-deep border border-graphite-light rounded-xl shadow-xl z-20 p-4">
-                <div className="space-y-4">
-                  {/* Sort Dropdown */}
+              <div className="absolute right-0 mt-2 w-56 bg-graphite-deep border border-graphite-light rounded-lg shadow-xl z-20 p-3">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-moon-grey mb-2">
+                    <label className="block text-xs font-medium text-moon-grey mb-1.5">
                       Sort By
                     </label>
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as SortOption)}
-                      className="w-full input bg-graphite-light text-white"
+                      className="w-full input bg-graphite-light text-white text-sm py-1.5"
                     >
                       <option value="volume">Volume</option>
                       <option value="newest">Newest</option>
                       <option value="oldest">Oldest</option>
                     </select>
                   </div>
-
-                  {/* Status Dropdown */}
                   <div>
-                    <label className="block text-sm font-medium text-moon-grey mb-2">
+                    <label className="block text-xs font-medium text-moon-grey mb-1.5">
                       Status
                     </label>
                     <select
@@ -458,7 +544,7 @@ export const Markets = () => {
                       onChange={(e) =>
                         setStatus(e.target.value as StatusOption)
                       }
-                      className="w-full input bg-graphite-light text-white"
+                      className="w-full input bg-graphite-light text-white text-sm py-1.5"
                     >
                       <option value="active">Active</option>
                       <option value="resolved">Resolved</option>
@@ -472,18 +558,18 @@ export const Markets = () => {
         </div>
       </div>
 
-      {/* Category Filter - Horizontal scroll on mobile */}
-      <div className="mb-6 sm:mb-8 -mx-3 px-3 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
-        <div className="flex gap-2 sm:flex-wrap sm:gap-2 pb-2 sm:pb-0">
+      {/* Category Filter - Minimal horizontal scroll */}
+      <div className="mb-5 -mx-3 px-3 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
+        <div className="flex gap-1.5 sm:flex-wrap sm:gap-1.5">
           {(showAllCategories ? categories : categories.slice(0, 8)).map(
             (category) => (
               <button
                 key={category.id}
                 onClick={() => handleCategoryChange(category.id)}
-                className={`px-3 sm:px-4 py-2 rounded-xl font-medium transition-all text-sm whitespace-nowrap flex-shrink-0 min-h-[40px] ${
+                className={`px-3 py-1.5 rounded-lg font-medium transition-all text-sm whitespace-nowrap flex-shrink-0 ${
                   selectedCategory === category.id
-                    ? "bg-neon-iris text-white shadow-lg shadow-neon-iris/30"
-                    : "bg-graphite-light text-moon-grey  hover:bg-graphite-hover "
+                    ? "bg-neon-iris text-white shadow-md shadow-neon-iris/20"
+                    : "bg-graphite-light text-moon-grey hover:bg-graphite-hover hover:text-white"
                 }`}
               >
                 {category.label}
@@ -493,11 +579,9 @@ export const Markets = () => {
           {categories.length > 8 && (
             <button
               onClick={() => setShowAllCategories(!showAllCategories)}
-              className="px-3 sm:px-4 py-2 rounded-xl font-medium transition-all text-sm whitespace-nowrap flex-shrink-0 min-h-[40px] bg-graphite-deep text-moon-grey-dark  hover:bg-graphite-light hover:text-moon-grey"
+              className="px-3 py-1.5 rounded-lg font-medium transition-all text-sm whitespace-nowrap flex-shrink-0 bg-graphite-deep text-moon-grey-dark hover:bg-graphite-light hover:text-moon-grey border border-graphite-light"
             >
-              {showAllCategories
-                ? "Show less"
-                : `+${categories.length - 8} more`}
+              {showAllCategories ? "Less" : `+${categories.length - 8}`}
             </button>
           )}
         </div>
@@ -541,7 +625,7 @@ export const Markets = () => {
         <>
           {/* Initial loading skeleton */}
           {isInitialLoading && !initialLoaded && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4">
               {Array.from({ length: MARKETS_PER_PAGE }).map((_, index) => (
                 <div
                   key={`skeleton-initial-${index}`}
@@ -555,9 +639,9 @@ export const Markets = () => {
             </div>
           )}
 
-          {/* Markets grid - stable keys ensure no rerenders */}
+          {/* Markets grid */}
           {markets.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4">
               {markets.map((market) => (
                 <MarketCard key={market.id} market={market} />
               ))}
@@ -567,25 +651,25 @@ export const Markets = () => {
           {/* Skeleton placeholders for new batch being loaded */}
           {isLoadingMore && renderSkeletonPlaceholders()}
 
-          {/* Load More button - pinned to bottom */}
+          {/* Load More button */}
           {initialLoaded && (
-            <div className="flex justify-center py-6 mt-4">
+            <div className="flex justify-center py-4 mt-4">
               {isLoadingMore ? (
-                <div className="text-moon-grey flex items-center gap-2">
+                <div className="text-moon-grey flex items-center gap-2 text-sm">
                   <div className="w-4 h-4 border-2 border-neon-iris border-t-transparent rounded-full animate-spin" />
-                  Loading more markets...
+                  Loading...
                 </div>
               ) : hasMore ? (
                 <button
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
-                  className="btn btn-primary px-8 py-3 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 rounded-xl font-medium text-sm transition-all bg-graphite-light hover:bg-graphite-hover text-white border border-graphite-light hover:border-neon-iris/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-graphite-light disabled:hover:border-graphite-light"
                 >
                   Load More
                 </button>
               ) : markets.length > 0 ? (
-                <div className="text-center py-2 text-moon-grey-dark">
-                  You've reached the end of the list
+                <div className="text-center py-2 text-moon-grey-dark text-sm">
+                  End of list
                 </div>
               ) : null}
             </div>

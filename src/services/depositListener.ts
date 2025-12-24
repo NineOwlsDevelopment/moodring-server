@@ -21,8 +21,9 @@ const STARTUP_SIGNATURE_LIMIT = 200; // Higher limit on first run to catch up
 // Devnet Solana RPC URL
 const DEFAULT_RPC_URL = process.env.RPC_URL;
 
-// NOTE: There is NO minimum deposit amount - the listener processes ANY positive USDC deposit
-// USDC uses 6 decimals, so the smallest unit is 1 micro-USDC (0.000001 USDC)
+// SECURITY FIX (CVE-006): Minimum deposit amount to prevent DoS via micro-deposits
+// Minimum deposit: 1 USDC = 1,000,000 micro-USDC (prevents spam attacks)
+const MIN_DEPOSIT_AMOUNT = 1_000_000; // 1 USDC in micro-units (6 decimals)
 
 // Union type to handle both legacy and versioned Solana transactions
 type AnyTransactionResponse =
@@ -35,7 +36,8 @@ type AnyTransactionResponse =
  * 2. Updates wallet balances
  * 3. Sweeps deposits to the hot wallet via Circle
  *
- * No minimum deposit amount - processes ANY positive USDC deposit (even 1 micro-USDC = 0.000001 USDC)
+ * SECURITY FIX (CVE-006): Minimum deposit of 1 USDC required to prevent DoS attacks
+ * Per-wallet rate limiting: 10 deposits per hour
  */
 class DepositListener {
   private timer: NodeJS.Timeout | null = null; // Timer for scheduling next poll
@@ -161,7 +163,23 @@ class DepositListener {
     // Check each wallet for deposits (process in parallel but catch errors individually)
     for (const wallet of validWallets) {
       await this.syncWallet(wallet, limit).catch((error) => {
-        // Log error but continue processing other wallets
+        // Check if this is a transient error that was already handled gracefully
+        const isTransientError =
+          error?.code === -32019 ||
+          error?.code === -32002 ||
+          error?.code === -32005 ||
+          error?.message?.includes("ETIMEDOUT") ||
+          error?.message?.includes("timeout") ||
+          error?.message?.includes("Failed to query long-term storage") ||
+          error?.message?.includes("ECONNRESET") ||
+          error?.message?.includes("ENOTFOUND");
+
+        if (isTransientError) {
+          // Transient errors are already logged in syncTokenDeposits, just continue
+          return;
+        }
+
+        // Log non-transient errors (these are unexpected)
         console.error(
           `[Deposits] Failed to sync wallet ${wallet.id} (${wallet.public_key}):`,
           error
@@ -243,7 +261,32 @@ class DepositListener {
       ) {
         return; // No token account = no deposits
       }
-      throw error; // Re-throw unexpected errors
+
+      // Handle Solana RPC errors gracefully
+      // -32019: Failed to query long-term storage (transient RPC error)
+      // ETIMEDOUT: Network timeout
+      // These are transient errors that should be logged but not crash the listener
+      const isTransientError =
+        error?.code === -32019 ||
+        error?.code === -32002 || // RPC server error
+        error?.code === -32005 || // RPC server error
+        error?.message?.includes("ETIMEDOUT") ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Failed to query long-term storage") ||
+        error?.message?.includes("ECONNRESET") ||
+        error?.message?.includes("ENOTFOUND");
+
+      if (isTransientError) {
+        // Log but don't throw - allow processing to continue for other wallets
+        console.warn(
+          `[Deposits] Transient RPC error for wallet ${wallet.id} (${wallet.public_key}):`,
+          error?.message || error
+        );
+        return; // Skip this wallet for this poll cycle
+      }
+
+      // For other errors, log and re-throw (they'll be caught by syncWallet's catch handler)
+      throw error;
     }
 
     if (!signatures.length) {
@@ -294,10 +337,40 @@ class DepositListener {
     }
 
     // Fetch full transaction details including token balance changes
-    const tx = await this.connection.getTransaction(signatureInfo.signature, {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0, // Support versioned transactions
-    });
+    let tx: AnyTransactionResponse | null = null;
+    try {
+      tx = await this.connection.getTransaction(signatureInfo.signature, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0, // Support versioned transactions
+      });
+    } catch (error: any) {
+      // Handle transient RPC errors gracefully
+      const isTransientError =
+        error?.code === -32019 ||
+        error?.code === -32002 ||
+        error?.code === -32005 ||
+        error?.message?.includes("ETIMEDOUT") ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Failed to query long-term storage") ||
+        error?.message?.includes("ECONNRESET") ||
+        error?.message?.includes("ENOTFOUND");
+
+      if (isTransientError) {
+        // Log but continue processing other signatures
+        console.warn(
+          `[Deposits] Transient RPC error fetching transaction ${signatureInfo.signature}:`,
+          error?.message || error
+        );
+        return; // Skip this transaction
+      }
+
+      // For other errors, log and skip (don't crash the entire sync)
+      console.error(
+        `[Deposits] Error fetching transaction ${signatureInfo.signature}:`,
+        error
+      );
+      return;
+    }
 
     if (!tx || !tx.meta) {
       return; // Can't process without transaction metadata
@@ -332,29 +405,98 @@ class DepositListener {
       tokenAccountIndex
     );
 
-    // Record the deposit in the database
-    const recorded = await DepositModel.recordDeposit({
-      wallet_id: wallet.id,
-      user_id: wallet.user_id,
-      signature: signatureInfo.signature, // Unique transaction identifier
-      slot: signatureInfo.slot, // Solana slot number
-      block_time: signatureInfo.blockTime
-        ? signatureInfo.blockTime // Already a Unix timestamp in seconds
-        : undefined,
-      amount: Number(tokenDeltaInfo.delta), // Amount in micro-USDC (6 decimals)
-      token_symbol: "USDC",
-      source: sourceAccount, // Where the deposit came from
-      status: signatureInfo.confirmationStatus || "confirmed",
-      raw: tx.meta, // Store full metadata for debugging/audit
+    // SECURITY FIX: Use transaction to ensure atomicity
+    // Both deposit recording and balance update happen atomically
+    const { withTransaction } = await import("../utils/transaction");
+    let recorded: any;
+
+    await withTransaction(async (client) => {
+      // SECURITY FIX (CVE-006): Per-wallet rate limiting (10 deposits per hour)
+      const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000);
+      const recentDepositsResult = await client.query(
+        `SELECT COUNT(*) as count FROM wallet_deposits 
+         WHERE wallet_id = $1 AND created_at >= $2`,
+        [wallet.id, oneHourAgo]
+      );
+      const recentDepositCount = parseInt(
+        recentDepositsResult.rows[0]?.count || "0",
+        10
+      );
+      const MAX_DEPOSITS_PER_HOUR = 10;
+
+      if (recentDepositCount >= MAX_DEPOSITS_PER_HOUR) {
+        console.warn(
+          `[Deposits] Rate limit exceeded for wallet ${wallet.id}: ${recentDepositCount} deposits in last hour`
+        );
+        return; // Skip this deposit, rate limit exceeded
+      }
+
+      // Check if deposit already processed (with lock to prevent race conditions)
+      const existingDeposit = await client.query(
+        `SELECT id FROM wallet_deposits WHERE signature = $1 FOR UPDATE`,
+        [signatureInfo.signature]
+      );
+
+      if (existingDeposit.rows.length > 0) {
+        // Deposit already processed, skip
+        console.log(
+          `[Deposits] ⚠️  Deposit ${signatureInfo.signature} already processed, skipping`
+        );
+        return;
+      }
+
+      // SECURITY FIX: Record deposit AND update balance atomically
+      // Both operations in same transaction - if either fails, both roll back
+      const depositResult = await client.query(
+        `INSERT INTO wallet_deposits (
+          wallet_id, user_id, signature, slot, block_time,
+          amount, token_symbol, source, status, raw,
+          created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (signature) DO NOTHING
+        RETURNING *`,
+        [
+          wallet.id,
+          wallet.user_id,
+          signatureInfo.signature,
+          signatureInfo.slot,
+          signatureInfo.blockTime || Math.floor(Date.now() / 1000),
+          Number(tokenDeltaInfo.delta),
+          "USDC",
+          sourceAccount,
+          signatureInfo.confirmationStatus || "confirmed",
+          JSON.stringify(tx.meta),
+          Math.floor(Date.now() / 1000),
+          Math.floor(Date.now() / 1000),
+        ]
+      );
+
+      // If deposit was already recorded (ON CONFLICT DO NOTHING), skip balance update
+      if (depositResult.rows.length === 0) {
+        console.log(
+          `[Deposits] ⚠️  Deposit ${signatureInfo.signature} conflict (already exists), skipping`
+        );
+        return;
+      }
+
+      recorded = depositResult.rows[0];
+
+      // SECURITY FIX: Update balance in same transaction
+      // If this fails, entire transaction rolls back including deposit record
+      await client.query(
+        `UPDATE wallets
+         SET balance_usdc = balance_usdc + $1,
+             updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
+         WHERE id = $2`,
+        [Number(tokenDeltaInfo.delta), wallet.id]
+      );
     });
 
+    // If no deposit was recorded (already exists or transaction failed), return early
     if (!recorded) {
-      // Deposit already exists in DB or failed to record (duplicate prevention)
       return;
     }
-
-    // Update the wallet's USDC balance in the database
-    await this.addToBalance(wallet.id, Number(tokenDeltaInfo.delta));
 
     console.log(
       `[Deposits] ✅ Recorded USDC deposit of ${tokenDeltaInfo.delta} (${
@@ -607,10 +749,14 @@ class DepositListener {
     const delta = postAmount - preAmount;
 
     // Only return positive deltas (deposits, not withdrawals)
-    // This is where we check for deposits - ANY positive amount is a deposit
-    // No minimum threshold - even 1 micro-USDC (0.000001 USDC) will be processed
+    // SECURITY FIX: Enforce minimum deposit amount to prevent DoS attacks
     if (delta <= 0n) {
       return null; // Not a deposit (withdrawal or no change)
+    }
+
+    // Skip deposits below minimum amount (prevents micro-deposit DoS)
+    if (delta < BigInt(MIN_DEPOSIT_AMOUNT)) {
+      return null; // Deposit too small, skip it
     }
 
     return { delta, postAmount };

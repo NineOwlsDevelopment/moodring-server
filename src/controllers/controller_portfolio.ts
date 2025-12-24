@@ -412,6 +412,7 @@ export const getLiquidityPositions = async (
         market_id: pos.market_id,
         market_question: pos.market_question || "Unknown Market",
         liquidity_provided: depositedAmount, // Map deposited_amount to liquidity_provided
+        shares: userShares, // Include actual LP shares
         fees_earned: feesEarned,
         current_value: currentValue,
         pnl: pnl,

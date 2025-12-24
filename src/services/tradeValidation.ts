@@ -35,6 +35,10 @@ export interface TradeLimits {
 export class TradeValidationService {
   private static readonly MAX_TRADE_COST = 100_000_000_000; // 100,000 USDC in micro-units
   private static readonly MAX_SHARES_PER_TRADE = 1_000_000_000_000; // 1,000,000 shares
+  // SECURITY FIX (CVE-005): Minimum trade size to prevent precision exploits
+  // Minimum: 0.1 USDC = 100,000 micro-USDC
+  private static readonly MIN_TRADE_COST = 100_000; // 0.1 USDC in micro-units
+  private static readonly MIN_SHARES_PER_TRADE = 100_000; // 0.1 shares (in micro-units)
 
   /**
    * Validate buy shares request parameters
@@ -62,8 +66,19 @@ export class TradeValidationService {
       return { isValid: false, error: "Can only buy YES or NO, not both" };
     }
 
-    // Validate max trade size
+    // Validate trade size
     const totalShares = parsedBuyYes + parsedBuyNo;
+
+    // SECURITY FIX (CVE-005): Enforce minimum trade size to prevent precision exploits
+    if (totalShares < this.MIN_SHARES_PER_TRADE) {
+      return {
+        isValid: false,
+        error: `Minimum trade size is ${
+          this.MIN_SHARES_PER_TRADE / 1_000_000
+        } shares (0.1 shares) to prevent precision exploits`,
+      };
+    }
+
     if (totalShares > this.MAX_SHARES_PER_TRADE) {
       return {
         isValid: false,
@@ -105,8 +120,19 @@ export class TradeValidationService {
       return { isValid: false, error: "Can only sell YES or NO, not both" };
     }
 
-    // Validate max trade size
+    // Validate trade size
     const totalShares = parsedSellYes + parsedSellNo;
+
+    // SECURITY FIX (CVE-005): Enforce minimum trade size to prevent precision exploits
+    if (totalShares < this.MIN_SHARES_PER_TRADE) {
+      return {
+        isValid: false,
+        error: `Minimum trade size is ${
+          this.MIN_SHARES_PER_TRADE / 1_000_000
+        } shares (0.1 shares) to prevent precision exploits`,
+      };
+    }
+
     if (totalShares > this.MAX_SHARES_PER_TRADE) {
       return {
         isValid: false,
@@ -156,14 +182,21 @@ export class TradeValidationService {
   ): Promise<TradeLimits & { isValid: boolean; error?: string }> {
     const moodring = await getMoodringData(client);
 
+    // SECURITY FIX (CVE-005): Enforce minimum trade cost to prevent precision exploits
+    // Use the higher of configured minimum or security minimum
+    const effectiveMinTradeAmount = Math.max(
+      moodring.min_trade_amount,
+      this.MIN_TRADE_COST
+    );
+
     // Check trade amount limits (in micro-USDC)
-    if (tradeCost < moodring.min_trade_amount) {
+    if (tradeCost < effectiveMinTradeAmount) {
       return {
         isValid: false,
         error: `Trade amount must be at least ${
-          moodring.min_trade_amount / 10 ** 6
-        } USDC`,
-        minTradeAmount: moodring.min_trade_amount,
+          effectiveMinTradeAmount / 1_000_000
+        } USDC to prevent precision exploits`,
+        minTradeAmount: effectiveMinTradeAmount,
         maxTradeAmount: moodring.max_trade_amount,
         maxPositionPerMarket: moodring.max_position_per_market,
         maxDailyUserVolume: moodring.max_daily_user_volume,

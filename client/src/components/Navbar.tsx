@@ -108,7 +108,12 @@ export const Navbar = () => {
   const navLinks = [
     { path: "/markets", label: "Markets" },
     { path: "/leaderboard", label: "Leaderboard" },
-    ...(user ? [{ path: "/create", label: "Create" }] : []),
+    ...(user
+      ? [
+          { path: "/pools", label: "Pools" },
+          { path: "/create", label: "Create" },
+        ]
+      : []),
     ...(isAdmin ? [{ path: "/admin", label: "Admin" }] : []),
   ];
 

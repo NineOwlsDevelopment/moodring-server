@@ -152,6 +152,21 @@ DROP TABLE IF EXISTS wallet_auth_nonces CASCADE;
 DROP TABLE IF EXISTS user_device_fingerprints CASCADE;
 
 -- =====================================================
+-- DROP BALANCE ADJUSTMENT REQUESTS TABLE
+-- =====================================================
+DROP TABLE IF EXISTS balance_adjustment_requests CASCADE;
+DROP TABLE IF EXISTS balance_adjustment_audit CASCADE;
+DROP TABLE IF EXISTS disputes CASCADE;
+# resolution submissions table
+DROP TABLE IF EXISTS resolution_submissions CASCADE;
+# resolution time locks table
+DROP TABLE IF EXISTS resolution_time_locks CASCADE;
+# resolution system table
+DROP TABLE IF EXISTS resolution_system CASCADE;
+# resolution system table
+
+
+-- =====================================================
 -- DROP CORE TABLES
 -- =====================================================
 DROP TABLE IF EXISTS moodring CASCADE;

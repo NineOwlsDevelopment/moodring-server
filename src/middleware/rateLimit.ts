@@ -22,6 +22,8 @@ if (process.env.REDIS_URL || process.env.REDIS_HOST) {
             port: parseInt(process.env.REDIS_PORT || "6379"),
           }
         : undefined,
+      // Enable cluster mode if using ElastiCache cluster configuration endpoint
+      // The client will automatically detect cluster mode from the endpoint
     });
 
     redisClient.on("error", (err) => {
@@ -113,11 +115,11 @@ export const strictLimiter = createLimiter(
 
 /**
  * Trading rate limiter
- * Allows more requests for trading operations
+ * SECURITY FIX (CVE-009): Reduced from 20 to 5 trades per minute to prevent rapid exploitation
  */
 export const tradeLimiter = createLimiter(
   60 * 1000, // 1 minute
-  20, // 20 trades per minute (fixed typo from 2000)
+  5, // 5 trades per minute (reduced from 20)
   "Trading rate limit exceeded, please wait before making more trades"
 );
 
@@ -169,4 +171,14 @@ export const voteLimiter = createLimiter(
   60 * 1000, // 1 minute
   20, // 20 votes per minute
   "Vote rate limit exceeded, please slow down"
+);
+
+/**
+ * Admin rate limiter
+ * Very strict for admin operations to prevent brute force and DoS
+ */
+export const adminLimiter = createLimiter(
+  60 * 1000, // 1 minute
+  30, // 30 requests per minute (allows reasonable admin usage)
+  "Admin rate limit exceeded, please slow down"
 );

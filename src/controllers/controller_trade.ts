@@ -116,7 +116,7 @@ export const buyShares = async (req: BuySharesRequest, res: Response) => {
         new BN(result.newYesQuantity),
         new BN(result.newNoQuantity),
         result.liquidityParam
-      ).toNumber() / PRECISION.toNumber();
+      ) / PRECISION.toNumber();
 
     await PriceSnapshotModel.recordPrice({
       option_id: option,
@@ -302,7 +302,7 @@ export const sellShares = async (req: SellSharesRequest, res: Response) => {
         new BN(result.newYesQuantity),
         new BN(result.newNoQuantity),
         result.liquidityParam
-      ).toNumber() / PRECISION.toNumber();
+      ) / PRECISION.toNumber();
 
     await PriceSnapshotModel.recordPrice({
       option_id: option,
@@ -569,7 +569,7 @@ export const getPosition = async (req: GetPositionRequest, res: Response) => {
             new BN(Math.floor(Number(optionData.yes_quantity))),
             new BN(Math.floor(Number(optionData.no_quantity))),
             liquidityParam
-          ).toNumber() / PRECISION.toNumber();
+          ) / PRECISION.toNumber();
         currentNoPrice = 1 - currentYesPrice;
       } catch (e) {
         // Use defaults

@@ -56,8 +56,54 @@ export const globalIPBlacklist = (
 };
 
 /**
+ * Validate IP address format (IPv4 or IPv6)
+ */
+function isValidIP(ip: string): boolean {
+  // IPv4 regex
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  // IPv6 regex (simplified)
+  const ipv6Regex = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
+
+/**
+ * Get real client IP address, validating proxy headers
+ * Only trusts X-Forwarded-For from known trusted proxy IPs
+ * NOTE: This function is NOT used for admin endpoints (see adminIPWhitelist)
+ */
+function getRealIP(req: Request): string {
+  const trustedProxies = getIPsFromEnv(process.env.TRUSTED_PROXY_IPS || "");
+  const forwarded = req.headers["x-forwarded-for"] as string | undefined;
+  const realIP = req.headers["x-real-ip"] as string | undefined;
+
+  // If we have a trusted proxy and X-Real-IP, use it (most reliable)
+  if (
+    realIP &&
+    trustedProxies.length > 0 &&
+    trustedProxies.includes(req.ip || "")
+  ) {
+    return realIP.trim();
+  }
+
+  // If we have X-Forwarded-For and the connection is from a trusted proxy
+  if (
+    forwarded &&
+    trustedProxies.length > 0 &&
+    trustedProxies.includes(req.ip || "")
+  ) {
+    // X-Forwarded-For can contain multiple IPs, take the first (original client)
+    const firstIP = forwarded.split(",")[0].trim();
+    return firstIP;
+  }
+
+  // Fallback to connection IP (not from proxy)
+  return req.ip || req.socket.remoteAddress || "unknown";
+}
+
+/**
  * Admin IP whitelist middleware
- * Only allows requests from whitelisted IPs for admin endpoints
+ * SECURITY FIX: ONLY uses direct connection IP, NEVER trusts proxy headers
+ * This prevents X-Forwarded-For spoofing attacks on admin endpoints
  */
 export const adminIPWhitelist = (
   req: Request,
@@ -66,37 +112,56 @@ export const adminIPWhitelist = (
 ) => {
   const whitelist = getIPsFromEnv(process.env.ADMIN_IP_WHITELIST);
 
-  // If no whitelist configured, allow all (for development)
+  // CRITICAL: Fail hard in production if whitelist not configured
   if (whitelist.length === 0) {
     if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "⚠️  ADMIN_IP_WHITELIST not set in production. Admin endpoints are accessible from any IP."
+      console.error(
+        "❌ ADMIN_IP_WHITELIST not set in production. BLOCKING all admin access."
       );
+      return res.status(503).json({
+        error: "Service Unavailable",
+        message:
+          "Admin access is not configured. Contact system administrator.",
+      });
     }
+    // Development: allow with warning
+    console.warn(
+      "⚠️  ADMIN_IP_WHITELIST not set. Allowing all IPs in development."
+    );
     return next();
+  }
+
+  // SECURITY FIX: ONLY use direct connection IP for admin endpoints
+  // NEVER trust X-Forwarded-For or X-Real-IP headers (can be spoofed)
+  // Use req.socket.remoteAddress (most reliable) or req.ip (Express default)
+  const clientIP = req.socket.remoteAddress || req.ip || "unknown";
+
+  // Validate IP format
+  if (!isValidIP(clientIP)) {
+    console.error(`[IP Filter] Invalid IP address format: ${clientIP}`);
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Invalid IP address",
+    });
   }
 
   // In development, always allow localhost
   const allowedIPs =
     process.env.NODE_ENV !== "production"
-      ? [...whitelist, "127.0.0.1", "::1", "::ffff:127.0.0.1"]
+      ? [...whitelist, "127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"]
       : whitelist;
 
-  // Apply IP filter
-  const filter = IpFilter(allowedIPs, {
-    mode: "allow",
-    log: false,
-    logLevel: "allow",
-  });
+  // Check if client IP is in whitelist
+  if (!allowedIPs.includes(clientIP)) {
+    console.warn(
+      `[IP Filter] Blocked admin request from IP: ${clientIP} (connection IP: ${req.ip})`
+    );
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Admin access is restricted to whitelisted IP addresses",
+    });
+  }
 
-  return filter(req, res, (err?: any) => {
-    if (err instanceof IpDeniedError) {
-      console.warn(`[IP Filter] Blocked admin request from IP: ${req.ip}`);
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Admin access is restricted to whitelisted IP addresses",
-      });
-    }
-    next(err);
-  });
+  // IP is whitelisted, proceed
+  next();
 };

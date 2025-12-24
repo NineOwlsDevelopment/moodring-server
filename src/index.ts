@@ -42,10 +42,12 @@ import { initializeWebSocket } from "./services/websocket";
 import { startDepositListener } from "./services/depositListener";
 import { startResolutionProcessor } from "./services/resolutionProcessor";
 import { initializeCircleWallet } from "./services/circleWallet";
+import { initializeWithdrawalQueue } from "./services/withdrawalQueue";
 import { generalLimiter } from "./middleware/rateLimit";
 import { healthCheck } from "./controllers/controller_analytics";
 import { globalIPBlacklist, adminIPWhitelist } from "./middleware/ipFilter";
 import { initializeSecrets } from "./utils/secrets";
+import { initializePool } from "./db";
 
 // ============================================================================
 // Express App Initialization
@@ -63,14 +65,7 @@ const cors_options = {
   credentials: true,
   exposedHeaders: ["Set-Cookie"],
   allowedHeaders: ["Content-Type", "Authorization", "Set-Cookie"],
-  origin: [
-    process.env.CLIENT_URL || "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://localhost:5173",
-    "https://moodring.io",
-    "https://dev.moodring.io",
-    "wss://dev.moodring.io",
-  ],
+  origin: [process.env.CLIENT_URL || "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
 
@@ -79,16 +74,41 @@ const PORT = process.env.PORT || 5001;
 // ============================================================================
 // Security Middleware
 // ============================================================================
-// Initialize secrets manager (non-blocking, will use env vars as fallback)
-initializeSecrets().catch((error) => {
-  console.error("Failed to initialize secrets manager:", error);
-  if (process.env.NODE_ENV === "production") {
-    console.error("❌ Secrets manager required in production. Exiting.");
-    process.exit(1);
-  } else {
-    console.warn("⚠️  Continuing with environment variables only");
-  }
-});
+// Initialize secrets manager
+// CRITICAL: In production, this must be blocking to ensure secrets are loaded
+if (process.env.NODE_ENV === "production") {
+  (async () => {
+    try {
+      await initializeSecrets();
+      console.log("✅ Secrets manager initialized successfully");
+      // Initialize database pool after secrets are loaded
+      await initializePool();
+      console.log("✅ Database pool initialized successfully");
+      // Initialize Redis revocation cache (optional, graceful fallback)
+      const { initializeRevocationCache } = await import("./utils/revocation");
+      await initializeRevocationCache();
+    } catch (error) {
+      console.error(
+        "❌ CRITICAL: Secrets manager initialization failed. Exiting."
+      );
+      process.exit(1);
+    }
+  })();
+} else {
+  // Development: non-blocking with warning
+  (async () => {
+    try {
+      await initializeSecrets();
+      await initializePool();
+      console.log("✅ Secrets manager and database pool initialized");
+      // Initialize Redis revocation cache (optional, graceful fallback)
+      const { initializeRevocationCache } = await import("./utils/revocation");
+      await initializeRevocationCache();
+    } catch (error) {
+      console.warn("⚠️  Secrets manager not available, using env vars:", error);
+    }
+  })();
+}
 
 // Helmet.js - Security headers
 app.use(
@@ -191,14 +211,16 @@ app.use("/api/admin", adminIPWhitelist, route_admin);
 // Service Initialization
 // ============================================================================
 // Initialize Circle wallet service for user wallets
-const circleWalletInitialized = initializeCircleWallet();
-if (circleWalletInitialized) {
-  console.log(`✅ Circle wallet service initialized`);
-} else {
-  console.warn(
-    "⚠️  Circle wallet service not configured. Set CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET in .env for user wallet creation."
-  );
-}
+(async () => {
+  const circleWalletInitialized = await initializeCircleWallet();
+  if (circleWalletInitialized) {
+    console.log(`✅ Circle wallet service initialized`);
+  } else {
+    console.warn(
+      "⚠️  Circle wallet service not configured. Set CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET in .env for user wallet creation."
+    );
+  }
+})();
 
 // Start deposit listener to detect and sweep user deposits
 if (process.env.RPC_URL) {
@@ -211,6 +233,10 @@ if (process.env.RPC_URL) {
 // Start resolution processor to handle automatic payouts and market resolution
 startResolutionProcessor();
 console.log("✅ Resolution processor started");
+
+// Initialize withdrawal job queue (SECURITY FIX: CVE-004)
+initializeWithdrawalQueue();
+console.log("✅ Withdrawal queue initialized");
 
 // ============================================================================
 // Production-Specific Middleware

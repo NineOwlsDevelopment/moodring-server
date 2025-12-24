@@ -63,8 +63,25 @@ const MyMarkets = lazy(() =>
 const Watchlist = lazy(() =>
   import("@/pages/Watchlist").then((m) => ({ default: m.Watchlist }))
 );
+const Pools = lazy(() =>
+  import("@/pages/Pools").then((m) => ({ default: m.Pools }))
+);
 const UserProfile = lazy(() =>
   import("@/pages/UserProfile").then((m) => ({ default: m.UserProfile }))
+);
+
+// Legal Pages - lazy loaded since rarely accessed
+const TermsOfService = lazy(() =>
+  import("@/pages/TermsOfService").then((m) => ({ default: m.TermsOfService }))
+);
+const PrivacyPolicy = lazy(() =>
+  import("@/pages/PrivacyPolicy").then((m) => ({ default: m.PrivacyPolicy }))
+);
+const CookiePolicy = lazy(() =>
+  import("@/pages/CookiePolicy").then((m) => ({ default: m.CookiePolicy }))
+);
+const Disclaimer = lazy(() =>
+  import("@/pages/Disclaimer").then((m) => ({ default: m.Disclaimer }))
 );
 
 // Admin Pages - lazy loaded since rarely accessed
@@ -195,6 +212,11 @@ function App() {
               <Route path="/market/:id" element={<MarketDetail />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              {/* Legal Pages */}
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
+              <Route path="/disclaimer" element={<Disclaimer />} />
             </Route>
 
             {/* Private Routes (Require Wallet Connection) */}
@@ -202,6 +224,7 @@ function App() {
               <Route path="/create" element={<CreateMarket />} />
               <Route path="/my-markets" element={<MyMarkets />} />
               <Route path="/watchlist" element={<Watchlist />} />
+              <Route path="/pools" element={<Pools />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />

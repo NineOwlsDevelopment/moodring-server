@@ -139,6 +139,7 @@ export interface GetMarketsRequest extends Request {
     limit?: string;
     creator?: string;
     featured?: string;
+    creator_type?: "platform" | "admin" | "user" | "all";
   };
 }
 

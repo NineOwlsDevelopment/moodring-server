@@ -5,7 +5,6 @@ import { OptionModel } from "../models/Option";
 import { WalletModel } from "../models/Wallet";
 import {
   ResolutionMode,
-  ResolutionSubmissionModel,
   MarketResolutionModel,
   MarketStatus,
 } from "../models/Resolution";
@@ -29,6 +28,16 @@ import { ActivityModel } from "../models/Activity";
 import { NotificationModel } from "../models/Notification";
 import { UUID } from "crypto";
 import { PoolClient } from "pg";
+import {
+  validateEvidence,
+  calculateEvidenceHash,
+  requiresMultiAdminApproval,
+} from "../utils/evidenceValidation";
+import {
+  ResolutionApprovalModel,
+  ResolutionSubmissionModel,
+} from "../models/Resolution";
+import { parseJsonb, prepareJsonb } from "../utils/json";
 
 /**
  * Auto-credit winnings to all winners when an option is resolved
@@ -310,11 +319,16 @@ export const submitResolution = async (
     }
 
     const submission = await withTransaction(async (client) => {
-      // Get market
-      const market = await MarketModel.findById(marketId, client);
-      if (!market) {
+      // SECURITY FIX: Get market with FOR UPDATE lock to prevent race conditions
+      // This ensures only one resolution submission per market at a time
+      const marketResult = await client.query(
+        `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
+        [marketId]
+      );
+      if (marketResult.rows.length === 0) {
         throw new TransactionError(404, "Market not found");
       }
+      const market = marketResult.rows[0];
 
       // Check if market is in resolving state
       if (
@@ -357,6 +371,15 @@ export const submitResolution = async (
       const effectiveResolutionMode =
         market.resolution_mode || ResolutionMode.AUTHORITY;
 
+      // SECURITY FIX (CVE-001): Validate evidence before processing
+      const evidenceValidation: any = validateEvidence(
+        evidence,
+        effectiveResolutionMode
+      );
+      if (!evidenceValidation.isValid) {
+        throw new TransactionError(400, evidenceValidation.error!);
+      }
+
       // Authorization rules:
       // - ORACLE: only platform admins can resolve
       // - AUTHORITY: creator or admin can resolve
@@ -391,17 +414,77 @@ export const submitResolution = async (
         }
       }
 
-      // Create submission (model handles resolver creation internally)
-      const submission = await ResolutionSubmissionModel.create(
-        {
-          market_id: marketId,
-          user_id: userId,
+      // SECURITY FIX (CVE-001): Check if market requires multi-admin approval
+      const marketVolume = Number(market.total_volume || 0);
+      const requiresApproval = requiresMultiAdminApproval(marketVolume);
+      const evidenceHash =
+        evidenceValidation.evidenceHash || calculateEvidenceHash(evidence);
+
+      // SECURITY FIX (CVE-001): Create submission with evidence validation fields
+      const submission = await client.query(
+        `INSERT INTO resolution_submissions (
+          market_id, user_id, outcome, evidence, signature, 
+          evidence_hash, evidence_source, evidence_timestamp, requires_approval, submitted_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *`,
+        [
+          marketId,
+          userId,
           outcome,
-          evidence,
-          signature,
-        },
-        client
+          prepareJsonb(evidence),
+          signature || null,
+          evidenceHash,
+          evidenceValidation.validatedSource || null,
+          evidenceValidation.timestamp || null,
+          requiresApproval,
+          Math.floor(Date.now() / 1000),
+        ]
       );
+
+      const submissionRecord = {
+        ...submission.rows[0],
+        evidence: parseJsonb(submission.rows[0].evidence),
+      };
+
+      // SECURITY FIX (CVE-001): If multi-admin approval required, create approval record
+      // and check if we have enough approvals
+      if (requiresApproval && isAdmin) {
+        // Create approval record for this admin
+        await ResolutionApprovalModel.create(
+          {
+            market_id: marketId,
+            submission_id: submissionRecord.id,
+            admin_user_id: userId,
+            approved: true,
+            evidence_hash: evidenceHash,
+          },
+          client
+        );
+
+        // Check if we have enough approvals (need at least 2)
+        const approvalCount = await ResolutionApprovalModel.countApprovals(
+          submissionRecord.id,
+          client
+        );
+
+        if (approvalCount < 2) {
+          // Not enough approvals yet, return submission but don't resolve
+          return {
+            submission: submissionRecord,
+            resolved: false,
+            requiresApproval: true,
+            approvalCount,
+            neededApprovals: 2,
+          };
+        }
+      } else if (requiresApproval && !isAdmin) {
+        // Non-admin trying to resolve large market - needs admin approval first
+        throw new TransactionError(
+          403,
+          "This market requires multi-admin approval. Please contact platform admins."
+        );
+      }
 
       // Update market status to RESOLVING if not already
       if (market.status === MarketStatus.OPEN) {
@@ -410,6 +493,24 @@ export const submitResolution = async (
           { status: MarketStatus.RESOLVING },
           client
         );
+      }
+
+      // SECURITY FIX (CVE-001): If approval required and not enough approvals, don't resolve
+      if (requiresApproval) {
+        const approvalCount = await ResolutionApprovalModel.countApprovals(
+          submissionRecord.id,
+          client
+        );
+        if (approvalCount < 2) {
+          // Return early - need more approvals
+          return {
+            submission: submissionRecord,
+            resolved: false,
+            requiresApproval: true,
+            approvalCount,
+            neededApprovals: 2,
+          };
+        }
       }
 
       // Process the submission and resolve the option
@@ -428,8 +529,9 @@ export const submitResolution = async (
           note: `Option resolved with explicit winning side: ${
             winningSide === 1 ? "YES" : "NO"
           }`,
-          submission_id: submission.id,
-          evidence: submission.evidence,
+          submission_id: submissionRecord.id,
+          evidence: submissionRecord.evidence,
+          evidence_hash: evidenceHash,
           winning_side_provided: true,
         };
       } else {
@@ -457,7 +559,10 @@ export const submitResolution = async (
 
           resolvedWinningSide =
             resolutionResult.final_outcome === option.option_label ? 1 : 2;
-          resolutionTrace = resolutionResult.resolution_trace;
+          resolutionTrace = {
+            ...resolutionResult.resolution_trace,
+            evidence_hash: evidenceHash,
+          };
         } else {
           // Default: if submission says this option, it wins (YES)
           // For legacy markets or single submissions, use explicit winningSide if provided, otherwise default to YES
@@ -465,8 +570,9 @@ export const submitResolution = async (
           resolutionTrace = {
             mode: market.resolution_mode || "AUTHORITY",
             note: "Option resolved based on submission",
-            submission_id: submission.id,
-            evidence: submission.evidence,
+            submission_id: submissionRecord.id,
+            evidence: submissionRecord.evidence,
+            evidence_hash: evidenceHash,
           };
         }
       }
@@ -515,7 +621,7 @@ export const submitResolution = async (
       }
 
       return {
-        submission,
+        submission: submissionRecord,
         resolved: true,
         option: await OptionModel.findById(optionId!, client),
         resolution_trace: resolutionTrace,
@@ -523,6 +629,17 @@ export const submitResolution = async (
         marketId,
       };
     });
+
+    // SECURITY FIX (CVE-001): If approval required and not enough approvals, return early
+    if (submission.requiresApproval && !submission.resolved) {
+      return sendSuccess(res, {
+        submission: submission.submission,
+        message: `Resolution submitted. Requires ${submission.neededApprovals} admin approvals. Current: ${submission.approvalCount}/${submission.neededApprovals}`,
+        requiresApproval: true,
+        approvalCount: submission.approvalCount,
+        neededApprovals: submission.neededApprovals,
+      });
+    }
 
     // Auto-credit winnings to all winners (non-blocking, runs after commit)
     // This improves UX by automatically crediting balances when options resolve

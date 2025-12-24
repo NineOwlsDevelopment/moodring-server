@@ -32,12 +32,13 @@ import {
 } from "../controllers/controller_admin";
 import { authenticateToken } from "../middleware/auth";
 import { requireAdmin } from "../middleware/admin";
+import { adminLimiter } from "../middleware/rateLimit";
 import { typedHandler } from "../types/routeHandler";
 
 const router = Router();
 
-// All admin routes require authentication and admin role
-router.use(authenticateToken as any, requireAdmin as any);
+// All admin routes require authentication, admin role, and rate limiting
+router.use(authenticateToken as any, requireAdmin as any, adminLimiter);
 
 // Platform management
 router.get("/pause", typedHandler(getPauseFlags));

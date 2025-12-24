@@ -198,3 +198,102 @@ export class MarketResolutionModel {
     };
   }
 }
+
+/**
+ * Resolution Approval Model
+ * SECURITY FIX (CVE-001): Multi-admin approval for large market resolutions
+ */
+export interface ResolutionApproval {
+  id: UUID;
+  market_id: UUID;
+  submission_id: UUID;
+  admin_user_id: UUID;
+  approved: boolean;
+  evidence_hash: string | null;
+  approval_signature: string | null;
+  created_at: number;
+}
+
+export class ResolutionApprovalModel {
+  static async create(
+    data: {
+      market_id: string;
+      submission_id: string;
+      admin_user_id: string;
+      approved: boolean;
+      evidence_hash?: string;
+      approval_signature?: string;
+    },
+    client?: QueryClient
+  ): Promise<ResolutionApproval> {
+    const db = client || pool;
+    const now = Math.floor(Date.now() / 1000);
+
+    const query = `
+      INSERT INTO resolution_approvals (
+        market_id, submission_id, admin_user_id, approved, 
+        evidence_hash, approval_signature, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (market_id, submission_id, admin_user_id) 
+      DO UPDATE SET 
+        approved = EXCLUDED.approved,
+        evidence_hash = EXCLUDED.evidence_hash,
+        approval_signature = EXCLUDED.approval_signature
+      RETURNING *
+    `;
+    const values = [
+      data.market_id,
+      data.submission_id,
+      data.admin_user_id,
+      data.approved,
+      data.evidence_hash || null,
+      data.approval_signature || null,
+      now,
+    ];
+    const result = await db.query(query, values);
+    return result.rows[0];
+  }
+
+  static async findBySubmission(
+    submissionId: string,
+    client?: QueryClient
+  ): Promise<ResolutionApproval[]> {
+    const db = client || pool;
+    const query = `
+      SELECT * FROM resolution_approvals
+      WHERE submission_id = $1
+      ORDER BY created_at ASC
+    `;
+    const result = await db.query(query, [submissionId]);
+    return result.rows;
+  }
+
+  static async countApprovals(
+    submissionId: string,
+    client?: QueryClient
+  ): Promise<number> {
+    const db = client || pool;
+    const query = `
+      SELECT COUNT(*) as count FROM resolution_approvals
+      WHERE submission_id = $1 AND approved = TRUE
+    `;
+    const result = await db.query(query, [submissionId]);
+    return parseInt(result.rows[0]?.count || "0", 10);
+  }
+
+  static async hasAdminApproved(
+    submissionId: string,
+    adminUserId: string,
+    client?: QueryClient
+  ): Promise<boolean> {
+    const db = client || pool;
+    const query = `
+      SELECT approved FROM resolution_approvals
+      WHERE submission_id = $1 AND admin_user_id = $2
+      LIMIT 1
+    `;
+    const result = await db.query(query, [submissionId, adminUserId]);
+    return result.rows[0]?.approved === true;
+  }
+}

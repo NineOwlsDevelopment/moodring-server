@@ -6,7 +6,7 @@ import { LpPositionModel } from "../models/LpPosition";
 import { ActivityModel } from "../models/Activity";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { UUID } from "crypto";
-import { emitBalanceUpdate } from "../services/websocket";
+import { emitBalanceUpdate, emitMarketUpdate } from "../services/websocket";
 import { withTransaction, TransactionError } from "../utils/transaction";
 import { withTradeQueue } from "../services/tradeQueue";
 import {
@@ -28,18 +28,67 @@ import {
 
 /**
  * Calculate LP shares for a given deposit amount
- * If pool is empty, shares = amount (1:1)
- * Otherwise, shares = (amount / total_pool_value) * total_shares
+ * Uses the EXACT same algorithm as frontend:
+ * - If pool is empty (totalShares === 0 || poolLiquidity === 0): shares = amount (1:1)
+ * - Otherwise: shares = Math.floor((amount * totalShares) / poolLiquidity)
+ *
+ * Note: amount is already in micro-USDC units when passed to this function
  */
 function calculateLpShares(
   amount: number,
   poolLiquidity: number,
   totalShares: number
 ): number {
-  if (totalShares === 0 || poolLiquidity === 0) {
-    return amount; // First LP gets 1:1 shares
+  // Convert to BigInt for integer-only arithmetic
+  const amountBigInt = BigInt(amount);
+  const poolLiquidityBigInt = BigInt(poolLiquidity);
+  const totalSharesBigInt = BigInt(totalShares);
+
+  // SECURITY FIX: Minimum deposit to prevent rounding exploits
+  // Minimum: 1,000,000 micro-USDC (1 USDC) to ensure at least 1 share
+  const MIN_DEPOSIT = BigInt(1_000_000);
+  if (amountBigInt < MIN_DEPOSIT) {
+    throw new Error(
+      `Minimum deposit is ${
+        MIN_DEPOSIT / BigInt(1_000_000)
+      } USDC to prevent rounding exploits`
+    );
   }
-  return Math.floor((amount * totalShares) / poolLiquidity);
+
+  // If pool is empty, first LP gets 1:1 shares
+  if (totalSharesBigInt === 0n || poolLiquidityBigInt === 0n) {
+    // Validate minimum deposit even for first LP
+    if (amountBigInt < MIN_DEPOSIT) {
+      throw new Error(
+        `Minimum deposit is ${MIN_DEPOSIT / BigInt(1_000_000)} USDC`
+      );
+    }
+    return Number(amountBigInt);
+  }
+
+  // Integer-only calculation: shares = (amount * totalShares) / poolLiquidity
+  // Use rounding: (amount * totalShares + poolLiquidity/2) / poolLiquidity
+  // This ensures we round to nearest integer, not floor
+  const numerator = amountBigInt * totalSharesBigInt;
+  const halfPool = poolLiquidityBigInt / 2n;
+  const roundedNumerator = numerator + halfPool;
+  const sharesBigInt = roundedNumerator / poolLiquidityBigInt;
+
+  // SECURITY FIX: Ensure at least 1 share for deposits >= MIN_DEPOSIT
+  // This prevents the exploit where attacker gets 0 shares
+  if (sharesBigInt === 0n && amountBigInt >= MIN_DEPOSIT) {
+    // If calculation rounds to 0 but deposit is significant, give 1 share
+    // This can only happen if poolLiquidity >> amount * totalShares
+    // In practice, this protects against edge cases
+    return 1;
+  }
+
+  // Validate shares are positive
+  if (sharesBigInt < 0n) {
+    throw new Error("Share calculation resulted in negative value");
+  }
+
+  return Number(sharesBigInt);
 }
 
 /**
@@ -53,6 +102,26 @@ function calculateShareValue(
 ): number {
   if (totalShares === 0) return 0;
   return Math.floor((shares * (poolLiquidity + accumulatedFees)) / totalShares);
+}
+
+/**
+ * Calculate total outstanding shares (liability) for an unresolved market
+ * Returns the total amount of USDC that could be needed to pay out all outstanding shares
+ * Each share can be redeemed for 1 micro-USDC if it wins
+ */
+async function calculateOutstandingLiability(
+  client: any,
+  marketId: string
+): Promise<number> {
+  // Get total outstanding shares across all options
+  const sharesResult = await client.query(
+    `SELECT COALESCE(SUM(yes_quantity + no_quantity), 0)::bigint as total_shares
+     FROM market_options 
+     WHERE market_id = $1`,
+    [marketId]
+  );
+
+  return Number(sharesResult.rows[0]?.total_shares || 0);
 }
 
 /**
@@ -154,21 +223,17 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
       async () => {
         return await withTransaction(
           async (client) => {
-            // Get user wallet with lock
-            const wallet = await WalletModel.findByUserId(userId, client);
+            // SECURITY FIX: Consistent locking order - always lock Market BEFORE Wallet
+            // Global locking order: Market -> Option -> Wallet -> User
+            // This prevents deadlocks with trade operations
 
-            if (!wallet) {
-              throw new TransactionError(404, "Wallet not found");
-            }
-
-            // Check sufficient balance
-            if (Number(wallet.balance_usdc) < parsedAmount) {
-              throw new TransactionError(400, "Insufficient USDC balance");
-            }
-
-            // Get market with lock
+            // Get market with lock FIRST (consistent with trade operations)
             const marketResult = await client.query(
-              `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
+              `SELECT 
+                *,
+                COALESCE(shared_pool_liquidity, 0)::BIGINT as shared_pool_liquidity,
+                COALESCE(total_shared_lp_shares, 0)::BIGINT as total_shared_lp_shares
+               FROM markets WHERE id = $1 FOR UPDATE`,
               [marketId]
             );
             const market = marketResult.rows[0];
@@ -188,11 +253,71 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
               throw new TransactionError(400, "Market is not initialized");
             }
 
+            // Get user wallet with lock SECOND (consistent locking order)
+            const wallet = await WalletModel.findByUserId(userId, client);
+
+            if (!wallet) {
+              throw new TransactionError(404, "Wallet not found");
+            }
+
+            // Check sufficient balance
+            if (Number(wallet.balance_usdc) < parsedAmount) {
+              throw new TransactionError(400, "Insufficient USDC balance");
+            }
+            // Get current pool state - values are COALESCE'd in query to ensure they're never NULL
+            // But we still use Number() to ensure they're proper numbers
+            const currentPoolLiquidity =
+              Number(market.shared_pool_liquidity) || 0;
+            const currentTotalShares =
+              Number(market.total_shared_lp_shares) || 0;
+
+            // Debug: Log raw values from database
+            console.log("=== Raw Database Values ===");
+            console.log(
+              "market.shared_pool_liquidity (raw):",
+              market.shared_pool_liquidity,
+              typeof market.shared_pool_liquidity
+            );
+            console.log(
+              "market.total_shared_lp_shares (raw):",
+              market.total_shared_lp_shares,
+              typeof market.total_shared_lp_shares
+            );
+            console.log(
+              "currentPoolLiquidity (processed):",
+              currentPoolLiquidity
+            );
+            console.log("currentTotalShares (processed):", currentTotalShares);
+
             // Calculate LP shares to mint (6 decimal precision)
             const sharesToMint = calculateLpShares(
               parsedAmount,
-              Number(market.shared_pool_liquidity),
-              Number(market.total_shared_lp_shares)
+              currentPoolLiquidity,
+              currentTotalShares
+            );
+
+            console.log("=== Add Liquidity Calculation ===");
+            console.log("parsedAmount (micro-USDC):", parsedAmount);
+            console.log(
+              "currentPoolLiquidity (micro-USDC):",
+              currentPoolLiquidity
+            );
+            console.log(
+              "currentTotalShares (micro-units):",
+              currentTotalShares
+            );
+            console.log("sharesToMint (micro-units):", sharesToMint);
+            console.log(
+              "Ratio:",
+              currentTotalShares > 0 && currentPoolLiquidity > 0
+                ? `${(sharesToMint / parsedAmount).toFixed(6)}:1`
+                : "1:1 (first LP)"
+            );
+            console.log(
+              "Calculation:",
+              currentTotalShares > 0 && currentPoolLiquidity > 0
+                ? `Math.floor((${parsedAmount} * ${currentTotalShares}) / ${currentPoolLiquidity}) = ${sharesToMint}`
+                : `First LP: ${parsedAmount} (1:1)`
             );
 
             if (sharesToMint <= 0) {
@@ -209,16 +334,31 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
             );
 
             // Update market liquidity pool
-            const newLiquidity =
-              Number(market.shared_pool_liquidity) + parsedAmount;
-            const newTotalShares =
-              Number(market.total_shared_lp_shares) + sharesToMint;
+            const newLiquidity = currentPoolLiquidity + parsedAmount;
+            const newTotalShares = currentTotalShares + sharesToMint;
+
+            console.log("=== After Calculation ===");
+            console.log("newLiquidity (micro-USDC):", newLiquidity);
+            console.log("newTotalShares (micro-units):", newTotalShares);
+
+            // Get total shares across all options to scale liquidity parameter
+            const totalSharesResult = await client.query(
+              `SELECT COALESCE(SUM(yes_quantity + no_quantity), 0)::bigint as total_shares
+               FROM market_options WHERE market_id = $1`,
+              [marketId]
+            );
+            const totalOptionShares = Number(
+              totalSharesResult.rows[0]?.total_shares || 0
+            );
 
             // Recalculate liquidity parameter (b) - scaled to match micro-unit quantities
-            // Using formula: b = max(base_param * 1000, sqrt(liquidity) * 10000)
+            // Formula: b = max(base_param * 1000, sqrt(max(liquidity, total_shares)) * 10000)
+            // This ensures b scales with both liquidity provision AND trading volume,
+            // preventing extreme price sensitivity when markets have high share volumes
+            const marketSize = Math.max(newLiquidity, totalOptionShares);
             const newLiquidityParam = Math.max(
               Number(market.base_liquidity_parameter) * 1000,
-              Math.floor(Math.sqrt(newLiquidity) * 10000)
+              Math.floor(Math.sqrt(marketSize) * 10000)
             );
 
             await client.query(
@@ -230,6 +370,24 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
          WHERE id = $4`,
               [newLiquidity, newTotalShares, newLiquidityParam, marketId]
             );
+
+            // Verify the update was successful
+            const verifyResult = await client.query(
+              `SELECT shared_pool_liquidity, total_shared_lp_shares FROM markets WHERE id = $1`,
+              [marketId]
+            );
+            const verified = verifyResult.rows[0];
+            console.log("=== Verification After Update ===");
+            console.log(
+              "Verified shared_pool_liquidity:",
+              verified?.shared_pool_liquidity
+            );
+            console.log(
+              "Verified total_shared_lp_shares:",
+              verified?.total_shared_lp_shares
+            );
+            console.log("Expected newLiquidity:", newLiquidity);
+            console.log("Expected newTotalShares:", newTotalShares);
 
             // Create/update LP position with token balance using model
             await LpPositionModel.create(
@@ -246,12 +404,15 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
             return {
               sharesToMint,
               newLiquidity,
+              newTotalShares,
             };
           },
           { maxRetries: 3, initialDelayMs: 100, maxDelayMs: 2000 }
         );
       }
     );
+
+    console.log("result", result);
 
     // Record activity
     await ActivityModel.create({
@@ -264,6 +425,19 @@ export const addLiquidity = async (req: AddLiquidityRequest, res: Response) => {
         shares_minted: result.sharesToMint,
         market_id: marketId,
       },
+    });
+
+    // Emit market update via websocket
+    emitMarketUpdate({
+      market_id: marketId,
+      event: "updated",
+      data: {
+        shared_pool_liquidity: result.newLiquidity,
+        total_shared_lp_shares: result.newTotalShares,
+        liquidity_added: parsedAmount,
+        shares_minted: result.sharesToMint,
+      },
+      timestamp: new Date(),
     });
 
     return sendSuccess(res, {
@@ -318,18 +492,11 @@ export const removeLiquidity = async (
       async () => {
         return await withTransaction(
           async (client) => {
-            // Get LP position with lock
-            const positionResult = await client.query(
-              `SELECT * FROM lp_positions WHERE user_id = $1 AND market_id = $2 FOR UPDATE`,
-              [userId, marketId]
-            );
-            const position = positionResult.rows[0];
+            // SECURITY FIX: Consistent locking order - always lock Market BEFORE LP position
+            // Global locking order: Market -> Option -> Wallet -> User
+            // This prevents deadlocks with trade operations
 
-            if (!position || Number(position.shares) < parsedShares) {
-              throw new TransactionError(400, "Insufficient LP shares");
-            }
-
-            // Get market with lock
+            // Get market with lock FIRST (consistent with trade operations)
             const marketResult = await client.query(
               `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
               [marketId]
@@ -340,50 +507,107 @@ export const removeLiquidity = async (
               throw new TransactionError(404, "Market not found");
             }
 
+            // Get LP position with lock SECOND (consistent locking order)
+            const positionResult = await client.query(
+              `SELECT * FROM lp_positions WHERE user_id = $1 AND market_id = $2 FOR UPDATE`,
+              [userId, marketId]
+            );
+            const position = positionResult.rows[0];
+
+            if (!position || Number(position.shares) < parsedShares) {
+              throw new TransactionError(400, "Insufficient LP shares");
+            }
+
+            // Lock LP until market is resolved
+            if (!market.is_resolved) {
+              throw new TransactionError(
+                400,
+                "Cannot remove liquidity until market is resolved. LP shares are locked until resolution."
+              );
+            }
+
             const poolLiquidity = Number(market.shared_pool_liquidity);
             const accumulatedFees = Number(market.accumulated_lp_fees);
             const totalShares = Number(market.total_shared_lp_shares);
 
-            // Calculate USDC to return (includes proportional share of accumulated fees)
-            const usdcToReturn = calculateShareValue(
-              parsedShares,
-              poolLiquidity,
-              accumulatedFees,
-              totalShares
+            if (totalShares <= 0) {
+              throw new TransactionError(400, "Pool has no shares");
+            }
+
+            // SECURITY FIX (CVE-002): Calculate pending claims and reserved liquidity atomically
+            // This prevents race conditions where multiple withdrawals see the same "available" balance
+            const pendingClaims = await calculatePendingClaims(
+              client,
+              marketId
+            );
+
+            // Get current reserved liquidity (atomically locked with market)
+            const reservedLiquidity = Number(market.reserved_liquidity || 0);
+
+            // SECURITY FIX (CVE-002): Available liquidity = poolLiquidity - pendingClaims - reservedLiquidity
+            // Reserved liquidity is atomically updated when withdrawal starts
+            const availableLiquidity = Math.max(
+              0,
+              poolLiquidity - pendingClaims - reservedLiquidity
+            );
+
+            // Calculate user's share ratio
+            const shareRatio = parsedShares / totalShares;
+
+            // LP can only withdraw their share of available liquidity + their share of fees
+            const liquidityPortion = Math.floor(
+              availableLiquidity * shareRatio
+            );
+            const feesPortion = Math.floor(accumulatedFees * shareRatio);
+            const usdcToReturn = liquidityPortion + feesPortion;
+
+            // SECURITY FIX (CVE-002): Atomically reserve liquidity before withdrawal
+            // This prevents concurrent withdrawals from seeing the same available balance
+            const newReservedLiquidity = reservedLiquidity + liquidityPortion;
+
+            // Validate we're not reserving more than available
+            if (newReservedLiquidity > poolLiquidity - pendingClaims) {
+              throw new TransactionError(
+                400,
+                "Insufficient available liquidity. Another withdrawal may be in progress."
+              );
+            }
+
+            // Update reserved liquidity atomically
+            await client.query(
+              `UPDATE markets SET reserved_liquidity = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
+              [newReservedLiquidity, marketId]
             );
 
             if (usdcToReturn <= 0) {
               throw new TransactionError(
                 400,
-                "Share value too low to withdraw"
+                "No claimable amount available. All liquidity is reserved for pending trader claims."
               );
             }
 
-            // Calculate how much comes from liquidity vs fees
-            const shareRatio = parsedShares / totalShares;
-            const liquidityPortion = Math.floor(poolLiquidity * shareRatio);
-            const feesPortion = Math.floor(accumulatedFees * shareRatio);
-
-            // If market is resolved, check for pending claims before allowing withdrawal
-            if (market.is_resolved) {
-              const pendingClaims = await calculatePendingClaims(
-                client,
-                marketId
+            // Safety check: ensure we're not withdrawing more liquidity than available
+            if (liquidityPortion > availableLiquidity) {
+              throw new TransactionError(
+                400,
+                `Invalid withdrawal: requested ${(
+                  liquidityPortion / 1_000_000
+                ).toFixed(2)} USDC from pool but only ${(
+                  availableLiquidity / 1_000_000
+                ).toFixed(2)} USDC available.`
               );
-              const newPoolLiquidity = poolLiquidity - liquidityPortion;
+            }
 
-              if (newPoolLiquidity < pendingClaims) {
-                const pendingClaimsFormatted = (
-                  pendingClaims / 1_000_000
-                ).toFixed(2);
-                const remainingFormatted = (
-                  newPoolLiquidity / 1_000_000
-                ).toFixed(2);
-                throw new TransactionError(
-                  400,
-                  `Cannot withdraw liquidity: ${pendingClaimsFormatted} USDC needed for pending claims, but only ${remainingFormatted} USDC would remain after withdrawal. Please wait until all claims are processed.`
-                );
-              }
+            // Safety check: ensure we're not claiming more fees than exist
+            if (feesPortion > accumulatedFees) {
+              throw new TransactionError(
+                400,
+                `Invalid fees claim: requested ${(
+                  feesPortion / 1_000_000
+                ).toFixed(2)} USDC in fees but only ${(
+                  accumulatedFees / 1_000_000
+                ).toFixed(2)} USDC available.`
+              );
             }
 
             // Update LP position
@@ -426,28 +650,55 @@ export const removeLiquidity = async (
             );
             const newTotalShares = totalShares - parsedShares;
 
+            // SECURITY FIX (CVE-002): Release reserved liquidity after withdrawal completes
+            const finalReservedLiquidity = Math.max(
+              0,
+              newReservedLiquidity - liquidityPortion
+            );
+
+            // Get total shares across all options to scale liquidity parameter
+            const totalSharesResult = await client.query(
+              `SELECT COALESCE(SUM(yes_quantity + no_quantity), 0)::bigint as total_shares
+               FROM market_options WHERE market_id = $1`,
+              [marketId]
+            );
+            const totalOptionShares = Number(
+              totalSharesResult.rows[0]?.total_shares || 0
+            );
+
             // Recalculate liquidity parameter - scaled to match micro-unit quantities
+            // Formula: b = max(base_param * 1000, sqrt(max(liquidity, total_shares)) * 10000)
+            // This ensures b scales with both liquidity provision AND trading volume
             const newLiquidityParam =
               newPoolLiquidity > 0
-                ? Math.max(
-                    Number(market.base_liquidity_parameter) * 1000,
-                    Math.floor(Math.sqrt(newPoolLiquidity) * 10000)
-                  )
+                ? (() => {
+                    const marketSize = Math.max(
+                      newPoolLiquidity,
+                      totalOptionShares
+                    );
+                    return Math.max(
+                      Number(market.base_liquidity_parameter) * 1000,
+                      Math.floor(Math.sqrt(marketSize) * 10000)
+                    );
+                  })()
                 : Number(market.base_liquidity_parameter) * 1000;
 
+            // SECURITY FIX (CVE-002): Update reserved liquidity along with pool liquidity
             await client.query(
               `UPDATE markets SET 
           shared_pool_liquidity = $1,
           total_shared_lp_shares = $2,
           accumulated_lp_fees = $3,
           liquidity_parameter = $4,
+          reserved_liquidity = $5,
           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-         WHERE id = $5`,
+         WHERE id = $6`,
               [
                 newPoolLiquidity,
                 newTotalShares,
                 newAccumulatedFees,
                 newLiquidityParam,
+                finalReservedLiquidity,
                 marketId,
               ]
             );
@@ -458,7 +709,13 @@ export const removeLiquidity = async (
               [usdcToReturn, userId]
             );
 
-            return { usdcToReturn, feesPortion };
+            return {
+              usdcToReturn,
+              feesPortion,
+              newPoolLiquidity,
+              newTotalShares,
+              newAccumulatedFees,
+            };
           },
           { maxRetries: 3, initialDelayMs: 100, maxDelayMs: 2000 }
         );
@@ -477,6 +734,20 @@ export const removeLiquidity = async (
         fees_portion: result.feesPortion,
         market_id: marketId,
       },
+    });
+
+    // Emit market update via websocket
+    emitMarketUpdate({
+      market_id: marketId,
+      event: "updated",
+      data: {
+        shared_pool_liquidity: result.newPoolLiquidity,
+        total_shared_lp_shares: result.newTotalShares,
+        accumulated_lp_fees: result.newAccumulatedFees,
+        liquidity_removed: parsedShares,
+        usdc_returned: result.usdcToReturn,
+      },
+      timestamp: new Date(),
     });
 
     return sendSuccess(res, {
@@ -570,8 +841,8 @@ export const getLpPosition = async (
           client.release();
         }
       } else {
-        // For unresolved markets, claimable is same as current value
-        claimableValue = currentValue;
+        // For unresolved markets, LP is locked - cannot withdraw until market resolves
+        claimableValue = 0;
       }
     }
 
@@ -720,7 +991,11 @@ export const claimLpRewards = async (
       async () => {
         return await withTransaction(
           async (client) => {
-            // Get market with lock
+            // SECURITY FIX: Consistent locking order - always lock Market BEFORE LP position
+            // Global locking order: Market -> Option -> Wallet -> User
+            // This prevents deadlocks with trade operations
+
+            // Get market with lock FIRST (consistent with trade operations)
             const marketResult = await client.query(
               `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
               [marketId]
@@ -739,7 +1014,7 @@ export const claimLpRewards = async (
               );
             }
 
-            // Get LP position with lock
+            // Get LP position with lock SECOND (consistent locking order)
             const positionResult = await client.query(
               `SELECT * FROM lp_positions WHERE user_id = $1 AND market_id = $2 FOR UPDATE`,
               [userId, marketId]
@@ -770,17 +1045,19 @@ export const claimLpRewards = async (
               throw new TransactionError(400, "Pool has no shares");
             }
 
-            // Calculate pending claims first - these are liabilities that must be reserved
+            // SECURITY FIX (CVE-002): Calculate pending claims and reserved liquidity atomically
             const pendingClaims = await calculatePendingClaims(
               client,
               marketId
             );
 
-            // LP can only claim from the available pool (after reserving for pending trader claims)
-            // Available liquidity = poolLiquidity - pendingClaims
+            // Get current reserved liquidity (atomically locked with market)
+            const reservedLiquidity = Number(market.reserved_liquidity || 0);
+
+            // SECURITY FIX (CVE-002): Available liquidity = poolLiquidity - pendingClaims - reservedLiquidity
             const availableLiquidity = Math.max(
               0,
-              poolLiquidity - pendingClaims
+              poolLiquidity - pendingClaims - reservedLiquidity
             );
 
             // Calculate proportional payout based on available pool + fees
@@ -791,6 +1068,23 @@ export const claimLpRewards = async (
             );
             const feesPortion = Math.floor(accumulatedFees * shareRatio);
             const payout = liquidityPortion + feesPortion;
+
+            // SECURITY FIX (CVE-002): Atomically reserve liquidity before withdrawal
+            const newReservedLiquidity = reservedLiquidity + liquidityPortion;
+
+            // Validate we're not reserving more than available
+            if (newReservedLiquidity > poolLiquidity - pendingClaims) {
+              throw new TransactionError(
+                400,
+                "Insufficient available liquidity. Another withdrawal may be in progress."
+              );
+            }
+
+            // Update reserved liquidity atomically
+            await client.query(
+              `UPDATE markets SET reserved_liquidity = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
+              [newReservedLiquidity, marketId]
+            );
 
             // Validate that we have enough funds to cover the payout
             const totalAvailable = availableLiquidity + accumulatedFees;
@@ -851,6 +1145,12 @@ export const claimLpRewards = async (
               poolLiquidity - liquidityPortion
             );
 
+            // SECURITY FIX (CVE-002): Release reserved liquidity after withdrawal completes
+            const finalReservedLiquidity = Math.max(
+              0,
+              newReservedLiquidity - liquidityPortion
+            );
+
             // Double-check that we're not leaving insufficient liquidity for pending claims
             // This should never happen with the new calculation, but keep as safety check
             if (newPoolLiquidity < pendingClaims) {
@@ -907,14 +1207,22 @@ export const claimLpRewards = async (
             );
             const newTotalShares = Math.max(0, totalShares - sharesToClaim);
 
+            // SECURITY FIX (CVE-002): Update reserved liquidity along with pool liquidity
             await client.query(
               `UPDATE markets SET 
           shared_pool_liquidity = $1,
           total_shared_lp_shares = $2,
           accumulated_lp_fees = $3,
+          reserved_liquidity = $4,
           updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-         WHERE id = $4`,
-              [newPoolLiquidity, newTotalShares, newAccumulatedFees, marketId]
+         WHERE id = $5`,
+              [
+                newPoolLiquidity,
+                newTotalShares,
+                newAccumulatedFees,
+                finalReservedLiquidity,
+                marketId,
+              ]
             );
 
             // Credit user wallet

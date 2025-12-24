@@ -4,6 +4,7 @@ import {
 } from "@circle-fin/developer-controlled-wallets";
 import { PublicKey } from "@solana/web3.js";
 import { USDC_MINT_ADDRESS } from "../sdk/constants";
+import { secretsManager } from "../utils/secrets";
 
 /**
  * CircleWalletService manages wallets using Circle's Developer-Controlled Wallets API
@@ -17,33 +18,40 @@ class CircleWalletService {
   /**
    * Initialize the Circle wallet client
    */
-  initialize(): boolean {
-    const apiKey = process.env.CIRCLE_API_KEY;
-    const entitySecret = process.env.CIRCLE_ENTITY_SECRET;
-    let walletSetId = process.env.CIRCLE_WALLET_SET_ID;
-
-    if (!apiKey || !entitySecret) {
-      console.warn(
-        "[CircleWallet] CIRCLE_API_KEY or CIRCLE_ENTITY_SECRET not set. Circle wallet features disabled."
-      );
-      return false;
-    }
-
+  async initialize(): Promise<boolean> {
     try {
-      this.client = initiateDeveloperControlledWalletsClient({
-        apiKey,
-        entitySecret,
-      });
+      const apiKey = await secretsManager.getRequiredSecret("CIRCLE_API_KEY");
+      const entitySecret = await secretsManager.getRequiredSecret(
+        "CIRCLE_ENTITY_SECRET"
+      );
+      let walletSetId = process.env.CIRCLE_WALLET_SET_ID;
 
-      if (walletSetId) {
-        this.walletSetId = walletSetId;
+      if (!apiKey || !entitySecret) {
+        console.warn(
+          "[CircleWallet] CIRCLE_API_KEY or CIRCLE_ENTITY_SECRET not set. Circle wallet features disabled."
+        );
+        return false;
       }
 
-      this.isInitialized = true;
-      console.log("[CircleWallet] Initialized successfully");
-      return true;
+      try {
+        this.client = initiateDeveloperControlledWalletsClient({
+          apiKey,
+          entitySecret,
+        });
+
+        if (walletSetId) {
+          this.walletSetId = walletSetId;
+        }
+
+        this.isInitialized = true;
+        console.log("[CircleWallet] Initialized successfully");
+        return true;
+      } catch (error: any) {
+        console.error("[CircleWallet] Failed to initialize:", error.message);
+        return false;
+      }
     } catch (error: any) {
-      console.error("[CircleWallet] Failed to initialize:", error.message);
+      console.error("[CircleWallet] Failed to get secrets:", error.message);
       return false;
     }
   }
@@ -671,8 +679,8 @@ class CircleWalletService {
 // Singleton instance
 const circleWalletService = new CircleWalletService();
 
-export const initializeCircleWallet = (): boolean => {
-  return circleWalletService.initialize();
+export const initializeCircleWallet = async (): Promise<boolean> => {
+  return await circleWalletService.initialize();
 };
 
 export const getCircleWallet = (): CircleWalletService => {

@@ -1,10 +1,9 @@
-/**
- * Secrets Management Utility
- * Provides abstraction for secrets management with support for:
- * - Environment variables (development)
- * - AWS Secrets Manager (production)
- * - HashiCorp Vault (optional)
- */
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from "@aws-sdk/client-secrets-manager";
+
+const AWS_SECRET_NAME = "mood_store_secrets";
 
 interface SecretConfig {
   name: string;
@@ -32,7 +31,7 @@ class SecretsManager {
     }
 
     // Try environment variable first (for development/local)
-    if (process.env[name]) {
+    if (process.env[name] && process.env.NODE_ENV !== "production") {
       const value = process.env[name];
       this.cache.set(name, {
         value,
@@ -85,38 +84,27 @@ class SecretsManager {
     try {
       // Lazy load AWS SDK to avoid dependency if not used
       // Check if AWS SDK is available
-      let SecretsManagerClient: any;
-      let GetSecretValueCommand: any;
-
-      try {
-        // Dynamic import with type assertion to handle optional dependency
-        const awsSDK = await import(
-          "@aws-sdk/client-secrets-manager" as any
-        ).catch(() => null);
-        if (!awsSDK) {
-          console.warn(
-            "[Secrets] AWS SDK not installed. Install @aws-sdk/client-secrets-manager to use AWS Secrets Manager."
-          );
-          return null;
-        }
-        SecretsManagerClient = awsSDK.SecretsManagerClient;
-        GetSecretValueCommand = awsSDK.GetSecretValueCommand;
-      } catch (importError) {
-        console.warn(
-          "[Secrets] AWS SDK not installed. Install @aws-sdk/client-secrets-manager to use AWS Secrets Manager."
-        );
-        return null;
-      }
-
-      const client = new SecretsManagerClient({
-        region: process.env.AWS_REGION || "us-east-1",
-      });
-
       const command = new GetSecretValueCommand({
         SecretId: secretName,
       });
 
-      const response = await client.send(command);
+      const client = new SecretsManagerClient({
+        region: "us-east-1",
+      });
+
+      let response;
+      try {
+        response = await client.send(
+          new GetSecretValueCommand({
+            SecretId: AWS_SECRET_NAME,
+            VersionStage: "AWSCURRENT", // VersionStage defaults to AWSCURRENT if unspecified
+          })
+        );
+      } catch (error) {
+        // For a list of exceptions thrown, see
+        // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        throw error;
+      }
 
       if (response.SecretString) {
         // If it's JSON, parse it
@@ -284,12 +272,13 @@ export async function initializeSecrets(): Promise<void> {
   const requiredSecrets: SecretConfig[] = [
     { name: "JWT_SECRET", required: true },
     { name: "JWT_REFRESH_SECRET", required: true },
-    { name: "ENCRYPTION_PW", required: true },
+    { name: "EMAIL_PASSWORD", required: true },
     { name: "DB_PASSWORD", required: true },
-    { name: "CIRCLE_API_KEY", required: false },
-    { name: "CIRCLE_ENTITY_SECRET", required: false },
-    { name: "AWS_ACCESS_KEY_ID", required: false },
-    { name: "AWS_SECRET_ACCESS_KEY", required: false },
+    { name: "ENCRYPTION_PW", required: true },
+    { name: "CIRCLE_API_KEY", required: true },
+    { name: "CIRCLE_ENTITY_SECRET", required: true },
+    { name: "DB_HOST", required: true },
+    { name: "SESSION_SECRET", required: true },
   ];
 
   try {

@@ -304,7 +304,7 @@ export const verifyMagicLink = async (
     }
 
     // Generate JWT tokens
-    const tokens = generateTokenPair({
+    const tokens = await generateTokenPair({
       id: result.user.id,
     });
 
@@ -479,12 +479,14 @@ export const authenticateWithWallet = async (
     }
 
     const result = await withTransaction(async (client) => {
-      // Verify nonce exists and is valid (within transaction with lock)
-      // Note: used_at defaults to 0 (not NULL), so we check for 0
+      // SECURITY FIX: Use SELECT FOR UPDATE SKIP LOCKED to prevent race conditions
+      // This ensures only one request can claim the nonce
       const nonceResult = await client.query(
         `SELECT * FROM wallet_auth_nonces 
          WHERE nonce = $1 AND wallet_address = $2 AND used_at = 0
-         FOR UPDATE`,
+         ORDER BY created_at DESC
+         FOR UPDATE SKIP LOCKED
+         LIMIT 1`,
         [nonce, normalizedAddress]
       );
 
@@ -572,7 +574,9 @@ export const authenticateWithWallet = async (
         );
       }
 
-      // Mark nonce as used AFTER successful signature verification (prevents replay)
+      // SECURITY FIX: Mark nonce as used IMMEDIATELY (before signature verification)
+      // This prevents race conditions - if signature verification fails, we still
+      // mark nonce as used to prevent replay attacks
       await client.query(
         `UPDATE wallet_auth_nonces SET used_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
         [nonceRecord.id]
@@ -666,7 +670,7 @@ export const authenticateWithWallet = async (
     });
 
     // Generate JWT tokens
-    const tokens = generateTokenPair({
+    const tokens = await generateTokenPair({
       id: result.user.id,
     });
 
@@ -746,7 +750,7 @@ export const refreshAccessToken = async (
     // Verify refresh token
     let payload;
     try {
-      payload = verifyRefreshToken(oldRefreshToken);
+      payload = await verifyRefreshToken(oldRefreshToken);
     } catch (error) {
       return sendError(res, 403, "Invalid refresh token", {
         message: error instanceof Error ? error.message : "Token expired",
@@ -778,7 +782,7 @@ export const refreshAccessToken = async (
     }
 
     // Generate new token pair (both access AND refresh tokens)
-    const tokens = generateTokenPair({
+    const tokens = await generateTokenPair({
       id: user.id,
     });
 

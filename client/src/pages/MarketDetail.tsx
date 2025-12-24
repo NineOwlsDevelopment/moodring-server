@@ -10,6 +10,7 @@ import { WatchlistButton } from "@/components/WatchlistButton";
 import { ResolutionViewer } from "@/components/ResolutionViewer";
 import { DisputeResolution } from "@/components/DisputeResolution";
 import { ResolveOption } from "@/components/ResolveOption";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   formatUSDC,
   formatDate,
@@ -130,6 +131,19 @@ const OptionRow = ({
           <span className="text-sm text-white font-medium break-words line-clamp-2">
             {capitalizeWords(option.option_label)}
           </span>
+          {!resolved && (
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-[10px] text-moon-grey-dark tabular-nums">
+                <span className="text-emerald-400/70">
+                  {formatShares(option.yes_quantity || 0)}
+                </span>
+                {" / "}
+                <span className="text-rose-400/70">
+                  {formatShares(option.no_quantity || 0)}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Percentage */}
@@ -1086,6 +1100,43 @@ export const MarketDetail = () => {
                       ✓ Resolved
                     </span>
                   )}
+                  {/* Creator Info */}
+                  {(market.creator_username || market.creator_display_name) && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/[0.06]">
+                      <UserAvatar
+                        name={
+                          market.creator_display_name ||
+                          market.creator_username ||
+                          "User"
+                        }
+                        imageUrl={market.creator_avatar_url}
+                        size="sm"
+                      />
+                      <span className="text-[11px] text-moon-grey font-medium">
+                        {market.creator_display_name ||
+                          (market.creator_username
+                            ? `@${market.creator_username}`
+                            : "User")}
+                      </span>
+                      {market.is_admin_creator && (
+                        <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
+                          <svg
+                            className="w-2.5 h-2.5 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Title & Probability */}
@@ -1370,6 +1421,54 @@ export const MarketDetail = () => {
                         {market.market_description}
                       </p>
                     )}
+                    {/* Creator Section */}
+                    {(market.creator_username ||
+                      market.creator_display_name) && (
+                      <div className="bg-white/[0.03] rounded-xl p-4 mb-5">
+                        <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-3">
+                          Created By
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <UserAvatar
+                            name={
+                              market.creator_display_name ||
+                              market.creator_username ||
+                              "User"
+                            }
+                            imageUrl={market.creator_avatar_url}
+                            size="md"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-white font-semibold text-sm">
+                                {market.creator_display_name ||
+                                  (market.creator_username
+                                    ? `@${market.creator_username}`
+                                    : "User")}
+                              </span>
+                              {market.is_admin_creator && (
+                                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-neon-iris flex-shrink-0">
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={3}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-white/[0.03] rounded-xl p-4">
                         <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-1.5">

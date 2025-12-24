@@ -26,7 +26,7 @@ export const authenticateToken = async (
     }
 
     // Verify JWT token signature and expiration
-    const payload = verifyAccessToken(token);
+    const payload = await verifyAccessToken(token);
 
     // Check if token has been revoked
     const isRevoked = await isTokenRevoked(token);
@@ -64,11 +64,15 @@ export const optionalAuth = async (
     const token = authHeader && authHeader.split(" ")[1];
 
     if (token) {
-      const payload = verifyAccessToken(token);
-      // Check if token is revoked (but don't block if it is)
-      const isRevoked = await isTokenRevoked(token);
-      if (!isRevoked) {
-        req.id = payload.id;
+      try {
+        const payload = await verifyAccessToken(token);
+        // Check if token is revoked (but don't block if it is)
+        const isRevoked = await isTokenRevoked(token);
+        if (!isRevoked) {
+          req.id = payload.id;
+        }
+      } catch (error) {
+        // Silently fail for optional auth
       }
     }
   } catch (error) {

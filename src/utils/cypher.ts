@@ -1,5 +1,6 @@
 import { Keypair } from "@solana/web3.js";
 import crypto from "crypto";
+import { secretsManager } from "./secrets";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32; // 256 bits
@@ -8,20 +9,33 @@ const SALT_LENGTH = 32; // 256 bits
 const TAG_LENGTH = 16; // 128 bits
 const PBKDF2_ITERATIONS = 100000; // Number of iterations for key derivation
 
-if (!process.env.ENCRYPTION_PW) {
-  throw new Error("ENCRYPTION_PASSWORD environment variable is not defined");
-}
+// Lazy-loaded encryption password to ensure secrets manager is initialized first
+let ENCRYPTION_PW: string | null = null;
 
-const ENCRYPTION_PW = process.env.ENCRYPTION_PW;
+/**
+ * Get encryption password lazily (loads from secrets manager on first use)
+ * This ensures secrets manager is initialized before password is accessed
+ */
+async function getEncryptionPassword(): Promise<string> {
+  if (!ENCRYPTION_PW) {
+    ENCRYPTION_PW = await secretsManager.getRequiredSecret("ENCRYPTION_PW");
+    if (!ENCRYPTION_PW) {
+      throw new Error(
+        "ENCRYPTION_PW not available from secrets manager or environment"
+      );
+    }
+  }
+  return ENCRYPTION_PW;
+}
 
 /**
  * Encrypts a Solana private key using AES-256-GCM encryption
  * @param privateKey - Solana private key as Uint8Array (64 bytes) or Keypair object
  * @returns Encrypted data as a hex string (format: salt:iv:tag:encryptedData)
  */
-export const encryptSolanaPrivateKey = (
+export const encryptSolanaPrivateKey = async (
   privateKey: Uint8Array | Keypair
-): string => {
+): Promise<string> => {
   // Extract private key from Keypair if needed
   const keyBytes =
     privateKey instanceof Keypair ? privateKey.secretKey : privateKey;
@@ -30,13 +44,16 @@ export const encryptSolanaPrivateKey = (
     throw new Error("Invalid Solana private key length. Expected 64 bytes.");
   }
 
+  // Get encryption password lazily
+  const password = await getEncryptionPassword();
+
   // Generate random salt and IV
   const salt = crypto.randomBytes(SALT_LENGTH);
   const iv = crypto.randomBytes(IV_LENGTH);
 
   // Derive encryption key from password using PBKDF2
   const key = crypto.pbkdf2Sync(
-    ENCRYPTION_PW,
+    password,
     salt,
     PBKDF2_ITERATIONS,
     KEY_LENGTH,
@@ -67,7 +84,9 @@ export const encryptSolanaPrivateKey = (
  * @param encryptedData - Encrypted data as hex string (format: salt:iv:tag:encryptedData)
  * @returns Decrypted private key as Uint8Array (64 bytes)
  */
-export const decryptSolanaPrivateKey = (encryptedData: string): Uint8Array => {
+export const decryptSolanaPrivateKey = async (
+  encryptedData: string
+): Promise<Uint8Array> => {
   try {
     // Parse hex string to buffer
     const data = Buffer.from(encryptedData, "hex");
@@ -81,9 +100,12 @@ export const decryptSolanaPrivateKey = (encryptedData: string): Uint8Array => {
     );
     const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
 
+    // Get encryption password lazily
+    const password = await getEncryptionPassword();
+
     // Derive decryption key from password using PBKDF2
     const key = crypto.pbkdf2Sync(
-      ENCRYPTION_PW,
+      password,
       salt,
       PBKDF2_ITERATIONS,
       KEY_LENGTH,
@@ -119,8 +141,8 @@ export const decryptSolanaPrivateKey = (encryptedData: string): Uint8Array => {
  * @param keypair - Solana Keypair object
  * @returns Encrypted data as a hex string
  */
-export const encryptKeypair = (keypair: Keypair): string => {
-  return encryptSolanaPrivateKey(keypair);
+export const encryptKeypair = async (keypair: Keypair): Promise<string> => {
+  return await encryptSolanaPrivateKey(keypair);
 };
 
 /**
@@ -128,7 +150,9 @@ export const encryptKeypair = (keypair: Keypair): string => {
  * @param encryptedData - Encrypted data as hex string
  * @returns Solana Keypair object
  */
-export const decryptKeypair = (encryptedData: string): Keypair => {
-  const privateKey = decryptSolanaPrivateKey(encryptedData);
+export const decryptKeypair = async (
+  encryptedData: string
+): Promise<Keypair> => {
+  const privateKey = await decryptSolanaPrivateKey(encryptedData);
   return Keypair.fromSecretKey(privateKey);
 };

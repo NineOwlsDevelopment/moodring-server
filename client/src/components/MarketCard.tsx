@@ -11,6 +11,7 @@ import {
 import { Clock, TrendingUp, ChevronDown } from "lucide-react";
 import { GradientAccent } from "./GradientAccent";
 import { UserAvatar } from "./UserAvatar";
+import { WatchlistButton } from "./WatchlistButton";
 
 interface MarketCardProps {
   market: Market;
@@ -35,8 +36,23 @@ const MarketCardComponent = ({
   const [showAllOptions, setShowAllOptions] = useState(false);
   const isMultipleChoice = market.options && market.options.length > 1;
   const isResolved = market.is_resolved;
-  const timeRemaining = formatTimeRemaining(market.expiration_timestamp);
-  const isEnding = timeRemaining.includes("h") || timeRemaining.includes("m");
+  const timeRemainingFull = formatTimeRemaining(market.expiration_timestamp);
+  const isEnding =
+    timeRemainingFull.includes("h") || timeRemainingFull.includes("m");
+
+  // Shorten very long date strings for better display
+  const shortenTimeRemaining = (timeStr: string): string => {
+    // If it's a long date with multiple parts (e.g., "1 year, 11 months, 28 days")
+    // Show only the first two significant parts
+    if (timeStr.includes(",") && timeStr.length > 20) {
+      const parts = timeStr.split(",").map((p) => p.trim());
+      if (parts.length > 2) {
+        return `${parts[0]}, ${parts[1]}`;
+      }
+    }
+    return timeStr;
+  };
+  const timeRemaining = shortenTimeRemaining(timeRemainingFull);
 
   const liquidityParam =
     market.liquidity_parameter || market.base_liquidity_parameter || 0;
@@ -136,6 +152,23 @@ const MarketCardComponent = ({
                       ? `@${market.creator_username}`
                       : "User")}
                 </span>
+                {market.is_admin_creator && (
+                  <div className="flex items-center justify-center w-3 h-3 rounded-full bg-neon-iris flex-shrink-0">
+                    <svg
+                      className="w-2 h-2 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                )}
               </div>
             )}
             <h3 className="text-sm font-bold text-white line-clamp-1">
@@ -166,7 +199,7 @@ const MarketCardComponent = ({
         <GradientAccent color="neon-iris" position="both" />
 
         <div className="p-5 h-full flex flex-col relative z-10">
-          {/* Top Row: Creator Info (left) and Timestamp (right) */}
+          {/* Top Row: Creator Info (left) and Timestamp + Bookmark (right) */}
           <div className="flex items-center justify-between mb-3">
             {/* Creator Info */}
             {(market.creator_username || market.creator_display_name) && (
@@ -186,28 +219,50 @@ const MarketCardComponent = ({
                       ? `@${market.creator_username}`
                       : "User")}
                 </span>
+                {market.is_admin_creator && (
+                  <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
+                    <svg
+                      className="w-2.5 h-2.5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                )}
               </div>
             )}
-            {/* Timestamp */}
-            <span className="text-xs text-moon-grey-dark">
-              {formatDistanceToNow(market.created_at)}
-            </span>
+            {/* Timestamp and Bookmark */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-moon-grey-dark">
+                {formatDistanceToNow(market.created_at)}
+              </span>
+              <WatchlistButton marketId={market.id} />
+            </div>
           </div>
 
           {/* Status Tags Row */}
           <div className="flex items-center justify-between gap-2 mb-3">
             {/* Active/Resolved Status */}
-            {isResolved ? (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-aqua-pulse" />
-                <span className="text-xs text-moon-grey-dark">Resolved</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-brand-success" />
-                <span className="text-xs text-moon-grey-dark">Active</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {isResolved ? (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-aqua-pulse" />
+                  <span className="text-xs text-moon-grey-dark">Resolved</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-brand-success" />
+                  <span className="text-xs text-moon-grey-dark">Active</span>
+                </div>
+              )}
+            </div>
             {/* Category Tag */}
             <span className="px-2 py-0.5 rounded-full bg-neon-iris/10 text-neon-iris text-xs font-medium border border-neon-iris/20">
               {categoryName}
@@ -248,19 +303,19 @@ const MarketCardComponent = ({
               </span>
             </div>
             <div
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg max-w-[50%] ${
                 isEnding
                   ? "bg-brand-warning/10 text-brand-warning border border-brand-warning/20"
                   : "bg-neon-iris/10 text-neon-iris border border-neon-iris/20"
               }`}
             >
               <Clock
-                className={`w-3.5 h-3.5 ${
+                className={`w-3.5 h-3.5 flex-shrink-0 ${
                   isEnding ? "text-brand-warning" : "text-neon-iris"
                 }`}
               />
               <span
-                className={`font-semibold ${
+                className={`font-semibold truncate text-[10px] sm:text-xs ${
                   isEnding ? "text-brand-warning" : "text-neon-iris"
                 }`}
               >

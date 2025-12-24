@@ -773,55 +773,91 @@ export const adjustUserBalance = async (
 
     // Execute small adjustment immediately
     const result = await withTransaction(async (client) => {
+      // Get current balance with lock
+      const walletResult = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 FOR UPDATE`,
+        [id]
+      );
+      const wallet = walletResult.rows[0];
+
+      if (!wallet) {
+        throw new TransactionError(404, "Wallet not found");
+      }
+
+      const previousBalance =
+        token_symbol === "USDC"
+          ? Number(wallet.balance_usdc)
+          : Number(wallet.balance_sol);
+
       if (token_symbol === "SOL") {
-        const updateResult = await client.query(
+        await client.query(
           `UPDATE wallets
            SET balance_sol = balance_sol + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-           WHERE user_id = $2
-           RETURNING *`,
+           WHERE user_id = $2`,
           [parsedAmount, id]
         );
-        return updateResult.rows[0];
       } else {
-        const updateResult = await client.query(
+        await client.query(
           `UPDATE wallets
            SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-           WHERE user_id = $2
-           RETURNING *`,
+           WHERE user_id = $2`,
           [parsedAmount, id]
         );
-        return updateResult.rows[0];
       }
+
+      const newBalance = previousBalance + parsedAmount;
+
+      // SECURITY FIX: Log to immutable audit table
+      await client.query(
+        `INSERT INTO balance_adjustment_audit (
+          target_user_id, admin_user_id, amount, token_symbol,
+          reason, previous_balance, new_balance, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          id,
+          adminUserId,
+          parsedAmount,
+          token_symbol,
+          reason || "Balance adjustment",
+          previousBalance,
+          newBalance,
+          Math.floor(Date.now() / 1000),
+        ]
+      );
+
+      return { previousBalance, newBalance };
     });
 
     if (!result) {
       return sendNotFound(res, "Wallet");
     }
 
-    // Log the adjustment
-    await pool.query(
-      `INSERT INTO admin_actions (admin_user_id, action_type, target_user_id, metadata)
-       VALUES ($1, 'balance_adjustment', $2, $3)`,
-      [
-        adminUserId,
-        id,
-        prepareJsonb({
-          amount: parsedAmount,
-          token_symbol,
-          reason: reason || "Manual adjustment",
-          single_admin: true, // Small amount, single admin approval
-        }),
-      ]
-    );
-
-    const newBalance =
-      token_symbol === "SOL"
-        ? Number(result.balance_sol)
-        : Number(result.balance_usdc);
+    // Also log to admin_actions for general admin logging (non-critical)
+    try {
+      await pool.query(
+        `INSERT INTO admin_actions (admin_user_id, action_type, target_user_id, metadata)
+         VALUES ($1, 'balance_adjustment', $2, $3)`,
+        [
+          adminUserId,
+          id,
+          prepareJsonb({
+            amount: parsedAmount,
+            token_symbol,
+            reason: reason || "Manual adjustment",
+            single_admin: true, // Small amount, single admin approval
+          }),
+        ]
+      );
+    } catch (error) {
+      // Non-critical logging failure, don't fail the request
+      console.error("Failed to log to admin_actions:", error);
+    }
 
     return sendSuccess(res, {
       message: "Balance adjusted successfully",
-      new_balance: newBalance,
+      new_balance: result.newBalance,
+      previous_balance: result.previousBalance,
       adjustment: parsedAmount,
     });
   } catch (error: any) {

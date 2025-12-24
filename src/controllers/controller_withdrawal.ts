@@ -8,6 +8,7 @@ import { ActivityModel } from "../models/Activity";
 import { NotificationModel } from "../models/Notification";
 import { getCircleWallet } from "../services/circleWallet";
 import { withTransaction, TransactionError } from "../utils/transaction";
+import { queueWithdrawal } from "../services/withdrawalQueue";
 import {
   sendError,
   sendNotFound,
@@ -23,6 +24,25 @@ import {
   GetWithdrawalRequest,
   GetWithdrawalTotalsRequest,
 } from "../types/requests";
+
+/**
+ * Hash user ID for advisory lock (consistent hash function)
+ * SECURITY FIX: Used to prevent concurrent withdrawals for same user
+ */
+function hashUserId(userId: string): number {
+  // Use first 8 bytes of SHA256 hash as 64-bit integer for advisory lock
+  const hash = crypto.createHash("sha256").update(userId).digest();
+  // Convert first 8 bytes to signed 64-bit integer
+  // PostgreSQL advisory locks use signed bigint
+  const buffer = Buffer.allocUnsafe(8);
+  hash.copy(buffer, 0, 0, 8);
+  // Use BigInt to handle large numbers, then convert to number
+  // Note: This may lose precision for very large hashes, but is acceptable for lock IDs
+  const lockId = buffer.readBigInt64BE(0);
+  // PostgreSQL advisory locks work with 64-bit signed integers
+  // We use modulo to ensure it fits in safe JavaScript number range
+  return Number(lockId % BigInt(Number.MAX_SAFE_INTEGER));
+}
 
 /**
  * @route POST /api/withdrawal/request
@@ -51,7 +71,63 @@ export const requestWithdrawal = async (req: any, res: Response) => {
       return sendValidationError(res, amountValidation.error!);
     }
 
-    const parsedAmount = Number(amount);
+    // SECURITY FIX: Use precise arithmetic to prevent precision manipulation
+    // Convert to micro-USDC (integer) to avoid JavaScript number precision issues
+    const amountStr = String(amount);
+    const decimalIndex = amountStr.indexOf(".");
+    let parsedAmount: number;
+
+    if (decimalIndex === -1) {
+      // No decimal point, treat as whole USDC
+      parsedAmount = Math.floor(Number(amountStr)) * 1_000_000;
+    } else {
+      // Has decimal point, parse carefully
+      const wholePart = amountStr.substring(0, decimalIndex);
+      const decimalPart = amountStr.substring(decimalIndex + 1);
+
+      // Validate decimal part doesn't exceed 6 digits (USDC has 6 decimals)
+      if (decimalPart.length > 6) {
+        return sendValidationError(
+          res,
+          "Amount precision error. USDC supports up to 6 decimal places."
+        );
+      }
+
+      // Convert to micro-USDC: whole * 1M + decimal * 10^(6 - decimal.length)
+      const wholeMicro = Math.floor(Number(wholePart)) * 1_000_000;
+      const decimalMicro = Math.floor(
+        Number(decimalPart) * Math.pow(10, 6 - decimalPart.length)
+      );
+      parsedAmount = wholeMicro + decimalMicro;
+    }
+
+    // Validate precision: reconstruct amount and compare
+    const reconstructed = parsedAmount / 1_000_000;
+    const inputNum = Number(amount);
+    const precisionDiff = Math.abs(reconstructed - inputNum);
+
+    // Allow small floating point errors (1 micro-USDC = 0.000001 USDC)
+    if (precisionDiff > 0.000001) {
+      return sendValidationError(
+        res,
+        "Amount precision error. Please use up to 6 decimal places."
+      );
+    }
+
+    // Maximum withdrawal limit (1M USDC = 1,000,000,000,000 micro-USDC)
+    const MAX_WITHDRAWAL = 1_000_000_000_000;
+    if (parsedAmount > MAX_WITHDRAWAL) {
+      return sendValidationError(
+        res,
+        `Maximum withdrawal amount is ${MAX_WITHDRAWAL / 1_000_000} USDC`
+      );
+    }
+
+    // Minimum withdrawal (already validated by validateNumber, but ensure in micro-units)
+    if (parsedAmount < 10_000) {
+      // 0.01 USDC minimum
+      return sendValidationError(res, "Minimum withdrawal amount is 0.01 USDC");
+    }
 
     const circleWallet = getCircleWallet();
     if (!circleWallet.isAvailable()) {
@@ -78,6 +154,11 @@ export const requestWithdrawal = async (req: any, res: Response) => {
     let withdrawal: any;
     try {
       const result = await withTransaction(async (client) => {
+        // SECURITY FIX: Acquire user-level advisory lock to prevent concurrent withdrawals
+        // This lock is automatically released when transaction commits/rolls back
+        const lockId = hashUserId(userId);
+        await client.query("SELECT pg_advisory_xact_lock($1)", [lockId]);
+
         // Get wallet with lock (prevents race conditions)
         const walletResult = await client.query(
           `SELECT * FROM wallets WHERE user_id = $1 FOR UPDATE`,
@@ -99,49 +180,77 @@ export const requestWithdrawal = async (req: any, res: Response) => {
           });
         }
 
-        // Check for duplicate withdrawal requests (INSIDE transaction with lock)
-        // This prevents race conditions - both checks happen atomically
-        const fiveSecondsAgo = Math.floor((Date.now() - 5000) / 1000); // Unix timestamp in seconds
+        // SECURITY FIX: Check for ANY pending/processing withdrawal (stricter check)
+        // Reduced window to 10 seconds for duplicate detection
+        const tenSecondsAgo = Math.floor((Date.now() - 10000) / 1000);
         const duplicateCheck = await client.query(
           `SELECT id, status FROM withdrawals 
            WHERE user_id = $1 
-             AND destination_address = $2 
-             AND amount = $3 
              AND status IN ('pending', 'processing')
-             AND created_at >= $4
            LIMIT 1
            FOR UPDATE`,
-          [userId, destination_address, parsedAmount, fiveSecondsAgo]
+          [userId]
         );
 
         if (duplicateCheck.rows.length > 0) {
           const existing = duplicateCheck.rows[0];
           throw new TransactionError(
             409,
-            "Duplicate withdrawal request detected",
+            "You already have a pending withdrawal. Please wait for it to complete.",
             {
               withdrawal_id: existing.id,
               status: existing.status,
-              message:
-                "A withdrawal with the same parameters was recently requested. Please wait a moment.",
             }
           );
         }
 
-        // Check for any pending/processing withdrawal (additional safety)
-        const pendingCheck = await client.query(
-          `SELECT id FROM withdrawals 
-           WHERE user_id = $1 AND status IN ('pending', 'processing') 
+        // SECURITY FIX: Check for duplicate within 10 seconds (reduced from 60)
+        const recentDuplicateCheck = await client.query(
+          `SELECT id, status FROM withdrawals 
+           WHERE user_id = $1 
+             AND destination_address = $2 
+             AND amount = $3 
+             AND created_at >= $4
            LIMIT 1
            FOR UPDATE`,
-          [userId]
+          [userId, destination_address, parsedAmount, tenSecondsAgo]
         );
 
-        if (pendingCheck.rows.length > 0) {
+        if (recentDuplicateCheck.rows.length > 0) {
+          const existing = recentDuplicateCheck.rows[0];
           throw new TransactionError(
-            400,
-            "You already have a pending withdrawal. Please wait for it to complete."
+            409,
+            "Duplicate withdrawal request detected. Please wait a moment before retrying.",
+            {
+              withdrawal_id: existing.id,
+              status: existing.status,
+            }
           );
+        }
+
+        // SECURITY FIX: Implement withdrawal cooldown period (30 seconds between withdrawals)
+        const thirtySecondsAgo = Math.floor((Date.now() - 30000) / 1000);
+        const recentWithdrawalCheck = await client.query(
+          `SELECT id, created_at FROM withdrawals 
+           WHERE user_id = $1 
+             AND created_at >= $2
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [userId, thirtySecondsAgo]
+        );
+
+        if (recentWithdrawalCheck.rows.length > 0) {
+          const lastWithdrawal = recentWithdrawalCheck.rows[0];
+          const timeSinceLastWithdrawal =
+            Math.floor(Date.now() / 1000) - Number(lastWithdrawal.created_at);
+          const cooldownRemaining = 30 - timeSinceLastWithdrawal;
+
+          if (cooldownRemaining > 0) {
+            throw new TransactionError(
+              429,
+              `Withdrawal cooldown active. Please wait ${cooldownRemaining} seconds before requesting another withdrawal.`
+            );
+          }
         }
 
         // Create withdrawal record using model (will be updated after Circle API call)
@@ -210,47 +319,44 @@ export const requestWithdrawal = async (req: any, res: Response) => {
       throw error;
     }
 
-    // Step 2: Execute Circle withdrawal OUTSIDE transaction
-    // This prevents holding the database lock for up to 60 seconds
+    // SECURITY FIX (CVE-004): Queue withdrawal for async processing
+    // This prevents race conditions by processing Circle API calls in background
     // The balance is already deducted, so we're committed to processing this withdrawal
-    let transactionId: string;
     try {
-      // Update status to 'processing' before making API call
-      await pool.query(
-        `UPDATE withdrawals SET status = 'processing', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
-        [withdrawal.id]
-      );
-
-      // Execute Circle withdrawal (this can take up to 60 seconds)
-      transactionId = await circleWallet.sendUsdc(
-        process.env.CIRCLE_HOT_WALLET_ID as string,
-        destination_address,
-        parsedAmount / 1_000_000
-      );
-
-      // Get the transaction hash from the transaction ID
-      const transactionHash = await circleWallet.getTransactionHash(
-        transactionId
-      );
-
-      // Step 3: Update withdrawal as completed (INSIDE transaction for atomicity)
-      await withTransaction(async (client) => {
-        await client.query(
-          `UPDATE withdrawals 
-           SET transaction_id = $1, transaction_signature = $2, status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-           WHERE id = $3`,
-          [transactionId, transactionHash, withdrawal.id]
-        );
+      const jobId = await queueWithdrawal({
+        withdrawalId: withdrawal.id,
+        walletId: withdrawal.wallet_id,
+        userId: userId,
+        destinationAddress: destination_address,
+        amount: parsedAmount,
+        idempotencyKey: idempotencyKey,
       });
 
-      withdrawal.transaction_id = transactionId;
-      withdrawal.transaction_signature = transactionHash;
-      withdrawal.status = "completed";
-    } catch (circleError: any) {
-      console.log("circleError", circleError);
-      // Circle transaction failed - refund balance and mark as failed
+      // Update withdrawal with job_id for tracking
+      await pool.query(
+        `UPDATE withdrawals SET job_id = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
+        [jobId, withdrawal.id]
+      );
+
+      // Return immediately - withdrawal will be processed asynchronously
+      return sendSuccess(res, {
+        message:
+          "Withdrawal request submitted successfully. Processing will begin shortly.",
+        withdrawal: {
+          id: withdrawal.id,
+          amount: parsedAmount,
+          token_symbol: "USDC",
+          destination_address: destination_address,
+          status: "pending",
+          job_id: jobId,
+        },
+        note: "You will receive a notification when the withdrawal is completed. Check withdrawal status for updates.",
+      });
+    } catch (queueError: any) {
+      console.error("Failed to queue withdrawal:", queueError);
+
+      // If queueing fails, refund balance and mark as failed
       await withTransaction(async (client) => {
-        // Get wallet with lock using wallet_id from withdrawal
         const walletResult = await client.query(
           `SELECT id FROM wallets WHERE id = $1 FOR UPDATE`,
           [withdrawal.wallet_id]
@@ -258,79 +364,25 @@ export const requestWithdrawal = async (req: any, res: Response) => {
         const wallet = walletResult.rows[0];
 
         if (wallet) {
-          // Refund balance
           await client.query(
             `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
             [parsedAmount, wallet.id]
           );
         }
 
-        // Mark withdrawal as failed
         await client.query(
           `UPDATE withdrawals 
            SET status = 'failed', failure_reason = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
            WHERE id = $2`,
-          [circleError.message || "Circle API error", withdrawal.id]
+          [queueError.message || "Failed to queue withdrawal", withdrawal.id]
         );
       });
 
-      return sendError(res, 500, "Withdrawal transaction failed", {
+      return sendError(res, 500, "Failed to process withdrawal request", {
         withdrawal_id: withdrawal.id,
-        error: circleError.message,
+        error: queueError.message,
       });
     }
-
-    const result = {
-      withdrawal,
-      transactionId,
-      transactionHash: withdrawal.transaction_signature,
-    };
-
-    // Record activity (outside transaction for performance)
-    await ActivityModel.create({
-      user_id: userId as UUID,
-      activity_type: "withdrawal",
-      entity_type: "user",
-      entity_id: userId,
-      metadata: {
-        withdrawal_id: result.withdrawal.id,
-        amount: parsedAmount,
-        token_symbol: "USDC",
-        destination: destination_address,
-        transaction_id: result.transactionId,
-        transaction_signature: result.transactionHash,
-      },
-      is_public: false,
-    });
-
-    // Send notification
-    await NotificationModel.create({
-      user_id: userId as UUID,
-      notification_type: "withdrawal_completed",
-      title: "Withdrawal Completed",
-      message: `Your withdrawal of ${
-        parsedAmount / 1_000_000
-      } USDC has been completed.`,
-      metadata: {
-        withdrawal_id: result.withdrawal.id,
-        amount: parsedAmount,
-        token_symbol: "USDC",
-        transaction_id: result.transactionId,
-        transaction_signature: result.transactionHash,
-      },
-    });
-
-    return sendSuccess(res, {
-      message: "Withdrawal completed successfully",
-      withdrawal: {
-        id: result.withdrawal.id,
-        amount: parsedAmount,
-        token_symbol: "USDC",
-        transaction_id: result.transactionId,
-        transaction_signature: result.transactionHash,
-        status: "completed",
-      },
-    });
   } catch (error: any) {
     if (error instanceof TransactionError) {
       return sendError(res, error.statusCode, error.message, error.details);

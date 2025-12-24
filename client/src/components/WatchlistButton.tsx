@@ -72,6 +72,7 @@ export const WatchlistButton = ({
           : "Add to watchlist to track this market"
       }
       position="top"
+      delay={800}
     >
       <button
         onClick={handleToggle}

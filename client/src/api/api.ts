@@ -13,6 +13,7 @@ export interface FetchMarketsParams {
   sort?: string;
   order?: "asc" | "desc";
   status?: string;
+  creator_type?: "platform" | "admin" | "user" | "all";
 }
 
 export interface MarketsApiResponse {
@@ -50,6 +51,10 @@ export const fetchMarkets = async (
           sort: params.sort,
           order: params.order,
           status: params.status,
+          creator_type:
+            params.creator_type && params.creator_type !== "all"
+              ? params.creator_type
+              : undefined,
         },
       });
       return response.data;
@@ -326,6 +331,7 @@ export interface LiquidityPosition {
   market_id: string;
   market_question: string;
   liquidity_provided: number;
+  shares: number; // LP shares (in micro-units)
   fees_earned: number;
   current_value: number;
   pnl: number;
@@ -1011,6 +1017,57 @@ export const claimLpRewards = async (
   params: ClaimLpRewardsParams
 ): Promise<ClaimLpRewardsResponse> => {
   const response = await api.post("/liquidity/claim", params);
+  // Invalidate market cache and portfolio
+  invalidateMarketCache(params.market);
+  return response.data;
+};
+
+export interface AddLiquidityParams {
+  market: string;
+  amount: number; // Amount in regular USDC (will be converted to micro-USDC before sending)
+}
+
+export interface AddLiquidityResponse {
+  message: string;
+  shares_minted: number;
+  amount_deposited: number;
+  new_pool_liquidity: number;
+}
+
+export const addLiquidity = async (
+  params: AddLiquidityParams
+): Promise<AddLiquidityResponse> => {
+  // Convert regular USDC to micro-USDC (multiply by 1,000,000)
+  const amountInMicroUSDC = Math.floor(params.amount * 1_000_000);
+
+  const response = await api.post("/liquidity/add", {
+    market: params.market,
+    amount: amountInMicroUSDC,
+  });
+  // Invalidate market cache and portfolio
+  invalidateMarketCache(params.market);
+  return response.data;
+};
+
+export interface RemoveLiquidityParams {
+  market: string;
+  shares: number; // LP shares to remove (in micro-USDC)
+}
+
+export interface RemoveLiquidityResponse {
+  message: string;
+  usdc_returned: number;
+  fees_earned: number;
+  shares_burned: number;
+}
+
+export const removeLiquidity = async (
+  params: RemoveLiquidityParams
+): Promise<RemoveLiquidityResponse> => {
+  const response = await api.post("/liquidity/remove", {
+    market: params.market,
+    shares: params.shares,
+  });
   // Invalidate market cache and portfolio
   invalidateMarketCache(params.market);
   return response.data;

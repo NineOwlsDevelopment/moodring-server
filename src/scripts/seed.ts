@@ -7,7 +7,8 @@ import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { UUID } from "crypto";
-import { pool } from "../db";
+import { pool, initializePool } from "../db";
+import { initializeSecrets } from "../utils/secrets";
 import {
   MoodringModel,
   MoodringConfigInput,
@@ -60,145 +61,294 @@ interface MarketTemplate {
 
 const MARKET_TEMPLATES: MarketTemplate[] = [
   {
-    question: "Will Apple release a foldable iPhone in the next year?",
+    question:
+      "Will the Federal Reserve cut interest rates by at least 0.5% in the next 6 months?",
     description:
-      "Apple has been rumored to be working on foldable technology. Will they release a foldable iPhone model within the next 12 months?",
-    category: "Tech & Science",
-    isBinary: true,
-    options: ["Yes"],
-    imageQuery: "apple iphone foldable technology",
-    optionImageQueries: ["apple iphone"],
-    expirationDays: 365,
-    initialLiquidity: 100000000,
-  },
-  {
-    question: "Which AI model will have the most users in the next year?",
-    description:
-      "Predict which AI model will dominate user adoption over the next 12 months.",
-    category: "Tech & Science",
-    isBinary: false,
-    options: ["ChatGPT", "Claude", "Gemini", "Llama"],
-    imageQuery: "artificial intelligence chatbot",
-    optionImageQueries: ["chatgpt", "claude ai", "google gemini", "meta llama"],
-    expirationDays: 365,
-    initialLiquidity: 100000000,
-  },
-  {
-    question: "Will the Lakers win the NBA championship this season?",
-    description:
-      "Will the Los Angeles Lakers secure the NBA championship title this season?",
-    category: "Sports",
-    isBinary: true,
-    options: ["Yes"],
-    imageQuery: "los angeles lakers basketball",
-    optionImageQueries: ["lakers championship"],
-    expirationDays: 240,
-    initialLiquidity: 100000000,
-  },
-  {
-    question: "Which team will win the next Super Bowl?",
-    description: "Predict the winner of the next Super Bowl.",
-    category: "Sports",
-    isBinary: false,
-    options: [
-      "Kansas City Chiefs",
-      "Buffalo Bills",
-      "San Francisco 49ers",
-      "Dallas Cowboys",
-    ],
-    imageQuery: "super bowl football",
-    optionImageQueries: [
-      "kansas city chiefs",
-      "buffalo bills",
-      "san francisco 49ers",
-      "dallas cowboys",
-    ],
-    expirationDays: 365,
-    initialLiquidity: 100000000,
-  },
-  {
-    question: "Will there be a recession in the US in the next year?",
-    description:
-      "Will the United States experience an economic recession within the next 12 months?",
+      "The Federal Reserve's monetary policy decisions significantly impact markets. Will the Fed cut rates by at least 50 basis points (0.5%) within the next 6 months?",
     category: "Economics",
     isBinary: true,
     options: ["Yes"],
-    imageQuery: "economic recession stock market",
-    optionImageQueries: ["recession economy"],
+    imageQuery: "federal reserve interest rates",
+    optionImageQueries: ["federal reserve"],
+    expirationDays: 180,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Will Nvidia's market cap exceed $5 trillion in the next year?",
+    description:
+      "Nvidia has seen explosive growth driven by AI demand. Will the company's market capitalization surpass $5 trillion within the next 12 months?",
+    category: "Financials",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "nvidia stock market cap",
+    optionImageQueries: ["nvidia stock"],
     expirationDays: 365,
     initialLiquidity: 100000000,
   },
   {
     question:
-      "Which cryptocurrency will have the highest market cap in the next year?",
+      "Which party will control the US House of Representatives after the next election?",
     description:
-      "Predict which cryptocurrency will lead in market capitalization over the next 12 months.",
-    category: "Crypto",
+      "Predict which political party will hold the majority in the US House of Representatives following the next congressional election.",
+    category: "Politics",
     isBinary: false,
-    options: ["Bitcoin", "Ethereum", "Solana", "Other"],
-    imageQuery: "cryptocurrency bitcoin ethereum",
-    optionImageQueries: ["bitcoin", "ethereum", "solana", "cryptocurrency"],
+    options: ["Democrats", "Republicans", "Tie"],
+    imageQuery: "us house of representatives capitol",
+    optionImageQueries: [
+      "democratic party",
+      "republican party",
+      "us capitol building",
+    ],
+    expirationDays: 730,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Will OpenAI go public via IPO in the next year?",
+    description:
+      "OpenAI has been a subject of IPO speculation. Will the company complete an initial public offering within the next 12 months?",
+    category: "Companies",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "openai ipo stock market",
+    optionImageQueries: ["openai logo"],
     expirationDays: 365,
     initialLiquidity: 100000000,
   },
   {
-    question: "Will Avatar 3 gross over $2 billion worldwide?",
+    question: "Which tech company will IPO first in the next year?",
     description:
-      "Will the third Avatar movie cross the $2 billion mark in global box office revenue?",
-    category: "Culture",
+      "Several major tech companies are rumored to be preparing for IPOs. Predict which will go public first.",
+    category: "Companies",
+    isBinary: false,
+    options: ["Stripe", "OpenAI", "Databricks", "xAI", "Other"],
+    imageQuery: "tech ipo stock market",
+    optionImageQueries: [
+      "stripe payment",
+      "openai",
+      "databricks",
+      "xai elon musk",
+      "stock market ipo",
+    ],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Will the US men's soccer team win the 2026 World Cup?",
+    description:
+      "The 2026 FIFA World Cup will be hosted in North America. Will the United States men's national team win the tournament?",
+    category: "Sports",
     isBinary: true,
     options: ["Yes"],
-    imageQuery: "avatar movie cinema",
-    optionImageQueries: ["avatar movie"],
+    imageQuery: "usa soccer world cup 2026",
+    optionImageQueries: ["usa soccer team"],
+    expirationDays: 730,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Which team will win the 2025-26 NBA Championship?",
+    description: "Predict the winner of the 2025-26 NBA season championship.",
+    category: "Sports",
+    isBinary: false,
+    options: [
+      "Boston Celtics",
+      "Denver Nuggets",
+      "Milwaukee Bucks",
+      "Phoenix Suns",
+      "Other",
+    ],
+    imageQuery: "nba championship basketball",
+    optionImageQueries: [
+      "boston celtics",
+      "denver nuggets",
+      "milwaukee bucks",
+      "phoenix suns",
+      "nba trophy",
+    ],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will global average temperature increase by more than 1.5°C above pre-industrial levels in 2025?",
+    description:
+      "Climate scientists monitor global temperature increases relative to pre-industrial levels. Will 2025 see an average temperature increase exceeding 1.5°C?",
+    category: "Climate",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "global warming climate change temperature",
+    optionImageQueries: ["climate change"],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will there be a major breakthrough in quantum computing in the next year?",
+    description:
+      "Quantum computing research continues to advance. Will there be a significant breakthrough (e.g., error correction milestone, new qubit record) announced within the next 12 months?",
+    category: "Tech & Science",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "quantum computing technology",
+    optionImageQueries: ["quantum computer"],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Which AI company will have the highest valuation by the end of next year?",
+    description:
+      "The AI sector is experiencing rapid growth and investment. Predict which company will have the highest valuation by the end of the next 12 months.",
+    category: "Companies",
+    isBinary: false,
+    options: [
+      "OpenAI",
+      "Anthropic",
+      "Google DeepMind",
+      "Microsoft AI",
+      "Other",
+    ],
+    imageQuery: "ai companies valuation",
+    optionImageQueries: [
+      "openai",
+      "anthropic claude",
+      "google deepmind",
+      "microsoft ai",
+      "artificial intelligence",
+    ],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will Tesla stock price exceed $300 per share in the next 6 months?",
+    description:
+      "Tesla's stock has been volatile. Will the share price reach or exceed $300 within the next 6 months?",
+    category: "Financials",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "tesla stock price",
+    optionImageQueries: ["tesla stock"],
     expirationDays: 180,
     initialLiquidity: 100000000,
   },
   {
     question:
-      "Which streaming service will have the most subscribers in the next year?",
+      "Will there be a major conflict escalation in the Middle East in the next 6 months?",
     description:
-      "Predict which streaming platform will lead in subscriber count over the next 12 months.",
-    category: "Culture",
-    isBinary: false,
-    options: ["Netflix", "Disney+", "Amazon Prime", "Max"],
-    imageQuery: "streaming services netflix",
-    optionImageQueries: [
-      "netflix",
-      "disney plus",
-      "amazon prime video",
-      "hbo max",
-    ],
-    expirationDays: 365,
-    initialLiquidity: 100000000,
-  },
-  {
-    question: "Will humans land on Mars in the next 10 years?",
-    description:
-      "Will a human mission successfully land on Mars within the next 10 years?",
-    category: "Tech & Science",
+      "Geopolitical tensions in the Middle East remain high. Will there be a significant escalation of conflict (major military action, new war declaration) within the next 6 months?",
+    category: "World",
     isBinary: true,
     options: ["Yes"],
-    imageQuery: "mars mission space exploration",
-    optionImageQueries: ["mars landing"],
-    expirationDays: 3650,
+    imageQuery: "middle east conflict geopolitics",
+    optionImageQueries: ["middle east map"],
+    expirationDays: 180,
     initialLiquidity: 100000000,
   },
   {
     question:
-      "Which renewable energy source will generate the most electricity globally in the next year?",
+      "Which electric vehicle manufacturer will sell the most units globally in the next year?",
     description:
-      "Predict which renewable energy source will lead in global electricity generation over the next 12 months.",
-    category: "Tech & Science",
+      "The EV market is highly competitive. Predict which manufacturer will lead in global electric vehicle sales over the next 12 months.",
+    category: "Companies",
     isBinary: false,
-    options: ["Solar", "Wind", "Hydroelectric", "Other"],
-    imageQuery: "renewable energy solar wind",
+    options: ["Tesla", "BYD", "Volkswagen", "BMW", "Other"],
+    imageQuery: "electric vehicles ev market",
     optionImageQueries: [
-      "solar panels",
-      "wind turbines",
-      "hydroelectric dam",
-      "renewable energy",
+      "tesla model",
+      "byd electric car",
+      "volkswagen ev",
+      "bmw electric",
+      "electric car",
     ],
     expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Will the S&P 500 close above 6,000 points in the next year?",
+    description:
+      "The S&P 500 index reflects overall US stock market performance. Will it close at or above 6,000 points at any point within the next 12 months?",
+    category: "Financials",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "s&p 500 stock market index",
+    optionImageQueries: ["stock market chart"],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will a new COVID-19 variant cause major restrictions in the next year?",
+    description:
+      "Public health officials monitor for new variants. Will a new COVID-19 variant lead to major restrictions (lockdowns, travel bans) being implemented in major countries within the next 12 months?",
+    category: "Health",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "covid 19 variant health",
+    optionImageQueries: ["covid virus"],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Which social media platform will have the most monthly active users in the next year?",
+    description:
+      "Social media platforms compete for user attention. Predict which will lead in monthly active users over the next 12 months.",
+    category: "Tech & Science",
+    isBinary: false,
+    options: ["TikTok", "Instagram", "Facebook", "X (Twitter)", "Other"],
+    imageQuery: "social media platforms",
+    optionImageQueries: [
+      "tiktok app",
+      "instagram logo",
+      "facebook logo",
+      "twitter x logo",
+      "social media",
+    ],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will Bitcoin reach a new all-time high above $100,000 in the next year?",
+    description:
+      "Bitcoin's price has been volatile. Will it reach a new all-time high exceeding $100,000 within the next 12 months?",
+    category: "Crypto",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "bitcoin price cryptocurrency",
+    optionImageQueries: ["bitcoin"],
+    expirationDays: 365,
+    initialLiquidity: 100000000,
+  },
+  {
+    question:
+      "Will there be a successful manned mission to Mars announced in the next 5 years?",
+    description:
+      "Space agencies and private companies are planning Mars missions. Will a successful manned mission to Mars be officially announced (with launch date) within the next 5 years?",
+    category: "Tech & Science",
+    isBinary: true,
+    options: ["Yes"],
+    imageQuery: "mars mission spacex nasa",
+    optionImageQueries: ["mars mission"],
+    expirationDays: 1825,
+    initialLiquidity: 100000000,
+  },
+  {
+    question: "Which country will host the 2030 Winter Olympics?",
+    description:
+      "The International Olympic Committee will select the host for the 2030 Winter Olympics. Predict which country will be chosen.",
+    category: "Sports",
+    isBinary: false,
+    options: ["Switzerland", "France", "Sweden", "Canada", "Other"],
+    imageQuery: "winter olympics 2030",
+    optionImageQueries: [
+      "switzerland mountains",
+      "france alps",
+      "sweden winter",
+      "canada winter olympics",
+      "olympic rings",
+    ],
+    expirationDays: 1095,
     initialLiquidity: 100000000,
   },
 ];
@@ -1278,6 +1428,12 @@ async function seedComplete() {
   console.log();
 
   try {
+    // Initialize secrets manager and database pool
+    console.log("🔧 Initializing secrets manager and database connection...");
+    await initializeSecrets();
+    await initializePool();
+    console.log("✅ Initialization complete\n");
+
     // Step 1: Seed Moodring configuration
     console.log("📋 Step 1: Seeding Moodring configuration...");
     console.log("-".repeat(60));
@@ -1449,12 +1605,16 @@ async function seedComplete() {
 if (require.main === module) {
   seedComplete()
     .then(() => {
-      pool.end();
+      if (pool) {
+        pool.end();
+      }
       process.exit(0);
     })
     .catch((error) => {
       console.error("Fatal error:", error);
-      pool.end();
+      if (pool) {
+        pool.end();
+      }
       process.exit(1);
     });
 }

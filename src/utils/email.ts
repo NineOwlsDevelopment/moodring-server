@@ -1,29 +1,40 @@
 import nodemailer from "nodemailer";
+import { secretsManager } from "./secrets";
 
 // Create transporter
-const createTransporter = () => {
+const createTransporter = async () => {
   // For development, you can use ethereal.email or mailtrap.io
   // For production, use your actual email service (Gmail, SendGrid, etc.)
 
   if (process.env.EMAIL_STATUS === "active") {
     // Production email configuration
+    const emailHost = process.env.EMAIL_HOST;
+    const emailPort = process.env.EMAIL_PORT;
+    const emailUser = process.env.EMAIL_USER;
+    const emailFrom = process.env.EMAIL_FROM;
+
+    // Get EMAIL_PASSWORD from secrets manager
+    const emailPassword = await secretsManager.getRequiredSecret(
+      "EMAIL_PASSWORD"
+    );
+
     if (
-      !process.env.EMAIL_HOST ||
-      !process.env.EMAIL_PORT ||
-      !process.env.EMAIL_USER ||
-      !process.env.EMAIL_PASSWORD ||
-      !process.env.EMAIL_FROM
+      !emailHost ||
+      !emailPort ||
+      !emailUser ||
+      !emailPassword ||
+      !emailFrom
     ) {
       throw new Error("Email configuration is incomplete for production");
     }
 
     return nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT),
+      host: emailHost,
+      port: parseInt(emailPort),
       secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: emailUser,
+        pass: emailPassword,
       },
     });
   } else {
@@ -66,7 +77,7 @@ export const sendOTPEmail = async (
   email: string,
   otp: string
 ): Promise<void> => {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
 
   const mailOptions = {
     from: process.env.EMAIL_FROM || '"MoodRing" <noreply@moodring.app>',
@@ -169,7 +180,7 @@ export const sendOTPEmail = async (
  * Send welcome email to new users
  */
 export const sendWelcomeEmail = async (email: string): Promise<void> => {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
 
   const mailOptions = {
     from: process.env.EMAIL_FROM || '"MoodRing" <noreply@moodring.app>',

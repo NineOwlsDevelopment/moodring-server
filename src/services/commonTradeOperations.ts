@@ -6,6 +6,7 @@ import { checkAdminControls } from "../utils/tradeUtils";
 export interface MarketData {
   id: UUID;
   liquidity_parameter: string;
+  base_liquidity_parameter: number;
   is_resolved: boolean;
   is_initialized: boolean;
   shared_pool_liquidity: number;
@@ -47,9 +48,26 @@ export interface UserPositionData {
   is_claimed?: boolean;
 }
 
+/**
+ * SECURITY: Global Database Locking Order
+ *
+ * To prevent deadlocks, ALL database operations MUST acquire locks in this order:
+ * 1. Market (markets table)
+ * 2. Option (market_options table)
+ * 3. Wallet (wallets table)
+ * 4. User/Position (user_positions, lp_positions tables)
+ *
+ * This ensures consistent lock ordering across all code paths:
+ * - Trade operations: Market -> Option -> Wallet
+ * - Liquidity operations: Market -> Wallet (or Market -> LP Position)
+ * - Withdrawal operations: Wallet (only)
+ *
+ * Violating this order can cause deadlocks when operations run concurrently.
+ */
 export class CommonTradeOperations {
   /**
    * Get market with lock (first in consistent ordering)
+   * SECURITY: Always lock Market FIRST to prevent deadlocks
    */
   static async getMarketWithLock(
     client: PoolClient,
@@ -78,6 +96,7 @@ export class CommonTradeOperations {
 
   /**
    * Get option with lock (second in consistent ordering)
+   * SECURITY: Always lock Option AFTER Market to prevent deadlocks
    */
   static async getOptionWithLock(
     client: PoolClient,
@@ -122,7 +141,8 @@ export class CommonTradeOperations {
   }
 
   /**
-   * Get wallet with lock (last in consistent ordering)
+   * Get wallet with lock (third in consistent ordering)
+   * SECURITY: Always lock Wallet AFTER Market/Option to prevent deadlocks
    */
   static async getWalletWithLock(
     client: PoolClient,
@@ -274,6 +294,77 @@ export class CommonTradeOperations {
         poolLiquidityChange,
         marketId,
       ]
+    );
+  }
+
+  /**
+   * Update liquidity parameter based on current market state
+   * Formula: b = max(base_param * 1000, sqrt(max(liquidity, total_shares)) * 10000)
+   * This ensures b scales with both liquidity provision AND trading volume
+   * SECURITY FIX: Caps b changes to 10% per trade to prevent manipulation
+   */
+  static async updateLiquidityParameter(
+    client: PoolClient,
+    marketId: UUID,
+    baseLiquidityParam: number
+  ): Promise<void> {
+    // Get current liquidity parameter and pool liquidity
+    const marketResult = await client.query(
+      `SELECT liquidity_parameter, shared_pool_liquidity FROM markets WHERE id = $1`,
+      [marketId]
+    );
+    const currentB = Number(marketResult.rows[0]?.liquidity_parameter || 0);
+    const currentLiquidity = Number(
+      marketResult.rows[0]?.shared_pool_liquidity || 0
+    );
+
+    // Get total shares across all options
+    const totalSharesResult = await client.query(
+      `SELECT COALESCE(SUM(yes_quantity + no_quantity), 0)::bigint as total_shares
+       FROM market_options WHERE market_id = $1`,
+      [marketId]
+    );
+    const totalOptionShares = Number(
+      totalSharesResult.rows[0]?.total_shares || 0
+    );
+
+    // Calculate new liquidity parameter
+    const marketSize = Math.max(currentLiquidity, totalOptionShares);
+    const calculatedB = Math.max(
+      baseLiquidityParam * 1000,
+      Math.floor(Math.sqrt(marketSize) * 10000)
+    );
+
+    // SECURITY FIX: Validate and cap liquidity parameter changes
+    // Prevents manipulation of b parameter by capping changes to 10% per trade
+    const MAX_CHANGE_PERCENT = 0.1; // 10% max change per trade
+    const minB = currentB * (1 - MAX_CHANGE_PERCENT);
+    const maxB = currentB * (1 + MAX_CHANGE_PERCENT);
+
+    // Cap b within allowed range
+    let validatedB = calculatedB;
+    if (calculatedB < minB) {
+      console.warn(
+        `[TradeService] Liquidity param b change too large (${calculatedB} < ${minB}), capping to ${minB}`
+      );
+      validatedB = minB;
+    } else if (calculatedB > maxB) {
+      console.warn(
+        `[TradeService] Liquidity param b change too large (${calculatedB} > ${maxB}), capping to ${maxB}`
+      );
+      validatedB = maxB;
+    }
+
+    // Ensure validatedB is an integer (bigint doesn't accept decimals)
+    validatedB = Math.round(validatedB);
+
+    // Update liquidity parameter
+    await client.query(
+      `UPDATE markets SET 
+        liquidity_parameter = $1,
+        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
+       WHERE id = $2`,
+      [validatedB, marketId]
     );
   }
 

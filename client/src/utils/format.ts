@@ -151,7 +151,7 @@ export const formatTimeRemaining = (
   const totalHours = Math.floor(totalMinutes / 60);
   const totalDays = Math.floor(totalHours / 24);
 
-  // For dates beyond a year: format as "X year(s), Y month(s), Z day(s)"
+  // For dates beyond a year: format as "Xy Ym Zd"
   const daysInYear = 365.25;
   const daysInMonth = 30.44; // Average days per month (365.25/12)
 
@@ -163,16 +163,16 @@ export const formatTimeRemaining = (
 
     const parts: string[] = [];
     if (years > 0) {
-      parts.push(`${years} ${years === 1 ? "year" : "years"}`);
+      parts.push(`${years}y`);
     }
     if (months > 0) {
-      parts.push(`${months} ${months === 1 ? "month" : "months"}`);
+      parts.push(`${months}m`);
     }
     if (days > 0) {
-      parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+      parts.push(`${days}d`);
     }
 
-    return parts.join(", ");
+    return parts.join(" ");
   }
 
   // For dates under 1 day: show hours and minutes

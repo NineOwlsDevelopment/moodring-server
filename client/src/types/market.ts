@@ -48,6 +48,7 @@ export interface Market {
   base_liquidity_parameter: number;
   is_binary: boolean;
   is_verified: boolean;
+  is_admin_creator?: boolean;
   is_resolved: boolean;
   is_resolved_at: Date;
   is_initialized: boolean;

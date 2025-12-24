@@ -170,7 +170,7 @@ const CommentItem = ({
             </Link>
             <span className="text-xs text-moon-grey-dark">
               {formatDistanceToNow(
-                new Date(comment.created_at).getTime() / 1000
+                new Date(Number(comment.created_at)).getTime()
               )}
             </span>
           </div>
@@ -335,6 +335,7 @@ export const CommentSection = ({ marketId }: CommentSectionProps) => {
         }
       );
 
+      console.log("data", comments);
       if (reset) {
         setComments(data);
       } else {

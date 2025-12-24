@@ -1,15 +1,42 @@
 import jwt from "jsonwebtoken";
+import { secretsManager } from "./secrets";
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is not defined");
+// Lazy-loaded secrets to ensure secrets manager is initialized first
+let JWT_SECRET: string | null = null;
+let JWT_REFRESH_SECRET: string | null = null;
+
+/**
+ * Get JWT secret lazily (loads from secrets manager on first use)
+ * This ensures secrets manager is initialized before secrets are accessed
+ */
+async function getJwtSecret(): Promise<string> {
+  if (!JWT_SECRET) {
+    JWT_SECRET = await secretsManager.getRequiredSecret("JWT_SECRET");
+    if (!JWT_SECRET) {
+      throw new Error(
+        "JWT_SECRET not available from secrets manager or environment"
+      );
+    }
+  }
+  return JWT_SECRET;
 }
 
-if (!process.env.JWT_REFRESH_SECRET) {
-  throw new Error("JWT_REFRESH_SECRET environment variable is not defined");
+/**
+ * Get JWT refresh secret lazily
+ */
+async function getJwtRefreshSecret(): Promise<string> {
+  if (!JWT_REFRESH_SECRET) {
+    JWT_REFRESH_SECRET = await secretsManager.getRequiredSecret(
+      "JWT_REFRESH_SECRET"
+    );
+    if (!JWT_REFRESH_SECRET) {
+      throw new Error(
+        "JWT_REFRESH_SECRET not available from secrets manager or environment"
+      );
+    }
+  }
+  return JWT_REFRESH_SECRET;
 }
-
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 export interface JwtPayload {
   id: string;
@@ -23,12 +50,13 @@ export interface TokenPair {
 /**
  * Generate access token
  */
-export const generateAccessToken = (user: any): string => {
+export const generateAccessToken = async (user: any): Promise<string> => {
   const payload: JwtPayload = {
     id: user.id,
   };
 
-  return jwt.sign(payload, JWT_SECRET, {
+  const secret = await getJwtSecret();
+  return jwt.sign(payload, secret, {
     expiresIn: process.env.ACCESS_TOKEN_EXP || "15m",
   } as jwt.SignOptions);
 };
@@ -36,8 +64,11 @@ export const generateAccessToken = (user: any): string => {
 /**
  * Generate refresh token
  */
-export const generateRefreshToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, {
+export const generateRefreshToken = async (
+  payload: JwtPayload
+): Promise<string> => {
+  const secret = await getJwtRefreshSecret();
+  return jwt.sign(payload, secret, {
     expiresIn: process.env.REFRESH_TOKEN_EXP || "30d",
   } as jwt.SignOptions);
 };
@@ -45,19 +76,22 @@ export const generateRefreshToken = (payload: JwtPayload): string => {
 /**
  * Generate both access and refresh tokens
  */
-export const generateTokenPair = (payload: JwtPayload): TokenPair => {
+export const generateTokenPair = async (
+  payload: JwtPayload
+): Promise<TokenPair> => {
   return {
-    accessToken: generateAccessToken(payload),
-    refreshToken: generateRefreshToken(payload),
+    accessToken: await generateAccessToken(payload),
+    refreshToken: await generateRefreshToken(payload),
   };
 };
 
 /**
  * Verify access token
  */
-export const verifyAccessToken = (token: string): JwtPayload => {
+export const verifyAccessToken = async (token: string): Promise<JwtPayload> => {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const secret = await getJwtSecret();
+    return jwt.verify(token, secret) as JwtPayload;
   } catch (error) {
     throw new Error("Invalid or expired access token");
   }
@@ -66,9 +100,12 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 /**
  * Verify refresh token
  */
-export const verifyRefreshToken = (token: string): JwtPayload => {
+export const verifyRefreshToken = async (
+  token: string
+): Promise<JwtPayload> => {
   try {
-    return jwt.verify(token, JWT_REFRESH_SECRET) as JwtPayload;
+    const secret = await getJwtRefreshSecret();
+    return jwt.verify(token, secret) as JwtPayload;
   } catch (error) {
     throw new Error("Invalid or expired refresh token");
   }
