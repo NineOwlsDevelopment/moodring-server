@@ -66,12 +66,6 @@ const allowedOrigins = [
   "http://moodring.io",
   "https://www.moodring.io",
   "http://www.moodring.io",
-  "wss://moodring.io",
-  "ws://moodring.io",
-  // Add any additional origins from environment
-  ...(process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-    : []),
 ];
 
 // Dynamic origin function for CORS - more flexible than static array
@@ -177,10 +171,9 @@ app.use(
           process.env.CLIENT_URL || "http://localhost:3000",
           "http://localhost:5173",
           "https://moodring.io",
-          "http://127.0.0.1",
-          "https://127.0.0.1",
-          "wss://127.0.0.1",
-          "ws://127.0.0.1",
+          "http://moodring.io",
+          "https://www.moodring.io",
+          "http://www.moodring.io",
         ],
         fontSrc: ["'self'", "data:"],
         objectSrc: ["'none'"],
