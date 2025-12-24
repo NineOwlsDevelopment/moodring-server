@@ -66,20 +66,58 @@ export interface CommentUpdate {
  * Initialize WebSocket server
  */
 export const initializeWebSocket = (server: HttpServer): Server => {
+  // Build allowed origins dynamically, similar to main CORS config
+  const allowedOrigins = [
+    process.env.CLIENT_URL || "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://moodring.io",
+    "https://www.moodring.io",
+    "http://moodring.io",
+    "http://www.moodring.io",
+  ];
+
+  // Dynamic origin function for CORS - more flexible than static array
+  const corsOrigin = (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
+    // Allow requests with no origin (like mobile apps or same-origin requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // In development, be more permissive
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[WebSocket CORS] Allowing origin in development: ${origin}`
+      );
+      return callback(null, true);
+    }
+
+    // In production, log blocked origins for debugging
+    console.warn(`[WebSocket CORS] Blocked origin: ${origin}`);
+    callback(new Error("Not allowed by CORS"));
+  };
+
   io = new Server(server, {
     cors: {
-      origin: [
-        process.env.CLIENT_URL || "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://moodring.io",
-        "https://www.moodring.io",
-        "http://moodring.io",
-        "http://www.moodring.io",
-      ],
+      origin: corsOrigin,
       methods: ["GET", "POST"],
       credentials: true,
     },
-    transports: ["websocket"],
+    // Allow both websocket and polling transports
+    // Polling is essential as fallback when websocket upgrade fails behind proxies
+    transports: ["websocket", "polling"],
+    // Allow older Socket.IO clients (EIO3) for compatibility
+    allowEIO3: true,
+    // Increase ping timeout for production (helps with proxy delays)
+    pingTimeout: 60000,
+    pingInterval: 25000,
   });
 
   io.on("connection", async (socket: AuthenticatedSocket) => {

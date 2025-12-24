@@ -54,7 +54,7 @@ import { initializePool } from "./db";
 // ============================================================================
 const app = express();
 
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 
 // ============================================================================
 // Configuration
@@ -156,12 +156,14 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
         connectSrc: [
           "'self'",
-          process.env.CLIENT_URL || "http://localhost:3000",
-          "http://localhost:5173",
+          "ws://localhost:*",
+          "wss://localhost:*",
           "https://moodring.io",
-          "http://moodring.io",
+          "wss://moodring.io",
           "https://www.moodring.io",
-          "http://www.moodring.io",
+          "wss://www.moodring.io",
+          "https://dev.moodring.io",
+          "wss://dev.moodring.io",
         ],
         fontSrc: ["'self'", "data:"],
         objectSrc: ["'none'"],
