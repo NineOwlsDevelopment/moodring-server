@@ -22,12 +22,20 @@ function getIPsFromEnv(envVar: string | undefined): string[] {
 /**
  * Global IP blacklist middleware
  * Blocks requests from known malicious IPs
+ * NOTE: With trust proxy enabled, req.ip will correctly use X-Forwarded-For
+ * Cloudflare also provides CF-Connecting-IP header which is the most reliable
  */
 export const globalIPBlacklist = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  // Skip IP filtering for OPTIONS requests (CORS preflight)
+  // These need to pass through to allow CORS to work properly
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
   const blacklist = getIPsFromEnv(process.env.IP_BLACKLIST);
 
   // If no blacklist configured, allow all
@@ -36,16 +44,24 @@ export const globalIPBlacklist = (
   }
 
   // Apply IP filter
+  // With trust proxy enabled, req.ip will be set correctly from X-Forwarded-For
+  // express-ipfilter will use req.ip for filtering
   const filter = IpFilter(blacklist, {
     mode: "deny",
     log: false,
     logLevel: "deny",
-    excluding: ["/health"], // Allow health check
+    excluding: ["/health"], // Allow health check (needed for Cloudflare health checks)
   });
 
   return filter(req, res, (err?: any) => {
     if (err instanceof IpDeniedError) {
-      console.warn(`[IP Filter] Blocked request from IP: ${req.ip}`);
+      // Log both the detected IP and Cloudflare header for debugging
+      const cfIP = req.headers["cf-connecting-ip"] as string | undefined;
+      console.warn(
+        `[IP Filter] Blocked request from IP: ${req.ip}${
+          cfIP ? ` (CF-Connecting-IP: ${cfIP})` : ""
+        }`
+      );
       return res.status(403).json({
         error: "Forbidden",
         message: "Access denied from this IP address",

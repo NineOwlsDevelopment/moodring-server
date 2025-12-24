@@ -55,12 +55,55 @@ import { initializePool } from "./db";
 const app = express();
 
 // Trust proxy for accurate IP detection (important for rate limiting and IP filtering)
-// Set to 1 to trust first proxy, or use specific number for multiple proxies
-// app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
+// CRITICAL: Must be enabled when behind Cloudflare or other reverse proxies
+// Set to 1 to trust first proxy (Cloudflare), or use specific number for multiple proxies
+// In production with Cloudflare, we trust the first proxy (Cloudflare itself)
+app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
 
 // ============================================================================
 // Configuration
 // ============================================================================
+// Allowed origins for CORS - includes environment variable and common domains
+const allowedOrigins = [
+  process.env.CLIENT_URL || "http://localhost:5173",
+  "https://moodring.io",
+  "http://moodring.io",
+  "https://www.moodring.io",
+  "http://www.moodring.io",
+  "wss://moodring.io",
+  "ws://moodring.io",
+  // Add any additional origins from environment
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : []),
+];
+
+// Dynamic origin function for CORS - more flexible than static array
+const corsOrigin = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void
+) => {
+  // Allow requests with no origin (like mobile apps, Postman, or same-origin requests)
+  if (!origin) {
+    return callback(null, true);
+  }
+
+  // Check if origin is in allowed list
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  // In development, be more permissive
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(`[CORS] Allowing origin in development: ${origin}`);
+    return callback(null, true);
+  }
+
+  // In production, log blocked origins for debugging
+  console.warn(`[CORS] Blocked origin: ${origin}`);
+  callback(new Error("Not allowed by CORS"));
+};
+
 const cors_options = {
   credentials: true,
   exposedHeaders: ["Set-Cookie"],
@@ -69,23 +112,18 @@ const cors_options = {
     "Authorization",
     "Set-Cookie",
     "Access-Control-Allow-Origin",
+    "X-Forwarded-For",
+    "X-Real-IP",
+    "CF-Connecting-IP", // Cloudflare's real client IP header
+    "CF-Ray", // Cloudflare request ID
+    "CF-Visitor", // Cloudflare visitor info (scheme)
+    "Origin", // Allow Origin header
+    "Referer", // Allow Referer header
   ],
-  origin: [
-    process.env.CLIENT_URL || "http://localhost:5173",
-    "https://moodring.io",
-    "http://moodring.io",
-    "wss://moodring.io",
-    "ws://moodring.io",
-    "https://172.105.155.223",
-    "http://172.105.155.223",
-    "wss://172.105.155.223",
-    "ws://172.105.155.223",
-    "http://127.0.0.1",
-    "https://127.0.0.1",
-    "wss://127.0.0.1",
-    "ws://127.0.0.1",
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  origin: corsOrigin, // Use dynamic function instead of static array
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204, // Some legacy browsers choke on 204
 };
 
 const PORT = process.env.PORT || 5001;
@@ -129,45 +167,46 @@ if (process.env.NODE_ENV === "production") {
   })();
 }
 
-// // Helmet.js - Security headers
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: {
-//       directives: {
-//         defaultSrc: ["'self'"],
-//         styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
-//         scriptSrc: ["'self'"],
-//         imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
-//         connectSrc: [
-//           "'self'",
-//           process.env.CLIENT_URL || "http://localhost:3000",
-//           "http://localhost:5173",
-//           "https://moodring.io",
-//           "http://127.0.0.1",
-//           "https://127.0.0.1",
-//           "wss://127.0.0.1",
-//           "ws://127.0.0.1",
-//         ],
-//         fontSrc: ["'self'", "data:"],
-//         objectSrc: ["'none'"],
-//         upgradeInsecureRequests:
-//           process.env.NODE_ENV === "production" ? [] : null,
-//       },
-//     },
-//     crossOriginEmbedderPolicy: false, // Disable for compatibility
-//     hsts: {
-//       maxAge: 31536000, // 1 year
-//       includeSubDomains: true,
-//       preload: true,
-//     },
-//   })
-// );
+// Helmet.js - Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
+        connectSrc: [
+          "'self'",
+          process.env.CLIENT_URL || "http://localhost:3000",
+          "http://localhost:5173",
+          "https://moodring.io",
+          "http://127.0.0.1",
+          "https://127.0.0.1",
+          "wss://127.0.0.1",
+          "ws://127.0.0.1",
+        ],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests:
+          process.env.NODE_ENV === "production" ? [] : null,
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Disable for compatibility
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
+
+// CORS configuration - MUST be before IP blacklist to allow preflight OPTIONS requests
+app.use(cors(cors_options));
 
 // Global IP blacklist (applied to all routes)
+// Note: Health check is excluded in the IP filter middleware
 app.use(globalIPBlacklist);
-
-// CORS configuration
-app.use(cors(cors_options));
 
 // Cookie parser
 app.use(cookieParser());
@@ -177,16 +216,32 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Request logging middleware - Logs the request method and path in the console
+// Also logs Cloudflare headers in production for debugging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  if (process.env.NODE_ENV === "production") {
+    const cfIP = req.headers["cf-connecting-ip"] as string | undefined;
+    const cfRay = req.headers["cf-ray"] as string | undefined;
+    console.log(
+      `${req.method} ${req.path}${cfIP ? ` [CF-IP: ${cfIP}]` : ""}${
+        cfRay ? ` [CF-Ray: ${cfRay}]` : ""
+      }`
+    );
+  } else {
+    console.log(`${req.method} ${req.path}`);
+  }
   next();
 });
 
 // ============================================================================
 // Routes
 // ============================================================================
-// Health check endpoint (no rate limiting)
+// Health check endpoint (no rate limiting, no IP filtering, accessible to Cloudflare)
+// This endpoint is excluded from IP blacklist in the middleware
 app.get("/health", healthCheck);
+app.options("/health", (req, res) => {
+  // Explicitly handle OPTIONS for health check
+  res.status(204).end();
+});
 
 // API Versioning - All routes under /api/v1/
 const API_VERSION = "/api/v1";
