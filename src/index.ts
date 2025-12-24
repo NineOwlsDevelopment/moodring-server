@@ -56,7 +56,7 @@ const app = express();
 
 // Trust proxy for accurate IP detection (important for rate limiting and IP filtering)
 // Set to 1 to trust first proxy, or use specific number for multiple proxies
-app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
+// app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
 
 // ============================================================================
 // Configuration
