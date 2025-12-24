@@ -68,9 +68,13 @@ const cors_options = {
   origin: [
     process.env.CLIENT_URL || "http://localhost:5173",
     "https://moodring.io",
+    "http://moodring.io",
     "wss://moodring.io",
+    "ws://moodring.io",
     "https://172.105.155.223",
+    "http://172.105.155.223",
     "wss://172.105.155.223",
+    "ws://172.105.155.223",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
