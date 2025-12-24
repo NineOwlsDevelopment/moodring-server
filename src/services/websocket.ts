@@ -75,8 +75,6 @@ export const initializeWebSocket = (server: HttpServer): Server => {
         "https://www.moodring.io",
         "http://moodring.io",
         "http://www.moodring.io",
-        "wss://moodring.io",
-        "ws://moodring.io",
       ],
       methods: ["GET", "POST"],
       credentials: true,

@@ -54,11 +54,7 @@ import { initializePool } from "./db";
 // ============================================================================
 const app = express();
 
-// Trust proxy for accurate IP detection (important for rate limiting and IP filtering)
-// CRITICAL: Must be enabled when behind Cloudflare or other reverse proxies
-// Set to 1 to trust first proxy (Cloudflare), or use specific number for multiple proxies
-// In production with Cloudflare, we trust the first proxy (Cloudflare itself)
-app.set("trust proxy", process.env.TRUST_PROXY === "false" ? false : 1);
+app.set("trust proxy", 1);
 
 // ============================================================================
 // Configuration
