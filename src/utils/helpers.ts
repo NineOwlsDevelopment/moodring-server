@@ -11,14 +11,17 @@ import {
   TransactionSignature,
 } from "@solana/web3.js";
 import bs58 from "bs58";
+import path from "path";
 
+const adjectivesPath = path.resolve(__dirname, "../../words/adjectives.txt");
+const nounsPath = path.resolve(__dirname, "../../words/nouns.txt");
 const adjectivesArray = fs
-  .readFileSync("words/adjectives.txt", "utf8")
+  .readFileSync(adjectivesPath, "utf8")
   .split("\n")
   .filter(Boolean);
 
 const nounsArray = fs
-  .readFileSync("words/nouns.txt", "utf8")
+  .readFileSync(nounsPath, "utf8")
   .split("\n")
   .filter(Boolean);
 
