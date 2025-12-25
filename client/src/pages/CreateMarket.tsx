@@ -16,7 +16,10 @@ import { capitalizeWords, formatUSDC } from "@/utils/format";
 import { ResolutionMode, ResolutionConfig } from "@/stores/resolutionStore";
 import { sortCategories } from "@/utils/categorySort";
 import { validateTextContent } from "@/utils/bannedWords";
-import { compressMarketImage, compressOptionImage } from "@/utils/imageCompression";
+import {
+  compressMarketImage,
+  compressOptionImage,
+} from "@/utils/imageCompression";
 
 type Step = "details" | "options" | "review";
 
@@ -366,7 +369,9 @@ export const CreateMarket = () => {
       setSuccessMessage(
         `Market created successfully! ${
           creation_fee_display > 0
-            ? `Creation fee of ${creation_fee_display.toFixed(2)} USDC charged.`
+            ? `Creation fee of ${Number(
+                creation_fee_display / 1_000_000
+              ).toFixed(2)} USDC charged.`
             : ""
         }`
       );
@@ -1318,11 +1323,15 @@ export const CreateMarket = () => {
                           if (file) {
                             try {
                               // Compress image before setting it
-                              const compressedFile = await compressOptionImage(file);
+                              const compressedFile = await compressOptionImage(
+                                file
+                              );
                               setNewOptionImage(compressedFile);
                             } catch (error) {
                               console.error("Failed to compress image:", error);
-                              toast.error("Failed to process image. Using original file.");
+                              toast.error(
+                                "Failed to process image. Using original file."
+                              );
                               // Fallback to original file if compression fails
                               setNewOptionImage(file);
                             }

@@ -41,9 +41,12 @@ export async function compressImage(
       return;
     }
 
-    // If file is already small enough, return as-is
+    // Always process WebP files to convert them to JPEG (AWS Rekognition doesn't support WebP)
+    const isWebP = file.type === "image/webp";
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    if (file.size <= maxSizeBytes) {
+    
+    // If file is already small enough and not WebP, check if we can return as-is
+    if (file.size <= maxSizeBytes && !isWebP) {
       // Still check dimensions
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -141,10 +144,13 @@ async function compressAndResizeImage(
 
   // Determine output format
   // Note: We avoid WebP because AWS Rekognition (used for content moderation) doesn't support it
-  // Use JPEG for photos (better compression) or PNG for images with transparency
+  // Always convert WebP to JPEG, use JPEG for photos, or PNG for images with transparency
   let finalFormat = outputFormat;
   if (!finalFormat) {
-    if (originalFile.type === "image/png" && hasTransparency(canvas)) {
+    // Always convert WebP to JPEG
+    if (originalFile.type === "image/webp") {
+      finalFormat = "image/jpeg";
+    } else if (originalFile.type === "image/png" && hasTransparency(canvas)) {
       // Keep PNG if it has transparency (required for transparency support)
       finalFormat = "image/png";
     } else {
