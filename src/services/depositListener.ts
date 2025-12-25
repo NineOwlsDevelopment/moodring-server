@@ -10,7 +10,7 @@ import { Wallet, WalletModel } from "../models/Wallet";
 import { DepositModel } from "../models/Deposit";
 import { SweepModel } from "../models/Sweep";
 import { getCircleWallet } from "./circleWallet";
-import { USDC_MINT_ADDRESS } from "../sdk/constants";
+import { getUsdcMintAddress } from "../sdk/constants";
 
 // Configuration constants
 const DEFAULT_POLL_INTERVAL_MS = 45_000; // How often to check for new deposits (45 seconds)
@@ -62,7 +62,7 @@ class DepositListener {
     this.started = true;
     this.isFirstRun = true; // Enable startup catchup mode
     console.log(
-      `[Deposits] USDC deposit listener started on devnet (interval=${this.pollIntervalMs}ms, limit=${this.signatureLimit})`
+      `[Deposits] USDC deposit listener started (interval=${this.pollIntervalMs}ms, limit=${this.signatureLimit})`
     );
     console.log(
       `[Deposits] Monitoring USDC mint: ${this.tokenMint.toBase58()}`
@@ -864,8 +864,19 @@ export const startDepositListener = (): DepositListener | null => {
   const signatureLimit =
     Number(process.env.DEPOSIT_SIGNATURE_LIMIT) || DEFAULT_SIGNATURE_LIMIT;
 
-  // Use USDC mint address from constants (devnet USDC)
-  const tokenMintAddress = USDC_MINT_ADDRESS;
+  // Detect network from RPC URL and get appropriate USDC mint address
+  const tokenMintAddress = getUsdcMintAddress(rpcUrl);
+  const rpcUrlLower = rpcUrl.toLowerCase();
+  // Determine network for logging
+  const isMainnet =
+    rpcUrlLower.includes("mainnet") ||
+    (rpcUrlLower &&
+      !rpcUrlLower.includes("devnet") &&
+      !rpcUrlLower.includes("testnet") &&
+      !rpcUrlLower.includes("localhost") &&
+      !rpcUrlLower.includes("127.0.0.1"));
+  const network = isMainnet ? "mainnet" : "devnet";
+
   let tokenMint: PublicKey;
   try {
     tokenMint = new PublicKey(tokenMintAddress);
@@ -877,8 +888,8 @@ export const startDepositListener = (): DepositListener | null => {
     return null; // Can't proceed with invalid mint address
   }
 
-  console.log(`[Deposits] Connecting to Solana devnet: ${rpcUrl}`);
-  console.log(`[Deposits] USDC mint address: ${tokenMintAddress}`);
+  console.log(`[Deposits] Connecting to Solana ${network}: ${rpcUrl}`);
+  console.log(`[Deposits] USDC mint address: ${tokenMintAddress} (${network})`);
 
   // Create Solana connection with "confirmed" commitment level
   // This ensures we see transactions that are confirmed on-chain
