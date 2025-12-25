@@ -242,8 +242,27 @@ class CircleWalletService {
         (token: any) => token.token?.tokenAddress === USDC_MINT_ADDRESS
       );
 
+      // If token not found or amount is undefined, return 0
+      if (
+        !usdcToken ||
+        usdcToken.amount === undefined ||
+        usdcToken.amount === null
+      ) {
+        return 0;
+      }
+
       // Circle returns amounts as strings, convert to number
-      return Number(usdcToken?.amount) * 10 ** 6;
+      const amount = Number(usdcToken.amount);
+
+      // Validate that amount is a valid number
+      if (isNaN(amount) || !isFinite(amount)) {
+        console.warn(
+          `[CircleWallet] Invalid USDC amount for wallet ${walletId}: ${usdcToken.amount}`
+        );
+        return 0;
+      }
+
+      return amount * 10 ** 6;
     } catch (error: any) {
       console.error(
         "[CircleWallet] Failed to get USDC balance:",
@@ -333,6 +352,13 @@ class CircleWalletService {
   ): Promise<string> {
     if (!this.client) {
       throw new Error("Circle wallet client not initialized");
+    }
+
+    // Validate amount is a valid number
+    if (isNaN(amount) || !isFinite(amount)) {
+      throw new Error(
+        `Invalid amount: ${amount}. Amount must be a valid number.`
+      );
     }
 
     if (amount <= 0) {
@@ -695,6 +721,14 @@ class CircleWalletService {
       // This ensures any previously missed deposits are also swept
       const userBalance = await this.getUsdcBalance(userWalletId);
 
+      // Validate balance is a valid number
+      if (isNaN(userBalance) || !isFinite(userBalance)) {
+        console.error(
+          `[CircleWallet] Invalid balance for wallet ${userWalletId}: ${userBalance}`
+        );
+        return null;
+      }
+
       if (userBalance <= 0) {
         console.warn(
           `[CircleWallet] No balance to sweep for wallet ${userWalletId}. Balance: ${userBalance} micro-USDC`
@@ -705,6 +739,14 @@ class CircleWalletService {
       // Sweep the entire balance (not just the deposit amount)
       // Convert from micro-USDC to USDC (Circle API expects base units)
       const usdcAmount = userBalance / 1_000_000;
+
+      // Validate converted amount is still a valid number
+      if (isNaN(usdcAmount) || !isFinite(usdcAmount)) {
+        console.error(
+          `[CircleWallet] Invalid converted USDC amount for wallet ${userWalletId}: ${usdcAmount} (from balance: ${userBalance} micro-USDC)`
+        );
+        return null;
+      }
 
       console.log(
         `[CircleWallet] Sweeping full balance: ${userBalance} micro-USDC (${usdcAmount} USDC) from wallet ${userWalletId} to hot wallet (deposit that triggered sweep: ${amount} micro-USDC)`
