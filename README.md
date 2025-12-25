@@ -1,5 +1,16 @@
 # MoodRing
 
+<div align="center">
+  <a href="https://moodring.io">
+    <img src="client/public/icon.png" alt="MoodRing Logo" width="200"/>
+  </a>
+  <br />
+  <br />
+  <a href="https://moodring.io">🌐 Visit MoodRing.io</a>
+</div>
+
+<br />
+
 A Solana-native prediction market platform with deep LMSR liquidity and instant settlement. Trade on future events with YES/NO binary option markets.
 
 ## Tech Stack
@@ -12,7 +23,7 @@ A Solana-native prediction market platform with deep LMSR liquidity and instant 
 
 ## Features
 
-- 🔐 Solana wallet integration (Phantom, Solflare)
+- 🔐 Solana wallet integration (Phantom, Solflare, etc)
 - 📊 Real-time prediction markets with LMSR liquidity
 - 💼 Portfolio management and trading history
 - 🎯 YES/NO binary markets
