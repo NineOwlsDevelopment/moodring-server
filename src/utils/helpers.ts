@@ -13,8 +13,8 @@ import {
 import bs58 from "bs58";
 import path from "path";
 
-const adjectivesPath = path.resolve(__dirname, "../../words/adjectives.txt");
-const nounsPath = path.resolve(__dirname, "../../words/nouns.txt");
+const adjectivesPath = path.resolve(__dirname, "../words/adjectives.txt");
+const nounsPath = path.resolve(__dirname, "../words/nouns.txt");
 const adjectivesArray = fs
   .readFileSync(adjectivesPath, "utf8")
   .split("\n")
