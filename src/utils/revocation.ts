@@ -91,8 +91,7 @@ export const revokeToken = async (
     `INSERT INTO jwt_revoked_tokens (token_hash, user_id, token_type, expires_at, revoked_at)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (token_hash) DO UPDATE SET
-       revoked_at = EXCLUDED.revoked_at,
-       updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT`,
+       revoked_at = EXCLUDED.revoked_at`,
     [tokenHash, userId, tokenType, expiresAt, revokedAt]
   );
 };
