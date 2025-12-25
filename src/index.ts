@@ -304,27 +304,33 @@ app.use("/api/admin", adminIPWhitelist, route_admin);
 // Production-Specific Middleware
 // ============================================================================
 if (process.env.NODE_ENV === "production") {
-  // // Redirect http to https and remove www from URL
-  // app.use((req, res, next) => {
-  //   // Redirect http to https
-  //   if (req.header("x-forwarded-proto") !== "https") {
-  //     return res.redirect(`https://${req.header("host")}${req.url}`);
-  //   }
-  //   // Replace www with non-www
-  //   if (req.header("host")?.startsWith("www.")) {
-  //     return res.redirect(
-  //       301,
-  //       `https://${req.header("host")?.replace("www.", "")}${req.url}`
-  //     );
-  //   }
-  //   next();
-  // });
-  // // Serve static files from client build folder
-  // console.log("Production environment");
-  // app.use(express.static(path.join(__dirname, "../client/dist")));
-  // app.get("*", (_, res) => {
-  //   res.sendFile(path.resolve(__dirname, "../client/dist", "index.html"));
-  // });
+  // Serve static files from client build folder
+  // This MUST be before the catch-all route to ensure JS/CSS files are served with correct MIME types
+  // Note: __dirname will be src/dist when compiled, so we need to go up two levels to reach client/dist
+  console.log("Production environment - serving static files from client/dist");
+  app.use(
+    express.static(path.join(__dirname, "../../client/dist"), {
+      // Ensure proper MIME types for JavaScript modules
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".js")) {
+          res.setHeader(
+            "Content-Type",
+            "application/javascript; charset=utf-8"
+          );
+        }
+      },
+    })
+  );
+
+  // Catch-all handler: send back React's index.html file for SPA routing
+  // This must be LAST, after all API routes and static file serving
+  app.get("*", (req, res, next) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    res.sendFile(path.resolve(__dirname, "../../client/dist", "index.html"));
+  });
 }
 
 // ============================================================================
