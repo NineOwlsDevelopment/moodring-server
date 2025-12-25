@@ -8,6 +8,11 @@ export interface ImageCompressionOptions {
   maxHeight?: number;
   quality?: number;
   maxSizeMB?: number;
+  /**
+   * Output format for the compressed image.
+   * Note: WebP is not recommended as AWS Rekognition (used for content moderation) doesn't support it.
+   * JPEG is recommended for photos, PNG for images with transparency.
+   */
   outputFormat?: "image/jpeg" | "image/png" | "image/webp";
 }
 
@@ -22,7 +27,7 @@ export async function compressImage(
   options: ImageCompressionOptions = {}
 ): Promise<File> {
   const {
-    maxWidth = 1200,
+    maxWidth = 1600,
     maxHeight = 1200,
     quality = 0.85,
     maxSizeMB = 2,
@@ -135,15 +140,15 @@ async function compressAndResizeImage(
   ctx.drawImage(img, 0, 0, width, height);
 
   // Determine output format
+  // Note: We avoid WebP because AWS Rekognition (used for content moderation) doesn't support it
+  // Use JPEG for photos (better compression) or PNG for images with transparency
   let finalFormat = outputFormat;
   if (!finalFormat) {
-    // Check WebP support more reliably
-    const supportsWebP = checkWebPSupport();
-    if (supportsWebP) {
-      finalFormat = "image/webp";
-    } else if (originalFile.type === "image/png" && hasTransparency(canvas)) {
+    if (originalFile.type === "image/png" && hasTransparency(canvas)) {
+      // Keep PNG if it has transparency (required for transparency support)
       finalFormat = "image/png";
     } else {
+      // Default to JPEG for better compression and AWS Rekognition compatibility
       finalFormat = "image/jpeg";
     }
   }
@@ -227,20 +232,6 @@ function hasTransparency(canvas: HTMLCanvasElement): boolean {
   }
 
   return false;
-}
-
-/**
- * Check if browser supports WebP format
- */
-function checkWebPSupport(): boolean {
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    return canvas.toDataURL("image/webp").indexOf("data:image/webp") === 0;
-  } catch {
-    return false;
-  }
 }
 
 /**

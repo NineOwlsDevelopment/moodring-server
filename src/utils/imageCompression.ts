@@ -17,7 +17,7 @@ export async function compressImage(
   imageBuffer: Buffer,
   options: ImageCompressionOptions = {}
 ): Promise<{ buffer: Buffer; mimeType: string }> {
-  const { maxWidth = 1200, maxHeight = 1200, quality = 80, format } = options;
+  const { maxWidth = 1600, maxHeight = 1200, quality = 80, format } = options;
 
   try {
     // Get image metadata to determine original format
