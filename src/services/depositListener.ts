@@ -23,7 +23,7 @@ const DEFAULT_RPC_URL = process.env.RPC_URL;
 
 // SECURITY FIX (CVE-006): Minimum deposit amount to prevent DoS via micro-deposits
 // Minimum deposit: 1 USDC = 1,000,000 micro-USDC (prevents spam attacks)
-const MIN_DEPOSIT_AMOUNT = 1_000_000; // 1 USDC in micro-units (6 decimals)
+const MIN_DEPOSIT_AMOUNT = 1_000_000 / 4; // 0.25 USDC in micro-units (6 decimals)
 
 // Union type to handle both legacy and versioned Solana transactions
 type AnyTransactionResponse =
