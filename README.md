@@ -1,6 +1,6 @@
 # MoodRing
 
-<div align="left">
+<div align="center">
   <a href="https://moodring.io" target="_blank" rel="noopener noreferrer">
     <img src="client/public/icon.png" alt="MoodRing Logo" width="200"/>
   </a>
