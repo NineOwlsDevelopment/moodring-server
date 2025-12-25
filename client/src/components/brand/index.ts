@@ -9,4 +9,7 @@ export { FeaturedCarousel, getFeaturedMarkets } from './FeaturedCarousel';
 export { HeroTitle, HeroSubtitle, HeroBadge } from './HeroTitle';
 export { FeatureCard, StepCard } from './FeatureCard';
 export { LMSRAnimation, LMSRAnimationSimple } from './LMSRAnimation';
+export { ProbabilityField } from './ProbabilityField';
+export { GradientProbabilityRing } from './GradientProbabilityRing';
+export type { GradientProbabilityRingRef } from './GradientProbabilityRing';
 

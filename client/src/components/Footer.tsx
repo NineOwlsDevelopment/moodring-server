@@ -1,15 +1,10 @@
 import { Link } from "react-router-dom";
 import { GradientDivider } from "@/components/brand";
-import logo from "../../public/icon.png";
 
 /**
  * Footer Component
  *
- * Minimal, grid-aligned design following the Moodring brand identity:
- * - 4-column grid layout
- * - Sparse, calm typography
- * - Neon gradient divider line
- * - Deep graphite background
+ * Clean, minimal footer with social links and policy/TOS links
  */
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -20,112 +15,40 @@ export const Footer = () => {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
       <GradientDivider className="opacity-50" />
 
-      <div className="section-container py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 lg:gap-12">
-          {/* Brand Column */}
-          <div className="col-span-2 md:col-span-4 lg:col-span-1">
-            <Link to="/" className="inline-flex items-center gap-2.5 mb-5">
-              <img src={logo} alt="Moodring" className="w-9 h-9" />
-              <span className="text-xl font-bold text-white">Moodring</span>
-            </Link>
-            <p className="text-moon-grey text-sm leading-relaxed max-w-xs mb-6">
-              Solana-native prediction infrastructure with calm precision. Trade
-              on future events with deep liquidity.
-            </p>
-
-            {/* Social Links */}
-            <div className="flex items-center gap-3">
-              <SocialLink
-                href="https://twitter.com/moodring_io"
-                label="Twitter"
-                icon={<TwitterIcon />}
-              />
-              <SocialLink
-                href="https://discord.gg/sTBq4deetm"
-                label="Discord"
-                icon={<DiscordIcon />}
-              />
-              <SocialLink
-                href="https://t.me/moodring_io"
-                label="Telegram"
-                icon={<TelegramIcon />}
-              />
-            </div>
+      <div className="section-container py-12">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Social Links */}
+          <div className="flex items-center gap-3">
+            <SocialLink
+              href="https://twitter.com/moodring_io"
+              label="Twitter"
+              icon={<TwitterIcon />}
+            />
+            <SocialLink
+              href="https://discord.gg/sTBq4deetm"
+              label="Discord"
+              icon={<DiscordIcon />}
+            />
+            <SocialLink
+              href="https://t.me/moodring_io"
+              label="Telegram"
+              icon={<TelegramIcon />}
+            />
           </div>
 
-          {/* Markets Column */}
-          <div>
-            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">
-              Markets
-            </h3>
-            <ul className="space-y-3">
-              <FooterLink to="/markets?category=politics">Politics</FooterLink>
-              <FooterLink to="/markets?category=crypto">Crypto</FooterLink>
-              <FooterLink to="/markets?category=sports">Sports</FooterLink>
-              <FooterLink to="/markets?category=economics">
-                Economics
-              </FooterLink>
-              <FooterLink to="/markets?category=entertainment">
-                Entertainment
-              </FooterLink>
-            </ul>
-          </div>
-
-          {/* Product Column */}
-          <div>
-            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">
-              Product
-            </h3>
-            <ul className="space-y-3">
-              <FooterLink to="/markets">All Markets</FooterLink>
-              <FooterLink to="/leaderboard">Leaderboard</FooterLink>
-              <FooterLink to="/create">Create Market</FooterLink>
-              <FooterLink to="/how-it-works">How it Works</FooterLink>
-            </ul>
-          </div>
-
-          {/* Resources Column */}
-          <div>
-            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">
-              Resources
-            </h3>
-            <ul className="space-y-3">
-              <FooterLink href="#">Documentation</FooterLink>
-              <FooterLink href="#">API Reference</FooterLink>
-              <FooterLink href="#">SDK</FooterLink>
-              <FooterLink href="#">Brand Kit</FooterLink>
-              <FooterLink href="#">Status</FooterLink>
-            </ul>
-          </div>
-
-          {/* Company Column */}
-          <div>
-            <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wider">
-              Legal
-            </h3>
-            <ul className="space-y-3">
-              <FooterLink to="/terms">Terms of Service</FooterLink>
-              <FooterLink to="/privacy">Privacy Policy</FooterLink>
-              <FooterLink to="/cookies">Cookie Policy</FooterLink>
-              <FooterLink to="/disclaimer">Disclaimer</FooterLink>
-            </ul>
+          {/* Policy/TOS Links */}
+          <div className="flex items-center gap-6">
+            <FooterLink to="/how-it-works">How it Works</FooterLink>
+            <FooterLink to="/terms">Terms of Service</FooterLink>
+            <FooterLink to="/privacy">Privacy Policy</FooterLink>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-16 pt-8 border-t border-white/[0.04]">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-moon-grey-dark text-sm">
-              © {currentYear} Moodring. All rights reserved.
-            </p>
-
-            {/* Built on Solana badge */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-graphite-light rounded-full">
-              <span className="text-moon-grey-dark text-xs">Built on</span>
-              <SolanaLogo />
-              <span className="text-moon-grey text-xs font-medium">Solana</span>
-            </div>
-          </div>
+        <div className="mt-8 pt-6 border-t border-white/[0.04]">
+          <p className="text-moon-grey-dark text-sm text-center">
+            © {currentYear} Moodring. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
@@ -144,29 +67,25 @@ const FooterLink = ({
   children: React.ReactNode;
 }) => {
   const classes =
-    "text-moon-grey hover:text-white text-sm transition-colors duration-200 block";
+    "text-moon-grey hover:text-white text-sm transition-colors duration-200";
 
   if (to) {
     return (
-      <li>
-        <Link to={to} className={classes}>
-          {children}
-        </Link>
-      </li>
+      <Link to={to} className={classes}>
+        {children}
+      </Link>
     );
   }
 
   return (
-    <li>
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={classes}
-      >
-        {children}
-      </a>
-    </li>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={classes}
+    >
+      {children}
+    </a>
   );
 };
 
@@ -210,12 +129,3 @@ const TelegramIcon = () => (
   </svg>
 );
 
-const SolanaLogo = () => (
-  <svg
-    className="w-4 h-4 text-moon-grey"
-    viewBox="0 0 128 128"
-    fill="currentColor"
-  >
-    <path d="M93.95 42.18l-20.4 64.94c-.6 1.91-3.27 1.93-3.89.03L51.72 53.93a2 2 0 00-1.36-1.28L4.72 38.43c-1.97-.57-1.96-3.33.01-3.9l88.17-25.39c1.85-.53 3.58 1.19 3.05 3.04z" />
-  </svg>
-);

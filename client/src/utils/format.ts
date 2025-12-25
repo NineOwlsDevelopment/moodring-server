@@ -290,6 +290,128 @@ export const formatNumber = (
 };
 
 /**
+ * Format number with compact notation, rounding UP
+ * Used for platform stats to show rounded-up values
+ * Never more than 4 characters (e.g., "999", "1.2K", "12M", "1.2B")
+ * Anything over 999k becomes 1M, over 999M becomes 1B, etc.
+ */
+export const formatNumberRoundedUp = (
+  num: number | string | null | undefined
+): string => {
+  const n = Number(num) || 0;
+  if (n === 0) return "0";
+  
+  // Trillions
+  if (n >= 1_000_000_000_000) {
+    const trillions = n / 1_000_000_000_000;
+    // If >= 1000T, round up to next unit (but we don't have a higher unit, so cap at 999T)
+    if (trillions >= 1000) {
+      return "999T";
+    }
+    const rounded = Math.ceil(trillions * 10) / 10;
+    return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}T`;
+  }
+  
+  // Billions
+  if (n >= 1_000_000_000) {
+    const billions = n / 1_000_000_000;
+    // If >= 1000B, round up to 1T
+    if (billions >= 1000) {
+      return "1T";
+    }
+    const rounded = Math.ceil(billions * 10) / 10;
+    return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}B`;
+  }
+  
+  // Millions
+  if (n >= 1_000_000) {
+    const millions = n / 1_000_000;
+    // If >= 1000M, round up to 1B
+    if (millions >= 1000) {
+      return "1B";
+    }
+    const rounded = Math.ceil(millions * 10) / 10;
+    return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}M`;
+  }
+  
+  // Thousands
+  if (n >= 1_000) {
+    const thousands = n / 1_000;
+    // If >= 1000K, round up to 1M
+    if (thousands >= 1000) {
+      return "1M";
+    }
+    const rounded = Math.ceil(thousands * 10) / 10;
+    return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}K`;
+  }
+  
+  // Less than 1000, show as integer
+  return Math.ceil(n).toString();
+};
+
+/**
+ * Format USDC with compact notation, rounding UP
+ * Used for platform stats to show rounded-up currency values
+ * Never more than 4 characters total (e.g., "$999", "$1.2K", "$12M", "$1.2B")
+ * Anything over 999k becomes $1M, over 999M becomes $1B, etc.
+ */
+export const formatUSDCRoundedUp = (
+  amount: number | string | null | undefined
+): string => {
+  const num = Number(amount) || 0;
+  const displayAmount = num / 1_000_000; // Convert from micro-USDC to USDC
+
+  if (displayAmount === 0) return "$0";
+
+  // Trillions
+  if (displayAmount >= 1_000_000_000_000) {
+    const trillions = displayAmount / 1_000_000_000_000;
+    // If >= 1000T, cap at 999T
+    if (trillions >= 1000) {
+      return "$999T";
+    }
+    const rounded = Math.ceil(trillions * 10) / 10;
+    return `$${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}T`;
+  }
+
+  // Billions
+  if (displayAmount >= 1_000_000_000) {
+    const billions = displayAmount / 1_000_000_000;
+    // If >= 1000B, round up to $1T
+    if (billions >= 1000) {
+      return "$1T";
+    }
+    const rounded = Math.ceil(billions * 10) / 10;
+    return `$${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}B`;
+  }
+
+  // Millions
+  if (displayAmount >= 1_000_000) {
+    const millions = displayAmount / 1_000_000;
+    // If >= 1000M, round up to $1B
+    if (millions >= 1000) {
+      return "$1B";
+    }
+    const rounded = Math.ceil(millions * 10) / 10;
+    return `$${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}M`;
+  }
+
+  // Thousands
+  if (displayAmount >= 1_000) {
+    const thousands = displayAmount / 1_000;
+    // If >= 1000K, round up to $1M
+    if (thousands >= 1000) {
+      return "$1M";
+    }
+    const rounded = Math.ceil(thousands * 10) / 10;
+    return `$${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}K`;
+  }
+
+  // Less than 1000, show as integer
+  return `$${Math.ceil(displayAmount).toFixed(0)}`;
+};
+
+/**
  * Format micro-unit shares/quantities (6 decimals) to display format
  * @param amount - Amount in micro-units (raw units from blockchain/DB)
  * @returns Formatted number string
