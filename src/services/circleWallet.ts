@@ -3,7 +3,7 @@ import {
   type CircleDeveloperControlledWalletsClient,
 } from "@circle-fin/developer-controlled-wallets";
 import { PublicKey } from "@solana/web3.js";
-import { USDC_MINT_ADDRESS } from "../sdk/constants";
+import { getUsdcMintAddress } from "../sdk/constants";
 import { secretsManager } from "../utils/secrets";
 
 /**
@@ -238,8 +238,19 @@ class CircleWalletService {
         id: walletId,
       });
 
+      console.log(
+        `[CircleWallet] getUsdcBalance - Raw tokenBalances response:`,
+        JSON.stringify(tokenBalances.data, null, 2)
+      );
+
       const usdcToken = tokenBalances.data?.tokenBalances?.find(
-        (token: any) => token.token?.tokenAddress === USDC_MINT_ADDRESS
+        (token: any) =>
+          token.token?.tokenAddress === getUsdcMintAddress(process.env.RPC_URL)
+      );
+
+      console.log(
+        `[CircleWallet] getUsdcBalance - Found USDC token:`,
+        usdcToken ? JSON.stringify(usdcToken, null, 2) : "null"
       );
 
       // If token not found or amount is undefined, return 0
@@ -248,11 +259,26 @@ class CircleWalletService {
         usdcToken.amount === undefined ||
         usdcToken.amount === null
       ) {
+        console.log(
+          `[CircleWallet] getUsdcBalance - No USDC token found or amount is null/undefined for wallet ${walletId}`
+        );
         return 0;
       }
 
+      console.log(
+        `[CircleWallet] getUsdcBalance - Raw amount from Circle (type: ${typeof usdcToken.amount}, value: ${
+          usdcToken.amount
+        })`
+      );
+
       // Circle returns amounts as strings, convert to number
       const amount = Number(usdcToken.amount);
+
+      console.log(
+        `[CircleWallet] getUsdcBalance - Converted amount: ${amount} (isNaN: ${isNaN(
+          amount
+        )}, isFinite: ${isFinite(amount)})`
+      );
 
       // Validate that amount is a valid number
       if (isNaN(amount) || !isFinite(amount)) {
@@ -262,7 +288,18 @@ class CircleWalletService {
         return 0;
       }
 
-      return amount * 10 ** 6;
+      const multiplier = 10 ** 6;
+      console.log(
+        `[CircleWallet] getUsdcBalance - Multiplying ${amount} by ${multiplier}`
+      );
+      const result = amount * multiplier;
+      console.log(
+        `[CircleWallet] getUsdcBalance - Final result: ${result} (isNaN: ${isNaN(
+          result
+        )}, isFinite: ${isFinite(result)})`
+      );
+
+      return result;
     } catch (error: any) {
       console.error(
         "[CircleWallet] Failed to get USDC balance:",
@@ -354,8 +391,17 @@ class CircleWalletService {
       throw new Error("Circle wallet client not initialized");
     }
 
+    console.log(
+      `[CircleWallet] sendUsdc - Received amount: ${amount} (type: ${typeof amount}, isNaN: ${isNaN(
+        amount
+      )}, isFinite: ${isFinite(amount)})`
+    );
+
     // Validate amount is a valid number
     if (isNaN(amount) || !isFinite(amount)) {
+      console.error(
+        `[CircleWallet] sendUsdc - Invalid amount detected: ${amount}`
+      );
       throw new Error(
         `Invalid amount: ${amount}. Amount must be a valid number.`
       );
@@ -367,6 +413,9 @@ class CircleWalletService {
 
     // Format amount as string (Circle API expects string in base units)
     const amountString = amount.toString();
+    console.log(
+      `[CircleWallet] sendUsdc - Converted to string: "${amountString}"`
+    );
 
     try {
       // First, we need to get the token ID for USDC on Solana
@@ -719,7 +768,16 @@ class CircleWalletService {
 
       // Get user wallet balance - we'll sweep the entire balance
       // This ensures any previously missed deposits are also swept
+      console.log(
+        `[CircleWallet] sweepUsdcToHotWallet - Getting balance for wallet ${userWalletId} (deposit amount: ${amount} micro-USDC)`
+      );
       const userBalance = await this.getUsdcBalance(userWalletId);
+
+      console.log(
+        `[CircleWallet] sweepUsdcToHotWallet - userBalance: ${userBalance} (type: ${typeof userBalance}, isNaN: ${isNaN(
+          userBalance
+        )}, isFinite: ${isFinite(userBalance)})`
+      );
 
       // Validate balance is a valid number
       if (isNaN(userBalance) || !isFinite(userBalance)) {
@@ -738,7 +796,16 @@ class CircleWalletService {
 
       // Sweep the entire balance (not just the deposit amount)
       // Convert from micro-USDC to USDC (Circle API expects base units)
-      const usdcAmount = userBalance / 1_000_000;
+      const divisor = 1_000_000;
+      console.log(
+        `[CircleWallet] sweepUsdcToHotWallet - Dividing ${userBalance} by ${divisor}`
+      );
+      const usdcAmount = userBalance / divisor;
+      console.log(
+        `[CircleWallet] sweepUsdcToHotWallet - usdcAmount: ${usdcAmount} (type: ${typeof usdcAmount}, isNaN: ${isNaN(
+          usdcAmount
+        )}, isFinite: ${isFinite(usdcAmount)})`
+      );
 
       // Validate converted amount is still a valid number
       if (isNaN(usdcAmount) || !isFinite(usdcAmount)) {
@@ -752,6 +819,9 @@ class CircleWalletService {
         `[CircleWallet] Sweeping full balance: ${userBalance} micro-USDC (${usdcAmount} USDC) from wallet ${userWalletId} to hot wallet (deposit that triggered sweep: ${amount} micro-USDC)`
       );
 
+      console.log(
+        `[CircleWallet] sweepUsdcToHotWallet - Calling sendUsdc with amount: ${usdcAmount} (type: ${typeof usdcAmount})`
+      );
       const transactionId = await this.sendUsdc(
         userWalletId,
         hotWalletInfo.address,

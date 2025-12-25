@@ -15,7 +15,7 @@ export const USDC_MINT_ADDRESSES = {
 
 // Legacy export for backward compatibility (defaults to devnet)
 // Use getUsdcMintAddress() instead for network-aware selection
-export const USDC_MINT_ADDRESS = USDC_MINT_ADDRESSES.devnet;
+// export const USDC_MINT_ADDRESS = USDC_MINT_ADDRESSES.devnet;
 
 /**
  * Get the USDC mint address based on the RPC URL
