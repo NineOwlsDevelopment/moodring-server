@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "NODE_OPTIONS=--max-old-space-size=4096 node ./dist/index.js",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc -outDir dist && cp -r words dist/ && cp -r utils/en.txt dist/utils/en.txt",
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 nodemon --exec ts-node index.ts",
     "test": "NODE_OPTIONS=--max-old-space-size=4096 mocha --require ts-node/register tests/**/*spec.ts",
     "migrate": "NODE_OPTIONS=--max-old-space-size=4096 ts-node migrations/migrate.ts",
