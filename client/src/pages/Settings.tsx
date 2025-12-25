@@ -26,6 +26,7 @@ import {
 } from "@/utils/format";
 import { isReservedDisplayName } from "@/utils/reservedNames";
 import { UserAvatar } from "@/components/UserAvatar";
+import { compressAvatar } from "@/utils/imageCompression";
 import {
   User,
   Briefcase,
@@ -242,17 +243,20 @@ export const Settings = () => {
       return;
     }
 
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-
     setIsUploadingAvatar(true);
 
     try {
-      const response = await uploadAvatar({ avatar: file });
+      // Compress image before upload
+      const compressedFile = await compressAvatar(file);
+      
+      // Create preview from compressed file
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+
+      const response = await uploadAvatar({ avatar: compressedFile });
 
       // Update user store with new avatar
       const { setUser } = useUserStore.getState();

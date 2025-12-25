@@ -16,6 +16,7 @@ import { capitalizeWords, formatUSDC } from "@/utils/format";
 import { ResolutionMode, ResolutionConfig } from "@/stores/resolutionStore";
 import { sortCategories } from "@/utils/categorySort";
 import { validateTextContent } from "@/utils/bannedWords";
+import { compressMarketImage, compressOptionImage } from "@/utils/imageCompression";
 
 type Step = "details" | "options" | "review";
 
@@ -264,10 +265,19 @@ export const CreateMarket = () => {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImage(file);
+      try {
+        // Compress image before setting it
+        const compressedFile = await compressMarketImage(file);
+        setImage(compressedFile);
+      } catch (error) {
+        console.error("Failed to compress image:", error);
+        toast.error("Failed to process image. Using original file.");
+        // Fallback to original file if compression fails
+        setImage(file);
+      }
     }
   };
 
@@ -1303,9 +1313,23 @@ export const CreateMarket = () => {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) =>
-                          setNewOptionImage(e.target.files?.[0] || null)
-                        }
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              // Compress image before setting it
+                              const compressedFile = await compressOptionImage(file);
+                              setNewOptionImage(compressedFile);
+                            } catch (error) {
+                              console.error("Failed to compress image:", error);
+                              toast.error("Failed to process image. Using original file.");
+                              // Fallback to original file if compression fails
+                              setNewOptionImage(file);
+                            }
+                          } else {
+                            setNewOptionImage(null);
+                          }
+                        }}
                         className="hidden"
                       />
                     </label>
