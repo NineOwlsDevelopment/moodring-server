@@ -5,7 +5,6 @@ import {
   formatUSDC,
   formatShares,
   formatDistanceToNow,
-  capitalizeWords,
 } from "@/utils/format";
 import { useActivitySocket } from "@/hooks/useSocket";
 import { ActivityUpdate } from "@/services/socket";
@@ -330,7 +329,7 @@ export const ActivityFeed = ({
                     to={`/market/${market_id}`}
                     className="text-xs text-moon-grey-dark hover:text-neon-iris line-clamp-1 mt-1 transition-colors block"
                   >
-                    {capitalizeWords(market_question)}
+                    {market_question}
                   </Link>
                 )}
               </div>

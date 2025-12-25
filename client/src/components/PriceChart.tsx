@@ -15,7 +15,7 @@ import {
   PriceHistoryPoint,
   TimeRange,
 } from "@/api/api";
-import { calculateYesPrice, capitalizeWords } from "@/utils/format";
+import { calculateYesPrice } from "@/utils/format";
 import { useOptionSocket } from "@/hooks/useSocket";
 import { PriceUpdate } from "@/services/socket";
 import { GradientAccent } from "./GradientAccent";
@@ -576,9 +576,7 @@ export const PriceChart = ({
                 label = entry.dataKey === "yesPrice" ? "YES" : "NO";
               } else {
                 label =
-                  capitalizeWords(
-                    options.find((o) => o.id === entry.dataKey)?.option_label
-                  )?.slice(0, 20) || entry.dataKey;
+                  options.find((o) => o.id === entry.dataKey)?.option_label?.slice(0, 20) || entry.dataKey;
               }
               return (
                 <div
@@ -941,7 +939,7 @@ export const PriceChart = ({
                   <div className="flex-1 min-w-0">
                     <div>
                       <div className="text-xs text-white font-medium truncate">
-                        {capitalizeWords(opt.option_label)}
+                        {opt.option_label}
                       </div>
                     </div>
                     <div className="text-sm font-bold text-white tabular-nums">

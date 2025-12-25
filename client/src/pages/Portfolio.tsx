@@ -15,7 +15,6 @@ import {
   formatUSDC,
   formatProbability,
   formatShares,
-  capitalizeWords,
 } from "@/utils/format";
 
 type Tab = "positions" | "liquidity" | "history";
@@ -284,11 +283,11 @@ export const Portfolio = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-white mb-1 truncate">
-                        {capitalizeWords(position.market_question)}
+                        {position.market_question}
                       </h3>
                       {position.option_label && (
                         <p className="text-sm text-primary-400 mb-2">
-                          {capitalizeWords(position.option_label)}
+                          {position.option_label}
                         </p>
                       )}
                       <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -373,7 +372,7 @@ export const Portfolio = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-white mb-1 truncate">
-                        {capitalizeWords(position.market_question)}
+                        {position.market_question}
                       </h3>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                         <span>

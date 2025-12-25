@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatUSDC, capitalizeWords } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 import { Market } from "@/types/market";
 import {
   fetchMarkets,
@@ -170,7 +170,7 @@ export const AdminMarkets = () => {
                   >
                     <td className="py-3 px-4">
                       <div className="font-medium text-white">
-                        {capitalizeWords(market.question)}
+                        {market.question}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         ID: {market.id.slice(0, 8)}...

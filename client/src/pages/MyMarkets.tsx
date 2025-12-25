@@ -8,7 +8,7 @@ import {
   withdrawCreatorFee,
   deleteMarket,
 } from "@/api/api";
-import { formatUSDC, capitalizeWords } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 
@@ -364,7 +364,7 @@ export const MyMarkets = () => {
                         <div className="absolute inset-0 bg-gradient-to-br from-neon-iris/20 to-aqua-pulse/20 opacity-0 group-hover/image:opacity-60 transition-opacity duration-300 blur-sm" />
                         <img
                           src={market.image_url || "/placeholder-market.png"}
-                          alt={capitalizeWords(market.question)}
+                          alt={market.question}
                           width={120}
                           height={120}
                           loading="lazy"
@@ -396,7 +396,7 @@ export const MyMarkets = () => {
                       </div>
 
                       <h3 className="text-lg font-semibold text-white mb-3 line-clamp-2 group-hover:text-gradient transition-all">
-                        {capitalizeWords(market.question)}
+                        {market.question}
                       </h3>
 
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm mb-4">

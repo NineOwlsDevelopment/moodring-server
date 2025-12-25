@@ -10,7 +10,6 @@ import {
   formatUSDC,
   formatShares,
   formatDistanceToNow,
-  capitalizeWords,
 } from "@/utils/format";
 import {
   BarChart3,
@@ -204,7 +203,7 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
                 to={`/market/${marketId}`}
                 className="text-neon-iris hover:text-neon-iris-light text-sm font-medium line-clamp-1 mt-1.5 transition-colors block"
               >
-                {capitalizeWords(marketQuestion)}
+                {marketQuestion}
               </Link>
             )}
           </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Market } from "@/types/market";
-import { formatUSDC, calculateYesPrice, capitalizeWords } from "@/utils/format";
+import { formatUSDC, calculateYesPrice } from "@/utils/format";
 import { ProbabilityBar } from "./ProbabilityBar";
 
 interface FeaturedCarouselProps {
@@ -189,7 +189,7 @@ const FeaturedCard = ({ market }: { market: Market }) => {
         {/* Content */}
         <div className="relative z-10 mt-6">
           <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight group-hover:text-gradient transition-all max-w-2xl">
-            {capitalizeWords(market.question)}
+            {market.question}
           </h3>
 
           <div className="mt-6 max-w-md">

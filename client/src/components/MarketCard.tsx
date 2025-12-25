@@ -5,7 +5,6 @@ import {
   formatUSDC,
   formatTimeRemaining,
   calculateYesPrice,
-  capitalizeWords,
   formatDistanceToNow,
 } from "@/utils/format";
 import { Clock, TrendingUp, ChevronDown } from "lucide-react";
@@ -172,7 +171,7 @@ const MarketCardComponent = ({
               </div>
             )}
             <h3 className="text-sm font-bold text-white line-clamp-1">
-              {capitalizeWords(market.question)}
+              {market.question}
             </h3>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-aqua-pulse font-black tabular-nums text-base px-2.5 py-1 rounded-lg bg-aqua-pulse/15 border border-aqua-pulse/30">
@@ -290,7 +289,7 @@ const MarketCardComponent = ({
             )}
             {/* Question Title */}
             <h3 className="text-base font-bold text-white leading-snug flex-1">
-              {capitalizeWords(market.question)}
+              {market.question}
             </h3>
           </div>
 
@@ -385,7 +384,7 @@ const MarketCardComponent = ({
                                 <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-neon-iris/20 to-aqua-pulse/20 opacity-0 group-hover/option:opacity-60 transition-opacity blur-sm" />
                                 <img
                                   src={topOption.option_image_url}
-                                  alt={capitalizeWords(topOption.option_label)}
+                                  alt={topOption.option_label}
                                   className="relative w-8 h-8 rounded-lg object-cover border border-white/10 group-hover/option:border-neon-iris/40 transition-all"
                                 />
                               </div>
@@ -399,7 +398,7 @@ const MarketCardComponent = ({
                             <div className="flex-1 min-w-0">
                               <div>
                                 <span className="font-semibold truncate block text-sm text-white group-hover/option:text-neon-iris-light transition-colors">
-                                  {capitalizeWords(topOption.option_label)}
+                                  {topOption.option_label}
                                 </span>
                                 {topOption.option_sub_label && (
                                   <div className="text-gray-300 text-xs mt-0.5 truncate">
@@ -472,9 +471,7 @@ const MarketCardComponent = ({
                                     {option.option_image_url ? (
                                       <img
                                         src={option.option_image_url}
-                                        alt={capitalizeWords(
-                                          option.option_label
-                                        )}
+                                        alt={option.option_label}
                                         className="w-8 h-8 rounded-lg object-cover border border-white/10"
                                       />
                                     ) : (
@@ -485,7 +482,7 @@ const MarketCardComponent = ({
                                     <div className="flex-1 min-w-0">
                                       <div>
                                         <span className="font-medium truncate block text-xs text-white">
-                                          {capitalizeWords(option.option_label)}
+                                          {option.option_label}
                                         </span>
                                         {option.option_sub_label && (
                                           <div className="text-gray-300 text-[9px] mt-0.5 truncate">

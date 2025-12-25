@@ -2,7 +2,6 @@ import { MarketOption } from "@/types/market";
 import {
   formatProbability,
   calculateYesPrice,
-  capitalizeWords,
 } from "@/utils/format";
 
 interface MoodRingProps {
@@ -143,8 +142,8 @@ export const MoodRing = ({
 
       return {
         id: option.id || `option-${index}`,
-        name: capitalizeWords(option.option_label),
-        label: capitalizeWords(option.option_label),
+        name: option.option_label,
+        label: option.option_label,
         color: COLORS[index % COLORS.length],
         segmentLength,
         gapLength,

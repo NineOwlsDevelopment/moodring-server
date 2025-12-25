@@ -17,7 +17,6 @@ import {
   formatTimeRemaining,
   formatShares,
   calculateYesPrice,
-  capitalizeWords,
   formatDistanceToNow,
 } from "@/utils/format";
 import {
@@ -130,7 +129,7 @@ const OptionRow = ({
         <div className="relative flex-1 min-w-0 pr-2">
           <div>
             <span className="text-sm text-white font-medium break-words line-clamp-2">
-              {capitalizeWords(option.option_label)}
+              {option.option_label}
             </span>
             {option.option_sub_label && (
               <div className="text-gray-300 text-xs mt-0.5 break-words">
@@ -520,7 +519,7 @@ const ResolveButton = ({
                 Resolve Option
               </h3>
               <p className="text-moon-grey text-sm mb-5">
-                {capitalizeWords(option.option_label)}
+                {option.option_label}
               </p>
 
               <div className="mb-4">
@@ -1012,7 +1011,7 @@ export const MarketDetail = () => {
                   )}
                   <div className="flex-1 min-w-0">
                     <h1 className="text-sm sm:text-base font-bold mb-2 text-white leading-tight truncate min-w-0 mb-0.5">
-                      {capitalizeWords(market.question)}
+                      {market.question}
                     </h1>
 
                     {!allOptionsResolved && highestLikelihoodOption && (
@@ -1027,9 +1026,7 @@ export const MarketDetail = () => {
                           )}
 
                         <span className="text-s font-medium text-moon-grey truncate">
-                          {capitalizeWords(
-                            highestLikelihoodOption.option_label
-                          )}
+                          {highestLikelihoodOption.option_label}
                         </span>
 
                         <span
@@ -1149,7 +1146,7 @@ export const MarketDetail = () => {
                 {/* Title & Probability */}
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-5">
                   <h1 className="flex-1 text-xl sm:text-2xl lg:text-[28px] font-bold text-white leading-tight tracking-tight break-words min-w-0">
-                    {capitalizeWords(market.question)}
+                    {market.question}
                   </h1>
 
                   {/* Probability Display */}
@@ -1178,9 +1175,7 @@ export const MarketDetail = () => {
                               Winner
                             </div>
                             <div className="text-[10px] sm:text-[11px] text-emerald-400/70 mt-0.5 truncate">
-                              {capitalizeWords(
-                                winningOptions[0]?.option_label || ""
-                              )}
+                              {winningOptions[0]?.option_label || ""}
                             </div>
                           </div>
                         </div>
@@ -1225,7 +1220,7 @@ export const MarketDetail = () => {
                           </div>
                           <div>
                             <div className="text-[10px] sm:text-[11px] text-moon-grey mt-0.5 truncate">
-                              {capitalizeWords(selectedOptionData.option_label)}
+                              {selectedOptionData.option_label}
                             </div>
                             {selectedOptionData.option_sub_label && (
                               <div className="text-[10px] sm:text-[11px] text-gray-300 mt-0.5 truncate">
@@ -1779,9 +1774,7 @@ export const MarketDetail = () => {
                                 </div>
                                 <div className="text-emerald-400">
                                   {winningOptions[0]
-                                    ? capitalizeWords(
-                                        winningOptions[0].option_label
-                                      )
+                                    ? winningOptions[0].option_label
                                     : "N/A"}
                                 </div>
                               </div>
@@ -1898,7 +1891,7 @@ export const MarketDetail = () => {
                       </div>
                       <div className="text-emerald-400 break-words line-clamp-2 text-xs sm:text-sm">
                         {winningOptions[0]
-                          ? capitalizeWords(winningOptions[0].option_label)
+                          ? winningOptions[0].option_label
                           : "N/A"}
                       </div>
                     </div>
@@ -1939,8 +1932,8 @@ export const MarketDetail = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-moon-grey-dark truncate mb-0.5">
                     {isMultipleChoice && selectedOptionData
-                      ? capitalizeWords(selectedOptionData.option_label)
-                      : capitalizeWords(market.question)}
+                      ? selectedOptionData.option_label
+                      : market.question}
                   </p>
                   <div className="flex items-center gap-2">
                     <div
@@ -2049,7 +2042,7 @@ export const MarketDetail = () => {
                   <h2 className="text-lg font-bold text-white">Trade</h2>
                   {selectedOptionData && isMultipleChoice && (
                     <p className="text-sm text-moon-grey-dark">
-                      {capitalizeWords(selectedOptionData.option_label)}
+                      {selectedOptionData.option_label}
                     </p>
                   )}
                 </div>

@@ -15,7 +15,7 @@ import {
   getMarketCreationFee,
   Category,
 } from "@/api/api";
-import { capitalizeWords, formatUSDC } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 import { ResolutionMode, ResolutionConfig } from "@/stores/resolutionStore";
 import { sortCategories } from "@/utils/categorySort";
 import { validateTextContent } from "@/utils/bannedWords";
@@ -1495,7 +1495,7 @@ export const CreateMarket = () => {
                           <>
                             <div>
                               <span className="text-white font-medium">
-                                {capitalizeWords(opt.label)}
+                                {opt.label}
                               </span>
                               {opt.subLabel && (
                                 <div className="text-gray-300 text-sm mt-0.5">
@@ -1839,7 +1839,7 @@ export const CreateMarket = () => {
                     </div>
                     <div>
                       <span className="text-white font-semibold text-lg">
-                        {capitalizeWords(opt.label)}
+                        {opt.label}
                       </span>
                       {opt.subLabel && (
                         <div className="text-gray-300 text-sm mt-0.5">

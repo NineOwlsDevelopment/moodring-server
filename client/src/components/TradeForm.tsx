@@ -8,7 +8,6 @@ import {
   calculateYesPrice,
   calculateLmsrSellPayout,
   calculateSharesForAmount,
-  capitalizeWords,
 } from "@/utils/format";
 import { buyShares, sellShares, fetchPositions, Position } from "@/api/api";
 import { Tooltip } from "./Tooltip";
@@ -371,7 +370,7 @@ export const TradeForm = ({
             Trading
           </div>
           <div className="font-semibold text-white text-sm truncate">
-            {capitalizeWords(selectedOption.option_label)}
+            {selectedOption.option_label}
           </div>
         </div>
       )}

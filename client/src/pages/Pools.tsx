@@ -8,7 +8,7 @@ import {
   LiquidityPosition,
   fetchCategories,
 } from "@/api/api";
-import { formatUSDC, capitalizeWords } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 import { toast } from "sonner";
 import api from "@/config/axios";
 import { MarketUpdate } from "@/services/socket";
@@ -609,7 +609,7 @@ export const Pools = () => {
                         to={`/market/${pool.id}`}
                         className="text-white font-semibold hover:text-neon-iris transition-colors line-clamp-2 text-sm"
                       >
-                        {capitalizeWords(pool.question)}
+                        {pool.question}
                       </Link>
                       <div className="text-xs text-moon-grey-dark mt-0.5">
                         {pool.lp_count} LP{pool.lp_count !== 1 ? "s" : ""}

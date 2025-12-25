@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Market } from "@/types/market";
-import { formatUSDC, capitalizeWords } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 
 interface AnimatedTickerProps {
   markets: Market[];
@@ -59,7 +59,7 @@ const TickerItem = ({ market }: { market: Market }) => {
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-graphite-deep/50 rounded-xl border border-white/5 whitespace-nowrap shrink-0">
       <span className="text-sm text-white font-medium max-w-[200px] truncate">
-        {capitalizeWords(market.question)}
+        {market.question}
       </span>
       <div className="flex items-center gap-2">
         <span className="text-aqua-pulse font-semibold tabular-nums text-sm">

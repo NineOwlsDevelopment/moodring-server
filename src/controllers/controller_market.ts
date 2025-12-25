@@ -414,7 +414,7 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       const createdMarket = await MarketModel.create(
         {
           creator_id: userId as UUID,
-          question: normalizedQuestion.trim().toLowerCase(),
+          question: normalizedQuestion,
           market_description: marketDescription || "",
           image_url: imageUrl,
           expiration_timestamp: expirationTimestamp,
@@ -596,11 +596,11 @@ export const createOption = async (req: CreateOptionRequest, res: Response) => {
         }
       }
 
-      // Create option using model (store lowercase)
+      // Create option using model
       const createdOption = await OptionModel.create(
         {
           market_id: market as UUID,
-          option_label: optionLabel.trim().toLowerCase(),
+          option_label: optionLabel.trim(),
           option_sub_label: normalizedSubLabel,
           option_image_url: imageUrl,
           yes_quantity: 0,
@@ -893,7 +893,7 @@ export const updateOption = async (req: UpdateOptionRequest, res: Response) => {
           throw new TransactionError(400, optionBannedWordsCheck.error!);
         }
 
-        updateData.option_label = optionLabel.trim().toLowerCase();
+        updateData.option_label = optionLabel.trim();
       }
 
       // Update sub-label if provided
