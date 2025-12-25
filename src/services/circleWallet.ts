@@ -238,19 +238,9 @@ class CircleWalletService {
         id: walletId,
       });
 
-      console.log(
-        `[CircleWallet] getUsdcBalance - Raw tokenBalances response:`,
-        JSON.stringify(tokenBalances.data, null, 2)
-      );
-
       const usdcToken = tokenBalances.data?.tokenBalances?.find(
         (token: any) =>
           token.token?.tokenAddress === getUsdcMintAddress(process.env.RPC_URL)
-      );
-
-      console.log(
-        `[CircleWallet] getUsdcBalance - Found USDC token:`,
-        usdcToken ? JSON.stringify(usdcToken, null, 2) : "null"
       );
 
       // If token not found or amount is undefined, return 0
@@ -265,20 +255,8 @@ class CircleWalletService {
         return 0;
       }
 
-      console.log(
-        `[CircleWallet] getUsdcBalance - Raw amount from Circle (type: ${typeof usdcToken.amount}, value: ${
-          usdcToken.amount
-        })`
-      );
-
       // Circle returns amounts as strings, convert to number
       const amount = Number(usdcToken.amount);
-
-      console.log(
-        `[CircleWallet] getUsdcBalance - Converted amount: ${amount} (isNaN: ${isNaN(
-          amount
-        )}, isFinite: ${isFinite(amount)})`
-      );
 
       // Validate that amount is a valid number
       if (isNaN(amount) || !isFinite(amount)) {
@@ -289,15 +267,7 @@ class CircleWalletService {
       }
 
       const multiplier = 10 ** 6;
-      console.log(
-        `[CircleWallet] getUsdcBalance - Multiplying ${amount} by ${multiplier}`
-      );
       const result = amount * multiplier;
-      console.log(
-        `[CircleWallet] getUsdcBalance - Final result: ${result} (isNaN: ${isNaN(
-          result
-        )}, isFinite: ${isFinite(result)})`
-      );
 
       return result;
     } catch (error: any) {
