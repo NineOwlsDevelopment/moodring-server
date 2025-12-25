@@ -8,6 +8,7 @@ export interface Option {
   id: UUID;
   market_id: UUID;
   option_label: string;
+  option_sub_label: string | null;
   option_image_url: string | null;
   yes_quantity: number;
   no_quantity: number;
@@ -24,6 +25,7 @@ export interface Option {
 export interface OptionCreateInput {
   market_id: UUID;
   option_label: string;
+  option_sub_label?: string | null;
   option_image_url?: string | null;
   yes_quantity?: number;
   no_quantity?: number;
@@ -37,6 +39,7 @@ export class OptionModel {
     const {
       market_id,
       option_label,
+      option_sub_label = null,
       option_image_url = null,
       yes_quantity = 0,
       no_quantity = 0,
@@ -48,19 +51,21 @@ export class OptionModel {
       INSERT INTO market_options (
         market_id,
         option_label,
+        option_sub_label,
         option_image_url,
         yes_quantity,
         no_quantity,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7
+        $1, $2, $3, $4, $5, $6, $7, $8
       ) RETURNING *
     `;
 
     const values = [
       market_id,
       option_label,
+      option_sub_label,
       option_image_url,
       yes_quantity,
       no_quantity,

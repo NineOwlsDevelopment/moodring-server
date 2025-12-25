@@ -128,9 +128,16 @@ const OptionRow = ({
 
         {/* Label */}
         <div className="relative flex-1 min-w-0 pr-2">
-          <span className="text-sm text-white font-medium break-words line-clamp-2">
-            {capitalizeWords(option.option_label)}
-          </span>
+          <div>
+            <span className="text-sm text-white font-medium break-words line-clamp-2">
+              {capitalizeWords(option.option_label)}
+            </span>
+            {option.option_sub_label && (
+              <div className="text-gray-300 text-xs mt-0.5 break-words">
+                {option.option_sub_label}
+              </div>
+            )}
+          </div>
           {!resolved && (
             <div className="mt-1 flex items-center gap-1.5">
               <span className="text-[10px] text-moon-grey-dark tabular-nums">
@@ -1216,8 +1223,15 @@ export const MarketDetail = () => {
                           >
                             {getDisplayPercentage(primaryYesPrice)}%
                           </div>
-                          <div className="text-[10px] sm:text-[11px] text-moon-grey mt-0.5 truncate">
-                            {capitalizeWords(selectedOptionData.option_label)}
+                          <div>
+                            <div className="text-[10px] sm:text-[11px] text-moon-grey mt-0.5 truncate">
+                              {capitalizeWords(selectedOptionData.option_label)}
+                            </div>
+                            {selectedOptionData.option_sub_label && (
+                              <div className="text-[10px] sm:text-[11px] text-gray-300 mt-0.5 truncate">
+                                {selectedOptionData.option_sub_label}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1299,7 +1313,17 @@ export const MarketDetail = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
                 <PriceChart
                   marketId={id}
-                  options={market.options}
+                  options={market.options.map((option: MarketOption) => ({
+                    id: option.id,
+                    option_label: option.option_label,
+                    option_sub_label: option.option_sub_label || "",
+                    yes_quantity: option.yes_quantity,
+                    no_quantity: option.no_quantity,
+                    yes_price: option.yes_price,
+                    yes_shares: option.yes_shares,
+                    no_shares: option.no_shares,
+                    total_volume: option.total_volume,
+                  }))}
                   liquidityParameter={market.liquidity_parameter}
                   isMultipleChoice={isMultipleChoice}
                   isResolved={market.is_resolved}

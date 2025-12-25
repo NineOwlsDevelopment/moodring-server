@@ -7,6 +7,10 @@ import { typedHandler } from "../types/routeHandler";
 import {
   createMarket,
   createOption,
+  updateMarket,
+  updateOption,
+  deleteOption,
+  deleteMarket,
   initializeMarket,
   withdrawCreatorFee,
   getFairValue,
@@ -44,6 +48,26 @@ router.post(
   upload.single("image"),
   typedHandler(createOption)
 );
+router.put(
+  "/:id",
+  authenticateToken,
+  validateUUID("id"),
+  upload.single("image"),
+  typedHandler(updateMarket)
+);
+router.put(
+  "/option/:id",
+  authenticateToken,
+  validateUUID("id"),
+  upload.single("image"),
+  typedHandler(updateOption)
+);
+router.delete(
+  "/option/:id",
+  authenticateToken,
+  validateUUID("id"),
+  typedHandler(deleteOption)
+);
 router.post("/initialize", authenticateToken, typedHandler(initializeMarket));
 router.post(
   "/withdraw-creator-fee",
@@ -61,6 +85,12 @@ router.delete(
   authenticateToken,
   validateUUID("id"),
   typedHandler(removeFromWatchlist)
+);
+router.delete(
+  "/:id",
+  authenticateToken,
+  validateUUID("id"),
+  typedHandler(deleteMarket)
 );
 router.get(
   "/:id/watchlist/status",

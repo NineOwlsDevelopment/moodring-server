@@ -397,9 +397,16 @@ const MarketCardComponent = ({
 
                             {/* Option Label */}
                             <div className="flex-1 min-w-0">
-                              <span className="font-semibold truncate block text-sm text-white group-hover/option:text-neon-iris-light transition-colors">
-                                {capitalizeWords(topOption.option_label)}
-                              </span>
+                              <div>
+                                <span className="font-semibold truncate block text-sm text-white group-hover/option:text-neon-iris-light transition-colors">
+                                  {capitalizeWords(topOption.option_label)}
+                                </span>
+                                {topOption.option_sub_label && (
+                                  <div className="text-gray-300 text-xs mt-0.5 truncate">
+                                    {topOption.option_sub_label}
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             {/* Dropdown Arrow + Count */}
@@ -476,9 +483,16 @@ const MarketCardComponent = ({
                                       </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                      <span className="font-medium truncate block text-xs text-white">
-                                        {capitalizeWords(option.option_label)}
-                                      </span>
+                                      <div>
+                                        <span className="font-medium truncate block text-xs text-white">
+                                          {capitalizeWords(option.option_label)}
+                                        </span>
+                                        {option.option_sub_label && (
+                                          <div className="text-gray-300 text-[9px] mt-0.5 truncate">
+                                            {option.option_sub_label}
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                     <div
                                       className={`flex-shrink-0 px-2 py-1 rounded text-xs font-bold tabular-nums ${

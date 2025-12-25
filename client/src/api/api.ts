@@ -660,6 +660,7 @@ export interface CreateMarketParams {
 export interface CreateOptionParams {
   market: string;
   optionLabel: string;
+  optionSubLabel?: string;
   image?: File;
 }
 
@@ -719,6 +720,9 @@ export const createOption = async (
   const formData = new FormData();
   formData.append("market", params.market);
   formData.append("optionLabel", params.optionLabel);
+  if (params.optionSubLabel !== undefined) {
+    formData.append("optionSubLabel", params.optionSubLabel);
+  }
   if (params.image) {
     formData.append("image", params.image);
   }
@@ -726,6 +730,96 @@ export const createOption = async (
   const response = await api.post("/market/option/create", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  return response.data;
+};
+
+export interface UpdateMarketParams {
+  marketId: string;
+  marketQuestion?: string;
+  marketDescription?: string;
+  marketExpirationDate?: number;
+  categoryIds?: string[];
+  image?: File;
+}
+
+export interface UpdateOptionParams {
+  optionId: string;
+  optionLabel?: string;
+  optionSubLabel?: string | null;
+  image?: File;
+}
+
+export const updateMarket = async (
+  params: UpdateMarketParams
+): Promise<{ market: any }> => {
+  const formData = new FormData();
+  if (params.marketQuestion !== undefined) {
+    formData.append("marketQuestion", params.marketQuestion);
+  }
+  if (params.marketDescription !== undefined) {
+    formData.append("marketDescription", params.marketDescription);
+  }
+  if (params.marketExpirationDate !== undefined) {
+    formData.append(
+      "marketExpirationDate",
+      params.marketExpirationDate.toString()
+    );
+  }
+  if (params.categoryIds !== undefined) {
+    formData.append("categoryIds", JSON.stringify(params.categoryIds));
+  }
+  if (params.image) {
+    formData.append("image", params.image);
+  }
+
+  const response = await api.put(`/market/${params.marketId}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  // Invalidate market cache
+  apiCache.invalidate(`market:${params.marketId}`);
+  apiCache.invalidatePattern("markets:");
+  return response.data;
+};
+
+export const updateOption = async (
+  params: UpdateOptionParams
+): Promise<{ option: any }> => {
+  const formData = new FormData();
+  if (params.optionLabel !== undefined) {
+    formData.append("optionLabel", params.optionLabel);
+  }
+  if (params.optionSubLabel !== undefined) {
+    if (params.optionSubLabel === null || params.optionSubLabel === "") {
+      formData.append("optionSubLabel", "");
+    } else {
+      formData.append("optionSubLabel", params.optionSubLabel);
+    }
+  }
+  if (params.image) {
+    formData.append("image", params.image);
+  }
+
+  const response = await api.put(
+    `/market/option/${params.optionId}`,
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
+  return response.data;
+};
+
+export const deleteOption = async (
+  optionId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/market/option/${optionId}`);
+  return response.data;
+};
+
+export const deleteMarket = async (
+  marketId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/market/${marketId}`);
   return response.data;
 };
 

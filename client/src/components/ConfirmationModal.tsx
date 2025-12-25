@@ -63,7 +63,11 @@ export const ConfirmationModal = ({
 
         {/* Icon */}
         <div className="flex items-center gap-3 mb-4">
-          <div className={`w-10 h-10 rounded-full ${styles.icon}/10 flex items-center justify-center`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            variant === "danger" ? "bg-brand-danger/10" :
+            variant === "warning" ? "bg-amber-500/10" :
+            "bg-neon-iris/10"
+          }`}>
             <AlertTriangle className={`w-5 h-5 ${styles.icon}`} />
           </div>
           <h3 className="text-lg font-bold text-white">{title}</h3>

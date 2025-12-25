@@ -123,9 +123,46 @@ export interface CreateOptionRequest extends UserRequest {
   body: {
     market: string;
     optionLabel: string;
+    optionSubLabel?: string;
     description?: string;
   };
   file?: Express.Multer.File;
+}
+
+export interface UpdateMarketRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+  body: {
+    marketQuestion?: string;
+    marketDescription?: string;
+    marketExpirationDate?: string;
+    categoryIds?: string[];
+  };
+  file?: Express.Multer.File;
+}
+
+export interface UpdateOptionRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+  body: {
+    optionLabel?: string;
+    optionSubLabel?: string;
+  };
+  file?: Express.Multer.File;
+}
+
+export interface DeleteOptionRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+}
+
+export interface DeleteMarketRequest extends UserRequest {
+  params: {
+    id: string;
+  };
 }
 
 export interface GetMarketsRequest extends Request {

@@ -1,6 +1,7 @@
 export interface MarketOption {
   id: string;
   option_label: string;
+  option_sub_label?: string | null;
   option_image_url?: string | null;
   yes_shares: number;
   no_shares: number;

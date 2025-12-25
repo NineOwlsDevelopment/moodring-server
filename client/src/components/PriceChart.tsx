@@ -19,16 +19,11 @@ import { calculateYesPrice, capitalizeWords } from "@/utils/format";
 import { useOptionSocket } from "@/hooks/useSocket";
 import { PriceUpdate } from "@/services/socket";
 import { GradientAccent } from "./GradientAccent";
+import { MarketOption } from "@/types/market";
 
 interface PriceChartProps {
   marketId: string;
-  options: Array<{
-    id: string;
-    option_label: string;
-    yes_quantity: number;
-    no_quantity: number;
-    yes_price?: number;
-  }>;
+  options: MarketOption[];
   liquidityParameter: number;
   isMultipleChoice?: boolean;
   isResolved?: boolean;
@@ -918,7 +913,7 @@ export const PriceChart = ({
       {isMultipleChoice && options.length > 1 && (
         <div className="px-4 pb-3 border-t border-white/[0.08] pt-3">
           <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            {options.slice(0, 6).map((opt, i) => {
+            {options.slice(0, 6).map((opt: any, i) => {
               const price =
                 (opt as any).yes_price ??
                 calculateYesPrice(
@@ -944,8 +939,10 @@ export const PriceChart = ({
                     style={{ backgroundColor: OPTION_COLORS[i] }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs text-white font-medium truncate">
-                      {capitalizeWords(opt.option_label)}
+                    <div>
+                      <div className="text-xs text-white font-medium truncate">
+                        {capitalizeWords(opt.option_label)}
+                      </div>
                     </div>
                     <div className="text-sm font-bold text-white tabular-nums">
                       {(price * 100).toFixed(1)}%

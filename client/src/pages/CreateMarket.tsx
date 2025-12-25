@@ -6,6 +6,9 @@ import { useUserStore } from "@/stores/userStore";
 import {
   createMarket,
   createOption,
+  updateMarket,
+  updateOption,
+  deleteOption,
   initializeMarket,
   fetchCategories,
   fetchMarket,
@@ -20,6 +23,7 @@ import {
   compressMarketImage,
   compressOptionImage,
 } from "@/utils/imageCompression";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 type Step = "details" | "options" | "review";
 
@@ -40,7 +44,7 @@ export const CreateMarket = () => {
   const [description, setDescription] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [isBinary, setIsBinary] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -56,10 +60,25 @@ export const CreateMarket = () => {
 
   // Options state
   const [options, setOptions] = useState<
-    { label: string; image: File | null }[]
+    {
+      id: string | null;
+      label: string;
+      subLabel?: string | null;
+      image: File | null;
+      imageUrl?: string | null;
+    }[]
   >([]);
   const [newOptionLabel, setNewOptionLabel] = useState("");
+  const [newOptionSubLabel, setNewOptionSubLabel] = useState("");
   const [newOptionImage, setNewOptionImage] = useState<File | null>(null);
+  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(
+    null
+  );
+  const [editingOptionLabel, setEditingOptionLabel] = useState("");
+  const [editingOptionSubLabel, setEditingOptionSubLabel] = useState("");
+  const [editingOptionImage, setEditingOptionImage] = useState<File | null>(
+    null
+  );
 
   // Liquidity state
   const [initialLiquidity, setInitialLiquidity] = useState<string>("100");
@@ -79,6 +98,10 @@ export const CreateMarket = () => {
   const [questionError, setQuestionError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [optionLabelError, setOptionLabelError] = useState<string | null>(null);
+
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [optionToDelete, setOptionToDelete] = useState<number | null>(null);
 
   // Load existing market if editing
   useEffect(() => {
@@ -131,8 +154,11 @@ export const CreateMarket = () => {
       if (market.options && market.options.length > 0) {
         setOptions(
           market.options.map((opt: any) => ({
+            id: opt.id,
             label: opt.option_label,
+            subLabel: opt.option_sub_label || null,
             image: null, // Can't recover the file object
+            imageUrl: opt.option_image_url || null,
           }))
         );
       }
@@ -324,6 +350,42 @@ export const CreateMarket = () => {
       }
     }
 
+    // If market already exists, update it instead of creating
+    if (createdMarketKey) {
+      setIsCreatingMarket(true);
+      setError(null);
+
+      try {
+        const expirationTimestamp = Math.floor(
+          new Date(expirationDate).getTime() / 1000
+        );
+
+        await updateMarket({
+          marketId: createdMarketKey,
+          marketQuestion: question,
+          marketDescription: description,
+          marketExpirationDate: expirationTimestamp,
+          categoryIds: selectedCategory ? selectedCategory : [],
+          image,
+        });
+
+        setSuccessMessage("Market details updated successfully!");
+        setTimeout(() => setSuccessMessage(null), 3000);
+        setCurrentStep("options");
+      } catch (error: any) {
+        console.error("Failed to update market:", error);
+        const errorMessage =
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to update market";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setIsCreatingMarket(false);
+      }
+      return;
+    }
+
     // Check if user has sufficient balance for creation fee
     if (user?.wallet?.balance_usdc !== undefined && creationFee > 0) {
       const userBalanceDisplay = user.wallet.balance_usdc / 1_000_000; // Convert microUSDC to USDC
@@ -360,7 +422,7 @@ export const CreateMarket = () => {
         marketExpirationDate: expirationTimestamp,
         usdcMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
         isBinary,
-        categoryIds: selectedCategory ? [selectedCategory] : undefined,
+        categoryIds: selectedCategory ? selectedCategory : [],
         image,
         resolutionMode,
       });
@@ -411,17 +473,24 @@ export const CreateMarket = () => {
     setError(null);
 
     try {
-      await createOption({
+      const { option } = await createOption({
         market: createdMarketKey,
         optionLabel: newOptionLabel,
+        optionSubLabel: newOptionSubLabel.trim() || undefined,
         image: newOptionImage || undefined,
       });
 
       setOptions([
         ...options,
-        { label: newOptionLabel, image: newOptionImage },
+        {
+          id: option,
+          label: newOptionLabel,
+          subLabel: newOptionSubLabel.trim() || null,
+          image: newOptionImage,
+        },
       ]);
       setNewOptionLabel("");
+      setNewOptionSubLabel("");
       setNewOptionImage(null);
       setSuccessMessage("Option added!");
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -431,6 +500,114 @@ export const CreateMarket = () => {
         error.response?.data?.error ||
           error.message ||
           "Failed to create option"
+      );
+    } finally {
+      setIsCreatingOption(false);
+    }
+  };
+
+  const handleEditOption = (index: number) => {
+    const option = options[index];
+    setEditingOptionIndex(index);
+    setEditingOptionLabel(option.label);
+    setEditingOptionSubLabel(option.subLabel || "");
+    setEditingOptionImage(null);
+  };
+
+  const handleSaveOption = async () => {
+    if (editingOptionIndex === null || !editingOptionLabel) {
+      return;
+    }
+
+    const option = options[editingOptionIndex];
+    if (!option.id) {
+      setError("Cannot edit option that hasn't been saved yet");
+      return;
+    }
+
+    // Validate for banned words
+    const optionValidation = validateTextContent(
+      editingOptionLabel,
+      "Option label"
+    );
+    if (!optionValidation.isValid) {
+      setError(optionValidation.error || "Invalid content in option label");
+      return;
+    }
+
+    setIsCreatingOption(true);
+    setError(null);
+
+    try {
+      await updateOption({
+        optionId: option.id,
+        optionLabel: editingOptionLabel,
+        optionSubLabel: editingOptionSubLabel.trim() || null,
+        image: editingOptionImage || undefined,
+      });
+
+      const updatedOptions = [...options];
+      updatedOptions[editingOptionIndex] = {
+        ...option,
+        label: editingOptionLabel,
+        subLabel: editingOptionSubLabel.trim() || null,
+        image: editingOptionImage || option.image,
+      };
+      setOptions(updatedOptions);
+      setEditingOptionIndex(null);
+      setEditingOptionLabel("");
+      setEditingOptionSubLabel("");
+      setEditingOptionImage(null);
+      setSuccessMessage("Option updated!");
+      setTimeout(() => setSuccessMessage(null), 2000);
+    } catch (error: any) {
+      console.error("Failed to update option:", error);
+      setError(
+        error.response?.data?.error ||
+          error.message ||
+          "Failed to update option"
+      );
+    } finally {
+      setIsCreatingOption(false);
+    }
+  };
+
+  const handleDeleteOption = async (index: number) => {
+    const option = options[index];
+    if (!option.id) {
+      // If option hasn't been saved yet, just remove it from local state
+      setOptions(options.filter((_, i) => i !== index));
+      return;
+    }
+
+    // Show confirmation modal
+    setOptionToDelete(index);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteOption = async () => {
+    if (optionToDelete === null) return;
+
+    const index = optionToDelete;
+    const option = options[index];
+
+    setShowDeleteModal(false);
+    setOptionToDelete(null);
+
+    setIsCreatingOption(true);
+    setError(null);
+
+    try {
+      await deleteOption(option.id!);
+      setOptions(options.filter((_, i) => i !== index));
+      setSuccessMessage("Option deleted!");
+      setTimeout(() => setSuccessMessage(null), 2000);
+    } catch (error: any) {
+      console.error("Failed to delete option:", error);
+      setError(
+        error.response?.data?.error ||
+          error.message ||
+          "Failed to delete option"
       );
     } finally {
       setIsCreatingOption(false);
@@ -928,16 +1105,16 @@ export const CreateMarket = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((cat) => {
-                    const isSelected = selectedCategory === cat.id;
+                    const isSelected = selectedCategory.includes(cat.id);
 
                     return (
                       <button
                         key={cat.id}
                         onClick={() => {
                           if (isSelected) {
-                            setSelectedCategory(null);
+                            setSelectedCategory([]);
                           } else {
-                            setSelectedCategory(cat.id);
+                            setSelectedCategory([cat.id]);
                           }
                         }}
                         className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -1112,22 +1289,28 @@ export const CreateMarket = () => {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             />
                           </svg>
-                          Creating Market...
+                          {createdMarketKey
+                            ? "Updating Market..."
+                            : "Creating Market..."}
                         </span>
                       ) : (
-                        `Create Market & Add Options${
-                          creationFee > 0
+                        `${
+                          createdMarketKey ? "Update" : "Create"
+                        } Market & Add Options${
+                          creationFee > 0 && !createdMarketKey
                             ? ` (${creationFee.toFixed(2)} USDC)`
                             : ""
                         } →`
                       )}
                     </button>
-                    {!hasEnoughBalance && creationFee > 0 && (
-                      <p className="mt-3 text-center text-sm text-danger-400">
-                        You need {creationFee.toFixed(2)} USDC to create a
-                        market
-                      </p>
-                    )}
+                    {!hasEnoughBalance &&
+                      creationFee > 0 &&
+                      !createdMarketKey && (
+                        <p className="mt-3 text-center text-sm text-danger-400">
+                          You need {creationFee.toFixed(2)} USDC to create a
+                          market
+                        </p>
+                      )}
                   </>
                 );
               })()}
@@ -1197,28 +1380,179 @@ export const CreateMarket = () => {
                         {idx + 1}
                       </div>
                       <div className="flex-1">
-                        <span className="text-white font-medium">
-                          {capitalizeWords(opt.label)}
-                        </span>
-                        {isBinary && (
-                          <p className="text-gray-500 text-sm mt-0.5">
-                            Traders will bet Yes or No
-                          </p>
+                        {editingOptionIndex === idx ? (
+                          <div className="space-y-3">
+                            <input
+                              type="text"
+                              value={editingOptionLabel}
+                              onChange={(e) =>
+                                setEditingOptionLabel(e.target.value)
+                              }
+                              maxLength={MAX_OPTION_LABEL_LENGTH}
+                              className="w-full px-3 py-2 bg-dark-900/50 border-2 border-primary-500 rounded-lg text-white placeholder-gray-600 focus:ring-0"
+                              placeholder="Option label"
+                            />
+                            <input
+                              type="text"
+                              value={editingOptionSubLabel}
+                              onChange={(e) =>
+                                setEditingOptionSubLabel(e.target.value)
+                              }
+                              maxLength={100}
+                              className="w-full px-3 py-2 bg-dark-900/50 border-2 border-dark-700 rounded-lg text-white placeholder-gray-600 focus:ring-0 focus:border-primary-500"
+                              placeholder="Sub-label (optional, e.g., Republican, Democratic)"
+                            />
+                            <div className="space-y-2">
+                              {(editingOptionImage || opt.imageUrl) && (
+                                <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-dark-700">
+                                  <img
+                                    src={
+                                      editingOptionImage
+                                        ? URL.createObjectURL(
+                                            editingOptionImage
+                                          )
+                                        : opt.imageUrl || ""
+                                    }
+                                    alt="Option preview"
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-dark-800 rounded-lg border border-dark-700 hover:border-primary-500/50 transition-colors">
+                                  <svg
+                                    className="w-4 h-4 text-gray-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={1.5}
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  <span className="text-gray-400 text-sm">
+                                    {editingOptionImage
+                                      ? editingOptionImage.name
+                                      : opt.imageUrl
+                                      ? "Change image"
+                                      : "Option image (optional)"}
+                                  </span>
+                                </div>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const compressedFile =
+                                          await compressOptionImage(file);
+                                        setEditingOptionImage(compressedFile);
+                                      } catch (error) {
+                                        console.error(
+                                          "Failed to compress image:",
+                                          error
+                                        );
+                                        toast.error(
+                                          "Failed to process image. Using original file."
+                                        );
+                                        setEditingOptionImage(file);
+                                      }
+                                    } else {
+                                      setEditingOptionImage(null);
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleSaveOption}
+                                disabled={isCreatingOption}
+                                className="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isCreatingOption ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingOptionIndex(null);
+                                  setEditingOptionLabel("");
+                                  setEditingOptionSubLabel("");
+                                  setEditingOptionImage(null);
+                                }}
+                                disabled={isCreatingOption}
+                                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded-lg text-sm font-medium hover:bg-dark-600 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <span className="text-white font-medium">
+                                {capitalizeWords(opt.label)}
+                              </span>
+                              {opt.subLabel && (
+                                <div className="text-gray-300 text-sm mt-0.5">
+                                  {opt.subLabel}
+                                </div>
+                              )}
+                            </div>
+                            {isBinary && (
+                              <p className="text-gray-500 text-sm mt-0.5">
+                                Traders will bet Yes or No
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
-                      <div className="ml-auto">
-                        <svg
-                          className="w-5 h-5 text-success-400"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
+                      {editingOptionIndex !== idx && (
+                        <div className="ml-auto flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditOption(idx)}
+                            className="p-2 rounded-lg bg-dark-700 text-gray-400 hover:text-primary-400 hover:bg-dark-600 transition-colors"
+                            title="Edit option"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOption(idx)}
+                            className="p-2 rounded-lg bg-dark-700 text-gray-400 hover:text-danger-400 hover:bg-dark-600 transition-colors"
+                            title="Delete option"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1293,6 +1627,27 @@ export const CreateMarket = () => {
                       </p>
                     )}
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-400">
+                        Sub-label (Optional)
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {newOptionSubLabel.length}/100
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={newOptionSubLabel}
+                      onChange={(e) => setNewOptionSubLabel(e.target.value)}
+                      maxLength={100}
+                      className="w-full px-5 py-3.5 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white placeholder-gray-600 focus:ring-0 focus:border-primary-500 transition-colors"
+                      placeholder="e.g., Republican, Democratic, Independent..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Add additional context to help identify this option
+                    </p>
+                  </div>
                   <div className="flex gap-4">
                     <label className="flex-1 cursor-pointer">
                       <div className="flex items-center gap-3 px-5 py-3 bg-dark-800 rounded-xl border border-dark-700 hover:border-primary-500/50 transition-colors">
@@ -1362,8 +1717,14 @@ export const CreateMarket = () => {
               </div>
             )}
 
-            {/* Initialize Button */}
-            <div className="pt-4">
+            {/* Navigation Buttons */}
+            <div className="pt-4 space-y-3">
+              <button
+                onClick={() => setCurrentStep("details")}
+                className="w-full py-3 rounded-xl font-medium text-gray-400 bg-dark-800 border border-dark-700 hover:text-white hover:border-primary-500/50 transition-all"
+              >
+                ← Back to Market Details
+              </button>
               {!canInitialize && (
                 <p className="text-center text-amber-400 mb-4 flex items-center justify-center gap-2">
                   <svg
@@ -1476,9 +1837,16 @@ export const CreateMarket = () => {
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-lg">
                       {idx + 1}
                     </div>
-                    <span className="text-white font-semibold text-lg">
-                      {capitalizeWords(opt.label)}
-                    </span>
+                    <div>
+                      <span className="text-white font-semibold text-lg">
+                        {capitalizeWords(opt.label)}
+                      </span>
+                      {opt.subLabel && (
+                        <div className="text-gray-300 text-sm mt-0.5">
+                          {opt.subLabel}
+                        </div>
+                      )}
+                    </div>
                     <span className="ml-auto text-gray-500 text-sm">
                       50% starting odds
                     </span>
@@ -1671,6 +2039,22 @@ export const CreateMarket = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Option Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setOptionToDelete(null);
+        }}
+        onConfirm={confirmDeleteOption}
+        title="Delete Option"
+        message="Are you sure you want to delete this option? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isCreatingOption}
+      />
     </div>
   );
 };

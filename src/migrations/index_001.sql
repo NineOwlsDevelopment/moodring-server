@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS markets (
   creator_fees_collected BIGINT NOT NULL DEFAULT 0,
   protocol_fees_collected BIGINT NOT NULL DEFAULT 0,
   question VARCHAR(255) NOT NULL,
-  market_description TEXT NOT NULL,
+  market_description TEXT,
   image_url VARCHAR(255) NOT NULL,
   expiration_timestamp BIGINT NOT NULL DEFAULT 0,
   designated_resolver VARCHAR(255),

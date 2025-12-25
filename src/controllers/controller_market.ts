@@ -40,6 +40,10 @@ import {
 import {
   CreateMarketRequest,
   CreateOptionRequest,
+  UpdateMarketRequest,
+  UpdateOptionRequest,
+  DeleteOptionRequest,
+  DeleteMarketRequest,
   GetMarketsRequest,
   GetFeaturedMarketsRequest,
   GetTrendingMarketsRequest,
@@ -468,7 +472,7 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
 export const createOption = async (req: CreateOptionRequest, res: Response) => {
   try {
     const userId = req.id;
-    const { market, optionLabel } = req.body;
+    const { market, optionLabel, optionSubLabel } = req.body;
 
     // Validate required fields
     if (!validateRequired(market, "Market ID").isValid) {
@@ -492,6 +496,35 @@ export const createOption = async (req: CreateOptionRequest, res: Response) => {
     );
     if (!optionBannedWordsCheck.isValid) {
       return sendValidationError(res, optionBannedWordsCheck.error!);
+    }
+
+    // Validate sub-label if provided
+    let normalizedSubLabel: string | null = null;
+    if (
+      optionSubLabel !== undefined &&
+      optionSubLabel !== null &&
+      optionSubLabel.trim() !== ""
+    ) {
+      const subLabelValidation = validateLength(
+        optionSubLabel,
+        "Option sub-label",
+        1,
+        100
+      );
+      if (!subLabelValidation.isValid) {
+        return sendValidationError(res, subLabelValidation.error!);
+      }
+
+      // Check for banned words in sub-label
+      const subLabelBannedWordsCheck = validateTextContent(
+        optionSubLabel,
+        "Option sub-label"
+      );
+      if (!subLabelBannedWordsCheck.isValid) {
+        return sendValidationError(res, subLabelBannedWordsCheck.error!);
+      }
+
+      normalizedSubLabel = optionSubLabel.trim();
     }
 
     // Handle image upload before transaction (external service call)
@@ -568,6 +601,7 @@ export const createOption = async (req: CreateOptionRequest, res: Response) => {
         {
           market_id: market as UUID,
           option_label: optionLabel.trim().toLowerCase(),
+          option_sub_label: normalizedSubLabel,
           option_image_url: imageUrl,
           yes_quantity: 0,
           no_quantity: 0,
@@ -590,6 +624,478 @@ export const createOption = async (req: CreateOptionRequest, res: Response) => {
       return sendError(res, error.statusCode, error.message, error.details);
     }
     console.error("Create option error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route PUT /api/market/:id
+ * @desc Update a market (only if not initialized)
+ * @access Private
+ */
+export const updateMarket = async (req: UpdateMarketRequest, res: Response) => {
+  try {
+    const userId = req.id;
+    const { id } = req.params;
+    const {
+      marketQuestion,
+      marketDescription,
+      marketExpirationDate,
+      categoryIds,
+    } = req.body;
+
+    if (!userId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    if (!validateRequired(id, "Market ID").isValid) {
+      return sendValidationError(res, "Market ID is required");
+    }
+
+    const updatedMarket = await withTransaction(async (client) => {
+      // Get market with lock
+      const marketResult = await client.query(
+        `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      const selectedMarket = marketResult.rows[0];
+
+      if (!selectedMarket) {
+        throw new TransactionError(404, "Market not found");
+      }
+
+      // Check authority
+      if (selectedMarket.creator_id !== userId) {
+        throw new TransactionError(
+          403,
+          "You are not the creator of the market"
+        );
+      }
+
+      // Only allow updates if market is not initialized
+      if (selectedMarket.is_initialized) {
+        throw new TransactionError(400, "Cannot update initialized market");
+      }
+
+      const updateData: any = {};
+
+      // Update question if provided
+      if (marketQuestion !== undefined) {
+        const questionValidation = validateLength(
+          marketQuestion,
+          "Market question",
+          12,
+          MAX_QUESTION_LENGTH
+        );
+        if (!questionValidation.isValid) {
+          throw new TransactionError(400, questionValidation.error!);
+        }
+
+        const normalizedQuestion = normalizeQuestion(marketQuestion);
+        if (normalizedQuestion.length > MAX_QUESTION_LENGTH) {
+          throw new TransactionError(
+            400,
+            `Market question must be ${MAX_QUESTION_LENGTH} characters or less`
+          );
+        }
+
+        const questionBannedWordsCheck = validateTextContent(
+          normalizedQuestion,
+          "Market question"
+        );
+        if (!questionBannedWordsCheck.isValid) {
+          throw new TransactionError(400, questionBannedWordsCheck.error!);
+        }
+
+        updateData.question = normalizedQuestion;
+      }
+
+      // Update description if provided
+      if (marketDescription !== undefined) {
+        if (marketDescription && marketDescription.trim()) {
+          const descriptionBannedWordsCheck = validateTextContent(
+            marketDescription,
+            "Market description"
+          );
+          if (!descriptionBannedWordsCheck.isValid) {
+            throw new TransactionError(400, descriptionBannedWordsCheck.error!);
+          }
+        }
+        updateData.market_description = marketDescription || "";
+      }
+
+      // Update expiration date if provided
+      if (marketExpirationDate !== undefined) {
+        const expirationTimestamp = Number(marketExpirationDate);
+        const timestampValidation = validateNumber(
+          expirationTimestamp,
+          "Expiration date",
+          Math.floor(Date.now() / 1000) + 1,
+          undefined
+        );
+        if (!timestampValidation.isValid) {
+          throw new TransactionError(
+            400,
+            timestampValidation.error || "Expiration date must be in the future"
+          );
+        }
+        updateData.expiration_timestamp = expirationTimestamp;
+      }
+
+      // Handle image upload if provided
+      if (req.file) {
+        const validation = await validateImage(
+          req.file.buffer,
+          req.file.mimetype
+        );
+        if (!validation.isValid) {
+          throw new TransactionError(400, validation.error || "Invalid image");
+        }
+
+        if (process.env.S3_BUCKET) {
+          try {
+            const imageUrl = await uploadImageToS3(
+              req.file.buffer,
+              req.file.originalname,
+              req.file.mimetype,
+              process.env.S3_BUCKET
+            );
+            updateData.image_url = imageUrl;
+          } catch (error) {
+            console.error("Failed to upload market image to S3:", error);
+            throw new TransactionError(500, "Failed to upload image");
+          }
+        }
+      }
+
+      // Update categories if provided
+      if (categoryIds !== undefined) {
+        // Parse and validate categoryIds
+        let parsedCategoryIds: string[] = [];
+        if (categoryIds) {
+          if (typeof categoryIds === "string") {
+            try {
+              parsedCategoryIds = JSON.parse(categoryIds);
+            } catch {
+              parsedCategoryIds = [categoryIds];
+            }
+          } else if (Array.isArray(categoryIds)) {
+            parsedCategoryIds = categoryIds;
+          }
+        }
+
+        // Delete existing category links
+        await client.query(
+          `DELETE FROM market_category_links WHERE market_id = $1`,
+          [id]
+        );
+
+        // Add new category links
+        if (parsedCategoryIds && parsedCategoryIds.length > 0) {
+          for (const categoryId of parsedCategoryIds) {
+            await client.query(
+              `INSERT INTO market_category_links (market_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [id, categoryId]
+            );
+          }
+        }
+      }
+
+      // Update market if there are changes
+      if (Object.keys(updateData).length > 0) {
+        const updated = await MarketModel.update(id, updateData, client);
+        return updated;
+      }
+
+      return selectedMarket;
+    });
+
+    return sendSuccess(res, { market: updatedMarket });
+  } catch (error: any) {
+    if (error instanceof TransactionError) {
+      return sendError(res, error.statusCode, error.message, error.details);
+    }
+    console.error("Update market error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route PUT /api/market/option/:id
+ * @desc Update an option (only if market not initialized)
+ * @access Private
+ */
+export const updateOption = async (req: UpdateOptionRequest, res: Response) => {
+  try {
+    const userId = req.id;
+    const { id } = req.params;
+    const { optionLabel, optionSubLabel } = req.body;
+
+    if (!userId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    if (!validateRequired(id, "Option ID").isValid) {
+      return sendValidationError(res, "Option ID is required");
+    }
+
+    const updatedOption = await withTransaction(async (client) => {
+      // Get option with market info
+      const optionResult = await client.query(
+        `SELECT o.*, m.creator_id, m.is_initialized, m.is_binary
+         FROM market_options o
+         INNER JOIN markets m ON o.market_id = m.id
+         WHERE o.id = $1
+         FOR UPDATE OF o, m`,
+        [id]
+      );
+      const option = optionResult.rows[0];
+
+      if (!option) {
+        throw new TransactionError(404, "Option not found");
+      }
+
+      // Check authority
+      if (option.creator_id !== userId) {
+        throw new TransactionError(
+          403,
+          "You are not the creator of this market"
+        );
+      }
+
+      // Only allow updates if market is not initialized
+      if (option.is_initialized) {
+        throw new TransactionError(
+          400,
+          "Cannot update options in initialized market"
+        );
+      }
+
+      const updateData: any = {};
+
+      // Update label if provided
+      if (optionLabel !== undefined) {
+        const labelValidation = validateLength(
+          optionLabel,
+          "Option label",
+          1,
+          MAX_OPTION_LABEL_LENGTH
+        );
+        if (!labelValidation.isValid) {
+          throw new TransactionError(400, labelValidation.error!);
+        }
+
+        const optionBannedWordsCheck = validateTextContent(
+          optionLabel,
+          "Option label"
+        );
+        if (!optionBannedWordsCheck.isValid) {
+          throw new TransactionError(400, optionBannedWordsCheck.error!);
+        }
+
+        updateData.option_label = optionLabel.trim().toLowerCase();
+      }
+
+      // Update sub-label if provided
+      if (optionSubLabel !== undefined) {
+        if (optionSubLabel === null || optionSubLabel.trim() === "") {
+          // Allow clearing the sub-label
+          updateData.option_sub_label = null;
+        } else {
+          const subLabelValidation = validateLength(
+            optionSubLabel,
+            "Option sub-label",
+            1,
+            100
+          );
+          if (!subLabelValidation.isValid) {
+            throw new TransactionError(400, subLabelValidation.error!);
+          }
+
+          const subLabelBannedWordsCheck = validateTextContent(
+            optionSubLabel,
+            "Option sub-label"
+          );
+          if (!subLabelBannedWordsCheck.isValid) {
+            throw new TransactionError(400, subLabelBannedWordsCheck.error!);
+          }
+
+          updateData.option_sub_label = optionSubLabel.trim();
+        }
+      }
+
+      // Handle image upload if provided
+      if (req.file) {
+        const validation = await validateImage(
+          req.file.buffer,
+          req.file.mimetype
+        );
+        if (!validation.isValid) {
+          throw new TransactionError(400, validation.error || "Invalid image");
+        }
+
+        if (process.env.S3_BUCKET) {
+          try {
+            const imageUrl = await uploadImageToS3(
+              req.file.buffer,
+              req.file.originalname,
+              req.file.mimetype,
+              process.env.S3_BUCKET
+            );
+            updateData.option_image_url = imageUrl;
+          } catch (error) {
+            console.error("Failed to upload option image to S3:", error);
+            throw new TransactionError(500, "Failed to upload image");
+          }
+        }
+      }
+
+      // Update option if there are changes
+      if (Object.keys(updateData).length > 0) {
+        const updated = await OptionModel.update(id, updateData, client);
+        return updated;
+      }
+
+      return option;
+    });
+
+    return sendSuccess(res, { option: updatedOption });
+  } catch (error: any) {
+    if (error instanceof TransactionError) {
+      return sendError(res, error.statusCode, error.message, error.details);
+    }
+    console.error("Update option error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route DELETE /api/market/option/:id
+ * @desc Delete an option (only if market not initialized)
+ * @access Private
+ */
+export const deleteOption = async (req: DeleteOptionRequest, res: Response) => {
+  try {
+    const userId = req.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    if (!validateRequired(id, "Option ID").isValid) {
+      return sendValidationError(res, "Option ID is required");
+    }
+
+    await withTransaction(async (client) => {
+      // Get option with market info
+      const optionResult = await client.query(
+        `SELECT o.*, m.creator_id, m.is_initialized, m.id as market_id, m.total_options
+         FROM market_options o
+         INNER JOIN markets m ON o.market_id = m.id
+         WHERE o.id = $1
+         FOR UPDATE OF o, m`,
+        [id]
+      );
+      const option = optionResult.rows[0];
+
+      if (!option) {
+        throw new TransactionError(404, "Option not found");
+      }
+
+      // Check authority
+      if (option.creator_id !== userId) {
+        throw new TransactionError(
+          403,
+          "You are not the creator of this market"
+        );
+      }
+
+      // Only allow deletion if market is not initialized
+      if (option.is_initialized) {
+        throw new TransactionError(
+          400,
+          "Cannot delete options from initialized market"
+        );
+      }
+
+      // Delete the option (CASCADE will handle related records)
+      await client.query(`DELETE FROM market_options WHERE id = $1`, [id]);
+
+      // Update market total_options count
+      const newTotalOptions = Math.max(0, (option.total_options || 0) - 1);
+      await client.query(
+        `UPDATE markets SET total_options = $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
+        [newTotalOptions, option.market_id]
+      );
+    });
+
+    return sendSuccess(res, { message: "Option deleted successfully" });
+  } catch (error: any) {
+    if (error instanceof TransactionError) {
+      return sendError(res, error.statusCode, error.message, error.details);
+    }
+    console.error("Delete option error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route DELETE /api/market/:id
+ * @desc Delete a market (only if not initialized)
+ * @access Private
+ */
+export const deleteMarket = async (req: DeleteMarketRequest, res: Response) => {
+  try {
+    const userId = req.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    if (!validateRequired(id, "Market ID").isValid) {
+      return sendValidationError(res, "Market ID is required");
+    }
+
+    await withTransaction(async (client) => {
+      // Get market with lock
+      const marketResult = await client.query(
+        `SELECT * FROM markets WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      const market = marketResult.rows[0];
+
+      if (!market) {
+        throw new TransactionError(404, "Market not found");
+      }
+
+      // Check authority
+      if (market.creator_id !== userId) {
+        throw new TransactionError(
+          403,
+          "You are not the creator of this market"
+        );
+      }
+
+      // Only allow deletion if market is not initialized
+      if (market.is_initialized) {
+        throw new TransactionError(
+          400,
+          "Cannot delete initialized market. Markets with trading activity cannot be deleted."
+        );
+      }
+
+      // Delete the market (CASCADE will handle related records like options, category links, etc.)
+      await client.query(`DELETE FROM markets WHERE id = $1`, [id]);
+    });
+
+    return sendSuccess(res, { message: "Market deleted successfully" });
+  } catch (error: any) {
+    if (error instanceof TransactionError) {
+      return sendError(res, error.statusCode, error.message, error.details);
+    }
+    console.error("Delete market error:", error);
     return sendError(res, 500, error.message || "Internal server error");
   }
 };
