@@ -1,12 +1,12 @@
 # MoodRing
 
-<div align="center">
-  <a href="https://moodring.io">
+<div align="left">
+  <a href="https://moodring.io" target="_blank" rel="noopener noreferrer">
     <img src="client/public/icon.png" alt="MoodRing Logo" width="200"/>
   </a>
   <br />
   <br />
-  <a href="https://moodring.io">🌐 Visit MoodRing.io</a>
+  <a href="https://moodring.io" target="_blank" rel="noopener noreferrer">Visit MoodRing.io</a>
 </div>
 
 <br />
