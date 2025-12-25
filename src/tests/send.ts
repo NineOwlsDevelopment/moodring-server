@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
-dotenv.config();
-import fs from "fs";
 import path from "path";
+dotenv.config({ path: path.join(__dirname, "../.env") });
+import fs from "fs";
 import {
   Connection,
   Keypair,
@@ -14,14 +14,15 @@ import {
   getMint,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
-import { USDC_MINT_ADDRESS } from "../sdk/constants";
+import { getUsdcMintAddress } from "../sdk/constants";
+import bs58 from "bs58";
 
-const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8899";
-const KEYPAIR_PATH = path.resolve(__dirname, "../local-keypair.json");
+const RPC_URL = process.env.RPC_URL;
 
 const loadKeypair = (): Keypair => {
-  const secret = JSON.parse(fs.readFileSync(KEYPAIR_PATH, "utf-8"));
-  return Keypair.fromSecretKey(Uint8Array.from(secret));
+  return Keypair.fromSecretKey(
+    bs58.decode(process.env.ADMIN_WALLET_PRIVATE_KEY || "")
+  );
 };
 
 const parseAmount = (value: string, decimals: number): bigint => {
@@ -38,21 +39,31 @@ const parseAmount = (value: string, decimals: number): bigint => {
 };
 
 const main = async () => {
-  const recipientArg = "GYK25czxiEsEQYJfkgMEYe3UGzpY3YFPTXhc8JakQTKA";
-  const amountArg = "60";
-  const mintArg = USDC_MINT_ADDRESS;
+  const recipientArg = "8d8dkwYvjrcYes4YgZMKXwPcQaW4dJ5kHtXriiq3L5JX";
+  const amountArg = "1.01";
+  const mintArg = getUsdcMintAddress(RPC_URL);
 
-  if (!recipientArg || !amountArg) {
+  if (!recipientArg || !amountArg || !mintArg || !RPC_URL) {
+    console.error("Missing required arguments");
     console.error(
-      "Usage: ts-node tests/sendUSDC.ts <recipient> <amount> [mintAddress]"
+      "Usage: ts-node tests/send.ts <recipient> <amount> [mintAddress]"
     );
+    console.error(
+      "Example: ts-node tests/send.ts 8d8dkwYvjrcYes4YgZMKXwPcQaW4dJ5kHtXriiq3L5JX 1.01"
+    );
+    console.error("RPC_URL: " + RPC_URL);
+    console.error("mintArg: " + mintArg);
+    console.error("recipientArg: " + recipientArg);
+    console.error("amountArg: " + amountArg);
     process.exit(1);
   }
 
   const connection = new Connection(RPC_URL, "confirmed");
   const sender = loadKeypair();
   const recipient = new PublicKey(recipientArg);
-  const mint = new PublicKey(mintArg ?? USDC_MINT_ADDRESS);
+  const mint = new PublicKey(mintArg);
+
+  console.log(mint.toBase58());
 
   const mintInfo = await getMint(connection, mint);
   const rawAmount = parseAmount(amountArg, mintInfo.decimals);

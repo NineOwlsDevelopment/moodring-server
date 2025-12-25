@@ -323,7 +323,7 @@ class CircleWalletService {
    * Send USDC from a Circle wallet to a destination address
    * @param walletId - Source wallet ID
    * @param destinationAddress - Recipient's Solana address
-   * @param amount - Amount in micro-USDC (6 decimals)
+   * @param amount - Amount in USDC (base units, not micro-USDC)
    * @returns Transaction ID
    */
   async sendUsdc(
@@ -338,6 +338,9 @@ class CircleWalletService {
     if (amount <= 0) {
       throw new Error("Amount must be positive");
     }
+
+    // Format amount as string (Circle API expects string in base units)
+    const amountString = amount.toString();
 
     try {
       // First, we need to get the token ID for USDC on Solana
@@ -357,8 +360,9 @@ class CircleWalletService {
 
       // Get hot wallet info to use as fee payer
       const hotWalletInfo = await this.getHotWalletInfo();
+
       const transactionParams: any = {
-        amount: [amount.toString()],
+        amount: [amountString],
         destinationAddress,
         tokenId: usdcTokenId,
         walletId,
@@ -367,6 +371,10 @@ class CircleWalletService {
           config: { feeLevel: "MEDIUM" },
         },
       };
+
+      console.log(
+        `[CircleWallet] Creating transaction: amount=${amountString} USDC, from=${walletId}, to=${destinationAddress}`
+      );
 
       // Set hot wallet as fee payer if available
       if (hotWalletInfo?.address) {
@@ -392,7 +400,33 @@ class CircleWalletService {
 
       return transactionId;
     } catch (error: any) {
-      console.error("[CircleWallet] Failed to send USDC:", error.message);
+      // Extract error message from Circle API response
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unknown error";
+
+      // Check for paymaster policy error (mainnet requirement)
+      if (
+        typeof errorMessage === "string" &&
+        errorMessage.includes("paymaster policy")
+      ) {
+        const paymasterError = new Error(
+          `Paymaster policy not configured for mainnet. Please set up a paymaster policy in the Circle developer console before sending transactions on mainnet. Original error: ${errorMessage}`
+        );
+        console.error(
+          "[CircleWallet] Paymaster policy error:",
+          paymasterError.message
+        );
+        throw paymasterError;
+      }
+
+      console.error(`[CircleWallet] Failed to send USDC: ${errorMessage}`, {
+        walletId,
+        destinationAddress,
+        amount: amountString,
+      });
       throw error;
     }
   }
@@ -464,7 +498,29 @@ class CircleWalletService {
 
       return transactionId;
     } catch (error: any) {
-      console.error("[CircleWallet] Failed to send SOL:", error.message);
+      // Extract error message from Circle API response
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unknown error";
+
+      // Check for paymaster policy error (mainnet requirement)
+      if (
+        typeof errorMessage === "string" &&
+        errorMessage.includes("paymaster policy")
+      ) {
+        const paymasterError = new Error(
+          `Paymaster policy not configured for mainnet. Please set up a paymaster policy in the Circle developer console before sending transactions on mainnet. Original error: ${errorMessage}`
+        );
+        console.error(
+          "[CircleWallet] Paymaster policy error:",
+          paymasterError.message
+        );
+        throw paymasterError;
+      }
+
+      console.error("[CircleWallet] Failed to send SOL:", errorMessage);
       throw error;
     }
   }
@@ -609,8 +665,9 @@ class CircleWalletService {
 
   /**
    * Sweep USDC from a user's Circle wallet to the hot wallet
+   * Sweeps the entire wallet balance to ensure any previously missed deposits are also swept
    * @param userWalletId - User's Circle wallet ID
-   * @param amount - Amount to sweep in micro-USDC (6 decimals)
+   * @param amount - Deposit amount that triggered the sweep (for logging/tracking, in micro-USDC)
    * @returns Circle transaction ID or null if failed
    */
   async sweepUsdcToHotWallet(
@@ -624,11 +681,6 @@ class CircleWalletService {
       return null;
     }
 
-    if (amount <= 0) {
-      console.warn("[CircleWallet] Cannot sweep zero or negative amount");
-      return null;
-    }
-
     try {
       // Get hot wallet info
       const hotWalletInfo = await this.getHotWalletInfo();
@@ -639,26 +691,34 @@ class CircleWalletService {
         return null;
       }
 
-      // Check user wallet balance
+      // Get user wallet balance - we'll sweep the entire balance
+      // This ensures any previously missed deposits are also swept
       const userBalance = await this.getUsdcBalance(userWalletId);
 
-      if (userBalance < amount) {
+      if (userBalance <= 0) {
         console.warn(
-          `[CircleWallet] Insufficient balance to sweep. Has: ${userBalance}, Need: ${amount}`
+          `[CircleWallet] No balance to sweep for wallet ${userWalletId}. Balance: ${userBalance} micro-USDC`
         );
         return null;
       }
 
-      // Transfer USDC from user wallet to hot wallet
+      // Sweep the entire balance (not just the deposit amount)
+      // Convert from micro-USDC to USDC (Circle API expects base units)
+      const usdcAmount = userBalance / 1_000_000;
+
+      console.log(
+        `[CircleWallet] Sweeping full balance: ${userBalance} micro-USDC (${usdcAmount} USDC) from wallet ${userWalletId} to hot wallet (deposit that triggered sweep: ${amount} micro-USDC)`
+      );
+
       const transactionId = await this.sendUsdc(
         userWalletId,
         hotWalletInfo.address,
-        userBalance / 10 ** 6
+        usdcAmount
       );
 
       console.log(
-        `[CircleWallet] ✅ Swept${userBalance} USDC (${
-          userBalance / 10 ** 6
+        `[CircleWallet] ✅ Swept ${userBalance} micro-USDC (${
+          userBalance / 1_000_000
         } USDC) from wallet ${userWalletId} to hot wallet ${
           hotWalletInfo.walletId
         } - tx: ${transactionId}`
@@ -666,11 +726,35 @@ class CircleWalletService {
 
       return transactionId;
     } catch (error: any) {
-      console.log(error.response);
-      console.error(
-        "[CircleWallet] Failed to sweep USDC to hot wallet:",
-        error.message
-      );
+      // Extract error message from Circle API response
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unknown error";
+
+      // Check for paymaster policy error (mainnet requirement)
+      if (
+        typeof errorMessage === "string" &&
+        errorMessage.includes("paymaster policy")
+      ) {
+        console.error(
+          "[CircleWallet] ❌ Failed to sweep USDC - Paymaster policy not configured for mainnet. Please set up a paymaster policy in the Circle developer console. The deposit was recorded but the sweep failed.",
+          {
+            userWalletId,
+            amount,
+            error: errorMessage,
+          }
+        );
+      } else {
+        console.error(
+          "[CircleWallet] Failed to sweep USDC to hot wallet:",
+          errorMessage
+        );
+        if (error.response) {
+          console.error("[CircleWallet] Error response:", error.response.data);
+        }
+      }
       return null;
     }
   }
