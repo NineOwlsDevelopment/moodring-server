@@ -1,9 +1,4 @@
 /**
- * Utility functions for adding artificial delays to improve UX
- * Prevents jarring transitions when operations complete too quickly
- */
-
-/**
  * Ensures a promise takes at least a minimum amount of time
  * Useful for making fast operations feel more natural
  *

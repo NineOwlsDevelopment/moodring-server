@@ -322,7 +322,6 @@ if (process.env.NODE_ENV === "production") {
     })
   );
 
-  //
   // Catch-all handler: send back React's index.html file for SPA routing
   // This must be LAST, after all API routes and static file serving
   app.get("*", (req, res, next) => {
