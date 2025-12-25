@@ -118,8 +118,9 @@ function getRealIP(req: Request): string {
 
 /**
  * Admin IP whitelist middleware
- * SECURITY FIX: ONLY uses direct connection IP, NEVER trusts proxy headers
- * This prevents X-Forwarded-For spoofing attacks on admin endpoints
+ * Uses CF-Connecting-IP header (Cloudflare) which is trustworthy and cannot be spoofed
+ * Falls back to req.ip (Express with trust proxy) or socket.remoteAddress
+ * This prevents X-Forwarded-For spoofing attacks while supporting Cloudflare
  */
 export const adminIPWhitelist = (
   req: Request,
@@ -147,10 +148,12 @@ export const adminIPWhitelist = (
     return next();
   }
 
-  // SECURITY FIX: ONLY use direct connection IP for admin endpoints
-  // NEVER trust X-Forwarded-For or X-Real-IP headers (can be spoofed)
-  // Use req.socket.remoteAddress (most reliable) or req.ip (Express default)
-  const clientIP = req.socket.remoteAddress || req.ip || "unknown";
+  // Get real client IP address
+  // Priority: CF-Connecting-IP (Cloudflare) > req.ip (Express with trust proxy) > socket.remoteAddress
+  // CF-Connecting-IP is trustworthy because it's set by Cloudflare, not the client
+  const cfIP = req.headers["cf-connecting-ip"] as string | undefined;
+  const clientIP =
+    cfIP?.trim() || req.ip || req.socket.remoteAddress || "unknown";
 
   // Validate IP format
   if (!isValidIP(clientIP)) {
@@ -169,8 +172,11 @@ export const adminIPWhitelist = (
 
   // Check if client IP is in whitelist
   if (!allowedIPs.includes(clientIP)) {
+    const connectionIP = req.socket.remoteAddress || req.ip || "unknown";
     console.warn(
-      `[IP Filter] Blocked admin request from IP: ${clientIP} (connection IP: ${req.ip})`
+      `[IP Filter] Blocked admin request from IP: ${clientIP}${
+        cfIP ? ` (CF-Connecting-IP: ${cfIP})` : ""
+      } (connection IP: ${connectionIP})`
     );
     return res.status(403).json({
       error: "Forbidden",
