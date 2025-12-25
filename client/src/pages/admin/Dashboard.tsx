@@ -7,6 +7,7 @@ import {
   fetchHotWalletStatus,
   fetchPendingWithdrawals,
   withdrawProtocolFees,
+  withdrawToColdStorage,
   fetchPauseFlags,
   updatePauseFlags,
   AdminStats,
@@ -25,6 +26,11 @@ export const AdminDashboard = () => {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [pauseTrading, setPauseTrading] = useState(false);
   const [updatingPause, setUpdatingPause] = useState(false);
+  const [coldStoragePasscode, setColdStoragePasscode] = useState("");
+  const [coldStorageAmount, setColdStorageAmount] = useState("");
+  const [coldStorageAddress, setColdStorageAddress] = useState("");
+  const [withdrawingToColdStorage, setWithdrawingToColdStorage] =
+    useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -90,6 +96,36 @@ export const AdminDashboard = () => {
       toast.error(error.response?.data?.error || "Failed to withdraw fees");
     } finally {
       setWithdrawing(false);
+    }
+  };
+
+  const handleWithdrawToColdStorage = async () => {
+    if (!coldStoragePasscode || !coldStorageAmount || !coldStorageAddress) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    try {
+      setWithdrawingToColdStorage(true);
+      const result = await withdrawToColdStorage({
+        passcode: coldStoragePasscode,
+        amount: Number(coldStorageAmount),
+        destination_address: coldStorageAddress,
+      });
+      toast.success(
+        `Successfully withdrew ${formatUSDC(result.amount)} to cold storage`
+      );
+      setColdStoragePasscode("");
+      setColdStorageAmount("");
+      setColdStorageAddress("");
+      loadDashboardData();
+    } catch (error: any) {
+      console.error("Failed to withdraw to cold storage:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to withdraw to cold storage"
+      );
+    } finally {
+      setWithdrawingToColdStorage(false);
     }
   };
 
@@ -388,6 +424,77 @@ export const AdminDashboard = () => {
               </span>
             </div>
           )}
+
+          {/* Cold Storage Withdrawal */}
+          <div className="mt-6 pt-6 border-t border-dark-700">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Withdraw to Cold Storage
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Passcode
+                </label>
+                <input
+                  type="password"
+                  value={coldStoragePasscode}
+                  onChange={(e) => setColdStoragePasscode(e.target.value)}
+                  placeholder="Enter HIGH_ORDER_TX_PW passcode"
+                  className="input w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Amount (USDC)
+                </label>
+                <input
+                  type="number"
+                  value={coldStorageAmount}
+                  onChange={(e) => setColdStorageAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.000001"
+                  min="0.01"
+                  className="input w-full"
+                />
+                {hotWallet.balances?.usdc && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Available: {hotWallet.balances.usdc_formatted}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Cold Storage Address
+                </label>
+                <input
+                  type="text"
+                  value={coldStorageAddress}
+                  onChange={(e) => setColdStorageAddress(e.target.value)}
+                  placeholder="Enter Solana address"
+                  className="input w-full font-mono text-sm"
+                />
+              </div>
+              <button
+                onClick={handleWithdrawToColdStorage}
+                disabled={
+                  withdrawingToColdStorage ||
+                  !coldStoragePasscode ||
+                  !coldStorageAmount ||
+                  !coldStorageAddress
+                }
+                className="btn btn-danger w-full"
+              >
+                {withdrawingToColdStorage
+                  ? "Withdrawing..."
+                  : "Withdraw to Cold Storage"}
+              </button>
+              <p className="text-xs text-gray-500">
+                ⚠️ This action requires the HIGH_ORDER_TX_PW passcode and will
+                transfer funds from the hot wallet to cold storage. This action
+                cannot be undone.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

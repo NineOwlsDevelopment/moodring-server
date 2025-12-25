@@ -1496,6 +1496,27 @@ export const createCircleHotWallet = async (
   return response.data;
 };
 
+export const withdrawToColdStorage = async (params: {
+  passcode: string;
+  amount: number;
+  destination_address: string;
+}): Promise<{
+  message: string;
+  transaction_id: string;
+  transaction_hash: string | null;
+  amount: number;
+  amount_usdc: number;
+  destination_address: string;
+  hot_wallet_balance_before: number;
+  hot_wallet_balance_after: number;
+}> => {
+  const response = await api.post(
+    "/admin/hot-wallet/withdraw-to-cold-storage",
+    params
+  );
+  return response.data;
+};
+
 // Withdrawals
 export interface PendingWithdrawal {
   id: string;

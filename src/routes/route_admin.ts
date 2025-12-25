@@ -26,6 +26,7 @@ import {
   getUserSuspiciousTrades,
   toggleUserAdmin,
   createCircleHotWallet,
+  withdrawToColdStorage,
   getDisputes,
   getDispute,
   resolveDispute,
@@ -77,6 +78,10 @@ router.get("/stats", getAdminStats);
 // Hot wallet management
 router.get("/hot-wallet", getHotWalletStatus);
 router.post("/circle-hot-wallet", typedHandler(createCircleHotWallet));
+router.post(
+  "/hot-wallet/withdraw-to-cold-storage",
+  typedHandler(withdrawToColdStorage)
+);
 
 // Admin settings management
 router.get("/settings", typedHandler(getAdminSettings));

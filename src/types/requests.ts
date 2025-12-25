@@ -776,6 +776,14 @@ export interface CreateCircleHotWalletRequest extends UserRequest {
   };
 }
 
+export interface WithdrawToColdStorageRequest extends UserRequest {
+  body: {
+    passcode: string;
+    amount: number;
+    destination_address: string;
+  };
+}
+
 export interface GetAdminSettingsRequest extends UserRequest {}
 
 export interface UpdateAdminSettingsRequest extends UserRequest {

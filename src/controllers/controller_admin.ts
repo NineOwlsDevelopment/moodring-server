@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { pool } from "../db";
 import { CategoryModel } from "../models/Category";
 import { MoodringModel } from "../models/Moodring";
@@ -39,6 +39,7 @@ import {
   AdjustUserBalanceRequest,
   GetHotWalletStatusRequest,
   CreateCircleHotWalletRequest,
+  WithdrawToColdStorageRequest,
   GetAdminSettingsRequest,
   UpdateAdminSettingsRequest,
   GetAdminSettingsGroupRequest,
@@ -1017,17 +1018,65 @@ export const getHotWalletStatus = async (
   res: Response
 ) => {
   try {
-    // TODO: Implement this
+    const circleWallet = getCircleWallet();
+
+    if (!circleWallet.isAvailable()) {
+      return sendSuccess(res, {
+        status: "not_configured",
+        message:
+          "Circle wallet service is not available. Check CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET environment variables.",
+      });
+    }
+
+    // Get hot wallet info
+    const hotWalletInfo = await circleWallet.getHotWalletInfo();
+    if (!hotWalletInfo) {
+      return sendSuccess(res, {
+        status: "not_configured",
+        message:
+          "Hot wallet not configured. Set CIRCLE_HOT_WALLET_ID environment variable.",
+      });
+    }
+
+    // Get balances
+    const [usdcBalance, solBalance] = await Promise.all([
+      circleWallet.getUsdcBalance(hotWalletInfo.walletId),
+      circleWallet.getSolBalance(hotWalletInfo.walletId),
+    ]);
+
+    // Format balances
+    const formatUsdc = (microUsdc: number) => {
+      return (microUsdc / 1_000_000).toFixed(6);
+    };
+
+    const formatSol = (lamports: number) => {
+      return (lamports / 1_000_000_000).toFixed(9);
+    };
+
     return sendSuccess(res, {
-      message: "Hot wallet status and balances - need to implement this",
-      hotWallet: {
-        address: "",
-        balance: 0,
+      status: "operational",
+      address: hotWalletInfo.address,
+      balances: {
+        usdc: usdcBalance,
+        usdc_formatted: formatUsdc(usdcBalance),
+        sol: solBalance,
+        sol_formatted: formatSol(solBalance),
+      },
+      // Note: Liabilities calculation would require querying all user wallets
+      // This is a placeholder - you may want to implement this separately
+      liabilities: {
+        total_usdc: 0,
+        total_usdc_formatted: "0.000000",
+        total_sol: 0,
+        total_wallets: 0,
       },
     });
   } catch (error: any) {
     console.error("Get hot wallet status error:", error);
-    return sendError(res, 500, error.message || "Internal server error");
+    return sendSuccess(res, {
+      status: "rpc_unavailable",
+      message: error.message || "Failed to get hot wallet status",
+    });
   }
 };
 
@@ -1082,6 +1131,174 @@ export const createCircleHotWallet = async (
     );
   } catch (error: any) {
     console.error("Create Circle hot wallet error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route POST /api/admin/hot-wallet/withdraw-to-cold-storage
+ * @desc Withdraw any amount from hot wallet to cold storage (requires HIGH_ORDER_TX_PW passcode)
+ * @access Admin
+ */
+export const withdrawToColdStorage = async (
+  req: WithdrawToColdStorageRequest,
+  res: Response
+) => {
+  try {
+    const adminUserId = req.id;
+    const { passcode, amount, destination_address } = req.body;
+
+    // Validate passcode matches HIGH_ORDER_TX_PW environment variable
+    const requiredPasscode = process.env.HIGH_ORDER_TX_PW;
+    if (!requiredPasscode) {
+      return sendError(
+        res,
+        500,
+        "HIGH_ORDER_TX_PW environment variable not configured"
+      );
+    }
+
+    if (passcode !== requiredPasscode) {
+      return sendError(res, 403, "Invalid passcode");
+    }
+
+    // Validate destination address
+    try {
+      new PublicKey(destination_address);
+    } catch {
+      return sendValidationError(res, "Invalid destination address");
+    }
+
+    // Validate amount
+    const amountValidation = validateNumber(amount, "Amount", 0.01, undefined);
+    if (!amountValidation.isValid) {
+      return sendValidationError(res, amountValidation.error!);
+    }
+
+    // Convert amount to micro-USDC (same logic as withdrawal controller)
+    const amountStr = String(amount);
+    const decimalIndex = amountStr.indexOf(".");
+    let parsedAmount: number;
+
+    if (decimalIndex === -1) {
+      parsedAmount = Math.floor(Number(amountStr)) * 1_000_000;
+    } else {
+      const wholePart = amountStr.substring(0, decimalIndex);
+      const decimalPart = amountStr.substring(decimalIndex + 1);
+
+      if (decimalPart.length > 6) {
+        return sendValidationError(
+          res,
+          "Amount precision error. USDC supports up to 6 decimal places."
+        );
+      }
+
+      const wholeMicro = Math.floor(Number(wholePart)) * 1_000_000;
+      const decimalMicro = Math.floor(
+        Number(decimalPart) * Math.pow(10, 6 - decimalPart.length)
+      );
+      parsedAmount = wholeMicro + decimalMicro;
+    }
+
+    if (parsedAmount <= 0) {
+      return sendValidationError(res, "Amount must be greater than 0");
+    }
+
+    const circleWallet = getCircleWallet();
+    if (!circleWallet.isAvailable()) {
+      return sendError(
+        res,
+        503,
+        "Circle wallet service is not available. Check CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET environment variables."
+      );
+    }
+
+    // Get hot wallet info
+    const hotWalletInfo = await circleWallet.getHotWalletInfo();
+    if (!hotWalletInfo) {
+      return sendError(
+        res,
+        500,
+        "Hot wallet not configured. Set CIRCLE_HOT_WALLET_ID environment variable."
+      );
+    }
+
+    // Get hot wallet balance
+    const hotWalletBalance = await circleWallet.getUsdcBalance(
+      hotWalletInfo.walletId
+    );
+
+    if (hotWalletBalance < parsedAmount) {
+      return sendError(res, 400, "Insufficient hot wallet balance", {
+        available: hotWalletBalance,
+        requested: parsedAmount,
+        available_usdc: hotWalletBalance / 1_000_000,
+        requested_usdc: parsedAmount / 1_000_000,
+      });
+    }
+
+    // Convert from micro-USDC to USDC (Circle API expects base units)
+    const usdcAmount = parsedAmount / 1_000_000;
+
+    // Send USDC from hot wallet to cold storage
+    let transactionId: string;
+    try {
+      transactionId = await circleWallet.sendUsdc(
+        hotWalletInfo.walletId,
+        destination_address,
+        usdcAmount
+      );
+    } catch (error: any) {
+      console.error("Failed to send USDC to cold storage:", error);
+      return sendError(
+        res,
+        500,
+        `Failed to send USDC: ${error.message || "Unknown error"}`,
+        {
+          hot_wallet_id: hotWalletInfo.walletId,
+          destination_address,
+          amount: usdcAmount,
+        }
+      );
+    }
+
+    // Get transaction hash
+    const transactionHash = await circleWallet.getTransactionHash(
+      transactionId
+    );
+
+    // Log the admin action
+    await pool.query(
+      `INSERT INTO admin_actions (admin_user_id, action_type, metadata)
+       VALUES ($1, 'withdraw_to_cold_storage', $2)`,
+      [
+        adminUserId,
+        prepareJsonb({
+          hot_wallet_id: hotWalletInfo.walletId,
+          hot_wallet_address: hotWalletInfo.address,
+          destination_address,
+          amount: parsedAmount,
+          amount_usdc: usdcAmount,
+          transaction_id: transactionId,
+          transaction_hash: transactionHash,
+          previous_balance: hotWalletBalance,
+          new_balance: hotWalletBalance - parsedAmount,
+        }),
+      ]
+    );
+
+    return sendSuccess(res, {
+      message: "Funds withdrawn to cold storage successfully",
+      transaction_id: transactionId,
+      transaction_hash: transactionHash,
+      amount: parsedAmount,
+      amount_usdc: usdcAmount,
+      destination_address,
+      hot_wallet_balance_before: hotWalletBalance,
+      hot_wallet_balance_after: hotWalletBalance - parsedAmount,
+    });
+  } catch (error: any) {
+    console.error("Withdraw to cold storage error:", error);
     return sendError(res, 500, error.message || "Internal server error");
   }
 };
