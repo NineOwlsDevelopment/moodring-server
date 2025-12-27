@@ -29,6 +29,12 @@
     /* Shadow Variables */
     --shadow-neon: 0 0 18px rgba(124, 77, 255, 0.45);
     --shadow-aqua: 0 0 18px rgba(33, 246, 210, 0.4);
+
+    /* Layout Variables */
+    /* Bottom nav base height (approximately 64px for nav content + padding) */
+    --bottom-nav-height: 64px;
+    /* Bottom nav total height including safe-area-inset for iOS */
+    --bottom-nav-height-total: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   html {
@@ -484,6 +490,17 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* Bottom nav spacing - reserves space for fixed bottom nav on mobile only */
+  .pb-bottom-nav {
+    padding-bottom: var(--bottom-nav-height-total);
+  }
+
+  @media (min-width: 768px) {
+    .pb-bottom-nav {
+      padding-bottom: 0;
+    }
+  }
+
   /* Notification dropdown mobile safe area */
   .notification-dropdown-mobile {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -744,6 +761,29 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Hide bottom nav when trade panel is open on mobile */
+  @media (max-width: 767px) {
+    body.trade-panel-open nav.fixed.bottom-0,
+    body.trade-panel-open nav[class*="fixed"][class*="bottom-0"] {
+      display: none !important;
     }
   }
 

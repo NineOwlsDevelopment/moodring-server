@@ -25,12 +25,14 @@ export const PrivateLayout = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 pb-16 md:pb-0 md:pt-16">
+      {/* Padding-bottom reserves space for fixed bottom nav on mobile */}
+      <main className="flex-1 md:pt-16 pb-bottom-nav">
         <Outlet />
       </main>
       <div className="hidden md:block">
         <Footer />
       </div>
+      {/* Mobile nav (fixed to bottom, reserved space in main) */}
       <MobileNav />
     </div>
   );

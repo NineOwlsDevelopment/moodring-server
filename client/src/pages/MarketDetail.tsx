@@ -621,6 +621,18 @@ export const MarketDetail = () => {
   const tradeFormRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
+  // Hide bottom nav when trade panel is open
+  useEffect(() => {
+    if (showMobileTradePanel) {
+      document.body.classList.add('trade-panel-open');
+    } else {
+      document.body.classList.remove('trade-panel-open');
+    }
+    return () => {
+      document.body.classList.remove('trade-panel-open');
+    };
+  }, [showMobileTradePanel]);
+
   const fetchMarketData = async (publicKey: string) => {
     try {
       const foundMarket = await fetchMarket(publicKey);
@@ -1993,63 +2005,38 @@ export const MarketDetail = () => {
         </div>
       )}
 
-      {/* Mobile Trade Button - Always visible and fixed at bottom */}
-      {!market.is_resolved && (
-        <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40"
-        >
-          <button
-            onClick={() => setShowMobileTradePanel(true)}
-            className={`w-full py-4 rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-2 ${
-              selectedSide === "yes"
-                ? "bg-emerald-500 shadow-emerald-500/25"
-                : "bg-rose-500 shadow-rose-500/25"
-            }`}
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-              />
-            </svg>
-            Trade {selectedSide.toUpperCase()}
-          </button>
-        </div>
-      )}
-
-      {/* Mobile Trade Panel */}
+      {/* Mobile Trade Panel - Full screen slide from right */}
       {showMobileTradePanel && (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="lg:hidden fixed inset-0 z-[60]">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowMobileTradePanel(false)}
           />
-          <div className="absolute bottom-0 inset-x-0 bg-graphite-light rounded-t-3xl max-h-[90vh] overflow-y-auto animate-slide-up">
-            {/* Handle */}
-            <div className="sticky top-0 bg-graphite-light pt-3 pb-2 px-4 border-b border-white/[0.04]">
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3" />
+          <div 
+            className="absolute inset-0 bg-graphite-light overflow-y-auto animate-slide-in-right"
+            style={{
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+            }}
+          >
+            {/* Header with close button */}
+            <div className="sticky top-0 bg-graphite-light pt-4 pb-3 px-4 border-b border-white/[0.04] z-10">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Trade</h2>
+                  <h2 className="text-xl font-bold text-white">Trade</h2>
                   {selectedOptionData && isMultipleChoice && (
-                    <p className="text-sm text-moon-grey-dark">
+                    <p className="text-sm text-moon-grey-dark mt-1">
                       {selectedOptionData.option_label}
                     </p>
                   )}
                 </div>
                 <button
                   onClick={() => setShowMobileTradePanel(false)}
-                  className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-moon-grey"
+                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                  aria-label="Close trade panel"
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-6 h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -2092,7 +2079,7 @@ export const MarketDetail = () => {
             </div>
 
             {/* Trade Form */}
-            <div className="p-4">
+            <div className="px-4 pt-4 pb-8">
               <TradeForm
                 key={`m-${selectedOption}-${selectedOptionData?.yes_quantity}-${selectedOptionData?.no_quantity}`}
                 market={market}

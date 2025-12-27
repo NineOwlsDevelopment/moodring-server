@@ -9,7 +9,8 @@ export const PublicLayout = () => {
       <Navbar />
 
       {/* Main content area — CLEAN, NO overflow, NO isolation, NO transforms */}
-      <main className="flex-1 md:pt-16 pb-16 md:pb-0 overflow-visible">
+      {/* Padding-bottom reserves space for fixed bottom nav on mobile */}
+      <main className="flex-1 md:pt-16 overflow-visible pb-bottom-nav">
         <Outlet />
       </main>
 
@@ -18,7 +19,7 @@ export const PublicLayout = () => {
         <Footer />
       </div>
 
-      {/* Mobile nav (fixed) */}
+      {/* Mobile nav (fixed to bottom, reserved space in main) */}
       <MobileNav />
     </div>
   );

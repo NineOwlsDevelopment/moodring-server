@@ -44,8 +44,14 @@ export const MobileNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-graphite-deep/95 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around px-1 py-1">
+    <nav
+      className="fixed bottom-0 left-0 right-0 w-full z-50 block md:hidden bg-graphite-deep/95 backdrop-blur-xl border-t border-white/5"
+      style={{
+        height: "var(--bottom-nav-height-total)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
+      <div className="flex items-center justify-around px-1 py-1 w-full h-[var(--bottom-nav-height)]">
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
