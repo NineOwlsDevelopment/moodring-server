@@ -33,7 +33,10 @@ export const AdminLayout = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Top Navigation - fixed on desktop, sticky on mobile */}
       <Navbar />
+      
+      {/* Main content area — contained between nav and footer */}
       <div className="flex-1 flex md:pt-16">
         {/* Sidebar */}
         <aside className="w-64 bg-dark-900 border-r border-dark-800">
@@ -70,6 +73,8 @@ export const AdminLayout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {/* Footer - contains the body from below */}
       <Footer />
     </div>
   );
