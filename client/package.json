@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc && NODE_OPTIONS=--max-old-space-size=4096 vite build",
-    "build-dev": "NODE_OPTIONS=--max-old-space-size=4096 tsc || true && NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 tsc && NODE_OPTIONS=--max-old-space-size=4096 vite build --mode production",
+    "build-dev": "NODE_OPTIONS=--max-old-space-size=4096 tsc || true && NODE_OPTIONS=--max-old-space-size=4096 vite build --mode development",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "NODE_OPTIONS=--max-old-space-size=4096 vite preview"
   },

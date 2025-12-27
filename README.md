@@ -11,7 +11,7 @@
 
 <br />
 
-A Solana-native prediction market platform with deep LMSR liquidity and instant settlement. Trade on future events with YES/NO binary option markets.
+A Solana-native prediction market platform with deep LMSR liquidity and instant settlement. Trade on future events with YES/NO binary multi-option markets.
 
 ## Tech Stack
 

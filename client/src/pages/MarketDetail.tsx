@@ -167,7 +167,7 @@ const OptionRow = ({
 
         {/* Action Buttons */}
         {!resolved && (
-          <div className="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          <div className="relative hidden sm:flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -909,7 +909,7 @@ export const MarketDetail = () => {
   return (
     <div className="min-h-screen bg-ink-black">
       <div
-        className="mx-auto max-w-6xl px-4 py-10"
+        className="mx-auto max-w-6xl px-4 py-10 pb-24 lg:pb-10"
         data-market-detail-container
       >
         {/* Breadcrumb - Positioned absolutely to stay above content but below navbar */}
@@ -1993,12 +1993,10 @@ export const MarketDetail = () => {
         </div>
       )}
 
-      {/* Mobile Trade Button - Always visible when not scrolled */}
+      {/* Mobile Trade Button - Always visible and fixed at bottom */}
       {!market.is_resolved && (
         <div
-          className={`lg:hidden fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40 transition-all duration-300 ${
-            isScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
+          className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40"
         >
           <button
             onClick={() => setShowMobileTradePanel(true)}
