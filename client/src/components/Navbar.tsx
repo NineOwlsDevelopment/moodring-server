@@ -1,5 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore } from "@/stores/userStore";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -41,6 +43,8 @@ export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,17 +52,46 @@ export const Navbar = () => {
   useEffect(() => {
     if (!isUserMenuOpen) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
-      ) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setIsUserMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Use capture phase to catch events earlier
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("touchstart", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
+    };
   }, [isUserMenuOpen]);
+
+  // Close mobile menu when clicking outside and prevent body scroll
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    // Prevent body scroll when drawer is open
+    document.body.style.overflow = "hidden";
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      const isClickInMenu = mobileMenuRef.current?.contains(target);
+      const isClickInButton = mobileMenuButtonRef.current?.contains(target);
+
+      if (!isClickInMenu && !isClickInButton) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    // Use capture phase to catch events earlier
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("touchstart", handleClickOutside, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
 
   // Subscribe to balance updates when user is logged in
   useEffect(() => {
@@ -128,6 +161,19 @@ export const Navbar = () => {
     return `${name.slice(0, maxLength)}...`;
   };
 
+  // Handlers to close dropdowns immediately
+  const closeUserMenu = useCallback(() => {
+    flushSync(() => {
+      setIsUserMenuOpen(false);
+    });
+  }, []);
+
+  const closeMobileMenu = useCallback(() => {
+    flushSync(() => {
+      setIsMobileMenuOpen(false);
+    });
+  }, []);
+
   return (
     <nav className="relative bg-graphite-deep/95 backdrop-blur-xl sticky top-0 md:fixed md:top-0 md:left-0 md:right-0 z-50">
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
@@ -136,6 +182,7 @@ export const Navbar = () => {
           {/* Logo */}
           <Link
             to="/"
+            onClick={closeMobileMenu}
             className="flex items-center gap-2.5 group flex-shrink-0"
           >
             <motion.div
@@ -159,6 +206,10 @@ export const Navbar = () => {
               <Link
                 key={link.path}
                 to={link.path}
+                onClick={() => {
+                  closeMobileMenu();
+                  closeUserMenu();
+                }}
                 className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap ${
                   isActive(link.path)
                     ? "text-white"
@@ -207,7 +258,10 @@ export const Navbar = () => {
                 {/* User Menu Dropdown */}
                 <div className="relative hidden md:block" ref={userMenuRef}>
                   <button
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsUserMenuOpen(!isUserMenuOpen);
+                    }}
                     className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-colors"
                   >
                     <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center text-white text-sm font-bold shadow-button-primary">
@@ -278,34 +332,19 @@ export const Navbar = () => {
 
                         {/* Menu Items */}
                         <div className="py-2">
-                          <MenuLink
-                            to="/my-markets"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
+                          <MenuLink to="/my-markets" onClick={closeUserMenu}>
                             <BarChart3 className="w-5 h-5" /> My Markets
                           </MenuLink>
-                          <MenuLink
-                            to="/watchlist"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
+                          <MenuLink to="/watchlist" onClick={closeUserMenu}>
                             <Bookmark className="w-5 h-5" /> Watchlist
                           </MenuLink>
-                          <MenuLink
-                            to="/portfolio"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
+                          <MenuLink to="/portfolio" onClick={closeUserMenu}>
                             <Wallet className="w-5 h-5" /> Portfolio
                           </MenuLink>
-                          <MenuLink
-                            to="/activity"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
+                          <MenuLink to="/activity" onClick={closeUserMenu}>
                             <Clock className="w-5 h-5" /> Activity
                           </MenuLink>
-                          <MenuLink
-                            to="/settings"
-                            onClick={() => setIsUserMenuOpen(false)}
-                          >
+                          <MenuLink to="/settings" onClick={closeUserMenu}>
                             <Settings className="w-5 h-5" /> Settings
                           </MenuLink>
                         </div>
@@ -336,7 +375,11 @@ export const Navbar = () => {
 
             {/* Mobile Menu Button */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              ref={mobileMenuButtonRef}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMobileMenuOpen(!isMobileMenuOpen);
+              }}
               className="lg:hidden p-2 text-moon-grey hover:text-white transition-colors rounded-xl hover:bg-white/5"
             >
               <motion.div
@@ -353,86 +396,132 @@ export const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="lg:hidden border-t border-white/[0.04] py-4 overflow-hidden"
-            >
-              {/* User Info (Mobile) */}
-              {user && (
-                <div className="px-2 pb-4 mb-3 border-b border-white/[0.04]">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0">
-                      {user.display_name?.charAt(0).toUpperCase() || "U"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-white truncate">
-                        {truncateUsername(user.display_name || "", 20)}
-                      </p>
-                      <p className="text-sm text-moon-grey truncate">
-                        @{truncateUsername(user.username || "", 18)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-3 bg-graphite-light rounded-xl">
-                    <span className="text-sm text-moon-grey">Balance</span>
-                    <span className="font-semibold text-white tabular-nums">
-                      {formatUSDC(user?.wallet?.balance_usdc) || "0.00"} USDC
-                    </span>
-                  </div>
-                </div>
-              )}
+        {/* Mobile Menu Drawer - Rendered via Portal */}
+        {typeof window !== "undefined" &&
+          createPortal(
+            <AnimatePresence>
+              {isMobileMenuOpen && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={closeMobileMenu}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+                  />
 
-              {/* Nav Links */}
-              <div className="space-y-1 px-2">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`block px-4 py-3 rounded-xl font-medium transition-all ${
-                      isActive(link.path)
-                        ? "bg-neon-iris/15 text-white"
-                        : "text-moon-grey hover:text-white hover:bg-white/5"
-                    }`}
+                  {/* Drawer */}
+                  <motion.div
+                    ref={mobileMenuRef}
+                    initial={{ x: "100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "100%" }}
+                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                    className="fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-graphite-deep z-[101] lg:hidden shadow-card-elevated overflow-y-auto"
+                    style={{
+                      paddingTop: "env(safe-area-inset-top, 0px)",
+                      paddingBottom: "env(safe-area-inset-bottom, 0px)",
+                    }}
                   >
-                    {link.label}
-                  </Link>
-                ))}
+                    {/* Drawer Header with Close Button */}
+                    <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
+                      <div className="flex items-center gap-2.5">
+                        <img src={logo} alt="Moodring" className="w-8 h-8" />
+                        <span className="text-lg font-bold text-white">
+                          Moodring
+                        </span>
+                      </div>
+                      <button
+                        onClick={closeMobileMenu}
+                        className="p-2 rounded-xl hover:bg-white/5 transition-colors text-moon-grey hover:text-white"
+                        aria-label="Close menu"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
 
-                {user && (
-                  <>
-                    <Link
-                      to="/settings"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`block px-4 py-3 rounded-xl font-medium transition-all ${
-                        isActive("/settings")
-                          ? "bg-neon-iris/15 text-white"
-                          : "text-moon-grey hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      Settings
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="w-full text-left px-4 py-3 rounded-xl font-medium text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-all"
-                    >
-                      Logout
-                    </button>
-                  </>
-                )}
-              </div>
-            </motion.div>
+                    {/* Drawer Content */}
+                    <div className="p-4">
+                      {/* User Info (Mobile) */}
+                      {user && (
+                        <div className="pb-4 mb-4 border-b border-white/[0.04]">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0">
+                              {user.display_name?.charAt(0).toUpperCase() ||
+                                "U"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-white truncate">
+                                {truncateUsername(user.display_name || "", 20)}
+                              </p>
+                              <p className="text-sm text-moon-grey truncate">
+                                @{truncateUsername(user.username || "", 18)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between px-4 py-3 bg-graphite-light rounded-xl">
+                            <span className="text-sm text-moon-grey">
+                              Balance
+                            </span>
+                            <span className="font-semibold text-white tabular-nums">
+                              {formatUSDC(user?.wallet?.balance_usdc) || "0.00"}{" "}
+                              USDC
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Nav Links */}
+                      <div className="space-y-1">
+                        {navLinks.map((link) => (
+                          <Link
+                            key={link.path}
+                            to={link.path}
+                            onClick={closeMobileMenu}
+                            className={`block px-4 py-3 rounded-xl font-medium transition-all ${
+                              isActive(link.path)
+                                ? "bg-neon-iris/15 text-white"
+                                : "text-moon-grey hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {link.label}
+                          </Link>
+                        ))}
+
+                        {user && (
+                          <>
+                            <Link
+                              to="/settings"
+                              onClick={closeMobileMenu}
+                              className={`block px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive("/settings")
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              Settings
+                            </Link>
+                            <button
+                              onClick={() => {
+                                closeMobileMenu();
+                                handleLogout();
+                              }}
+                              className="w-full text-left px-4 py-3 rounded-xl font-medium text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-all"
+                            >
+                              Logout
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>,
+            document.body
           )}
-        </AnimatePresence>
       </div>
 
       {/* Login Modal */}
@@ -463,7 +552,10 @@ const MenuLink = ({
 }) => (
   <Link
     to={to}
-    onClick={onClick}
+    onClick={() => {
+      // Close dropdown immediately, before navigation
+      onClick();
+    }}
     className="flex items-center gap-3 px-4 py-2.5 text-moon-grey hover:text-white hover:bg-white/5 transition-colors"
   >
     {children}

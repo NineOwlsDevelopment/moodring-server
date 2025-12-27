@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { flushSync } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   fetchNotifications,
@@ -57,27 +58,26 @@ export const NotificationDropdown = () => {
 
   // Handle click/touch outside to close dropdown
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsOpen(false);
       }
     };
 
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-      // Prevent body scroll on mobile when dropdown is open
-      if (window.innerWidth < 768) {
-        document.body.style.overflow = "hidden";
-      }
+    // Use capture phase to catch events earlier
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("touchstart", handleClickOutside, true);
+    // Prevent body scroll on mobile when dropdown is open
+    if (window.innerWidth < 768) {
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
       document.body.style.overflow = "";
     };
   }, [isOpen]);
@@ -109,6 +109,13 @@ export const NotificationDropdown = () => {
       loadNotifications();
     }
   };
+
+  // Handler to close dropdown immediately
+  const closeDropdown = useCallback(() => {
+    flushSync(() => {
+      setIsOpen(false);
+    });
+  }, []);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -143,7 +150,10 @@ export const NotificationDropdown = () => {
     <>
       <div className="relative" ref={dropdownRef}>
         <button
-          onClick={handleOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpen();
+          }}
           className="relative p-2 text-moon-grey hover:text-white transition-colors rounded-xl hover:bg-white/5"
           aria-label="Notifications"
         >
@@ -200,10 +210,11 @@ export const NotificationDropdown = () => {
                       key={notification.id}
                       to={getNotificationLink(notification)}
                       onClick={() => {
+                        // Close dropdown immediately, before navigation
+                        closeDropdown();
                         if (!notification.is_read) {
                           handleMarkAsRead(notification.id);
                         }
-                        setIsOpen(false);
                       }}
                       className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${
                         !notification.is_read ? "bg-neon-iris/5" : ""
@@ -248,7 +259,7 @@ export const NotificationDropdown = () => {
             <div className="border-t border-white/5 px-4 py-3 bg-graphite-light/50">
               <Link
                 to="/settings"
-                onClick={() => setIsOpen(false)}
+                onClick={closeDropdown}
                 className="text-sm text-moon-grey hover:text-neon-iris transition-colors flex items-center gap-1"
               >
                 Notification settings
@@ -324,10 +335,11 @@ export const NotificationDropdown = () => {
                         key={notification.id}
                         to={getNotificationLink(notification)}
                         onClick={() => {
+                          // Close dropdown immediately, before navigation
+                          closeDropdown();
                           if (!notification.is_read) {
                             handleMarkAsRead(notification.id);
                           }
-                          setIsOpen(false);
                         }}
                         className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/5 ${
                           !notification.is_read ? "bg-neon-iris/5" : ""

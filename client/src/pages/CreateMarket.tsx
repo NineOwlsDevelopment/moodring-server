@@ -903,10 +903,10 @@ export const CreateMarket = () => {
                     </button>
                   </>
                 ) : (
-                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
-                    <div className="w-20 h-20 rounded-2xl bg-dark-800 flex items-center justify-center mb-4 group-hover:bg-primary-500/20 transition-colors">
+                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer px-4 sm:px-6 py-4">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-dark-800 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary-500/20 transition-colors flex-shrink-0">
                       <svg
-                        className="w-10 h-10 text-gray-500 group-hover:text-primary-400 transition-colors"
+                        className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 group-hover:text-primary-400 transition-colors"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -919,11 +919,11 @@ export const CreateMarket = () => {
                         />
                       </svg>
                     </div>
-                    <span className="text-lg font-medium text-gray-400 group-hover:text-white transition-colors">
+                    <span className="text-sm sm:text-base md:text-lg font-medium text-gray-400 group-hover:text-white transition-colors text-center break-words w-full px-2">
                       Upload Cover Image{" "}
                       <span className="text-danger-400">*</span>
                     </span>
-                    <span className="text-sm text-gray-600 mt-1">
+                    <span className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2 text-center break-words w-full px-2 sm:px-4">
                       PNG, JPG, or GIF (Recommended: 1200×514) - Required
                     </span>
                     <input

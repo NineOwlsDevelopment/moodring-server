@@ -31,10 +31,6 @@
     --shadow-aqua: 0 0 18px rgba(33, 246, 210, 0.4);
 
     /* Layout Variables */
-    /* Bottom nav base height (approximately 64px for nav content + padding) */
-    --bottom-nav-height: 64px;
-    /* Bottom nav total height including safe-area-inset for iOS */
-    --bottom-nav-height-total: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   html {
@@ -490,16 +486,6 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Bottom nav spacing - reserves space for fixed bottom nav on mobile only */
-  .pb-bottom-nav {
-    padding-bottom: var(--bottom-nav-height-total);
-  }
-
-  @media (min-width: 768px) {
-    .pb-bottom-nav {
-      padding-bottom: 0;
-    }
-  }
 
   /* Notification dropdown mobile safe area */
   .notification-dropdown-mobile {

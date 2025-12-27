@@ -1,7 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { MobileNav } from "@/components/MobileNav";
 import { useUserStore } from "@/stores/userStore";
 
 export const PrivateLayout = () => {
@@ -28,21 +27,12 @@ export const PrivateLayout = () => {
       <Navbar />
       
       {/* Main content area — contained between nav and footer */}
-      {/* Padding-bottom reserves space for fixed bottom nav on mobile */}
-      <main className="flex-1 md:pt-16 pb-bottom-nav">
+      <main className="flex-1 md:pt-16">
         <Outlet />
       </main>
       
-      {/* Footer/MobileNav - contains the body from below */}
-      {/* Desktop: Footer */}
-      <div className="hidden md:block">
-        <Footer />
-      </div>
-      
-      {/* Mobile: Bottom Navigation (fixed to bottom, reserved space in main) */}
-      <div className="block md:hidden">
-        <MobileNav />
-      </div>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
