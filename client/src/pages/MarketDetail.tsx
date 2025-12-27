@@ -621,15 +621,18 @@ export const MarketDetail = () => {
   const tradeFormRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Hide bottom nav when trade panel is open
+  // Hide bottom nav and prevent background scrolling when trade panel is open
   useEffect(() => {
     if (showMobileTradePanel) {
       document.body.classList.add('trade-panel-open');
+      document.body.style.overflow = 'hidden';
     } else {
       document.body.classList.remove('trade-panel-open');
+      document.body.style.overflow = '';
     }
     return () => {
       document.body.classList.remove('trade-panel-open');
+      document.body.style.overflow = '';
     };
   }, [showMobileTradePanel]);
 
@@ -2008,10 +2011,6 @@ export const MarketDetail = () => {
       {/* Mobile Trade Panel - Full screen slide from right */}
       {showMobileTradePanel && (
         <div className="lg:hidden fixed inset-0 z-[60]">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowMobileTradePanel(false)}
-          />
           <div 
             className="absolute inset-0 bg-graphite-light overflow-y-auto animate-slide-in-right"
             style={{
