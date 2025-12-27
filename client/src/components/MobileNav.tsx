@@ -1,88 +1,67 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, Activity, User } from "lucide-react";
 
-interface NavItem {
-  path: string;
-  icon: React.ReactNode;
-  activeIcon: React.ReactNode;
-  label: string;
-}
-
 export const MobileNav = () => {
   const location = useLocation();
 
-  const navItems: NavItem[] = [
+  const navItems = [
     {
       path: "/",
-      icon: <Home className="w-5 h-5" strokeWidth={1.5} />,
-      activeIcon: <Home className="w-5 h-5" strokeWidth={2.5} />,
+      icon: Home,
       label: "Home",
     },
     {
       path: "/markets",
-      icon: <Search className="w-5 h-5" strokeWidth={1.5} />,
-      activeIcon: <Search className="w-5 h-5" strokeWidth={2.5} />,
+      icon: Search,
       label: "Explore",
     },
     {
       path: "/activity",
-      icon: <Activity className="w-5 h-5" strokeWidth={1.5} />,
-      activeIcon: <Activity className="w-5 h-5" strokeWidth={2.5} />,
+      icon: Activity,
       label: "Activity",
     },
     {
       path: "/portfolio",
-      icon: <User className="w-5 h-5" strokeWidth={1.5} />,
-      activeIcon: <User className="w-5 h-5" strokeWidth={2.5} />,
+      icon: User,
       label: "Profile",
     },
   ];
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/") {
+      return location.pathname === "/";
+    }
     return location.pathname.startsWith(path);
   };
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 w-full z-50 block md:hidden bg-graphite-deep/95 backdrop-blur-xl border-t border-white/5"
-      style={{
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-      }}
-    >
+    <nav className="fixed bottom-0 left-0 right-0 z-50 block md:hidden bg-graphite-deep border-t border-white/5">
       <div
-        className="flex items-center justify-around px-1 py-1 w-full"
-        style={{ minHeight: "var(--bottom-nav-height)" }}
+        className="flex items-center justify-around w-full"
+        style={{
+          paddingTop: "8px",
+          paddingBottom: `calc(8px + env(safe-area-inset-bottom, 0px))`,
+          minHeight: "64px",
+        }}
       >
         {navItems.map((item) => {
           const active = isActive(item.path);
+          const Icon = item.icon;
+
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center py-2 px-3 min-w-[60px] rounded-xl transition-all duration-200 ${
-                active
-                  ? "text-white bg-neon-iris/10"
-                  : "text-moon-grey hover:text-white hover:bg-white/5"
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-colors duration-200 ${
+                active ? "text-white" : "text-moon-grey"
               }`}
             >
-              <div
-                className={`relative transition-transform duration-200 ${
-                  active ? "scale-110" : ""
+              <Icon
+                className={`w-5 h-5 transition-all duration-200 ${
+                  active ? "stroke-[2.5]" : "stroke-[1.5]"
                 }`}
-              >
-                {active ? item.activeIcon : item.icon}
-                {active && (
-                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-neon-iris" />
-                )}
-              </div>
-              <span
-                className={`text-[10px] mt-1 font-medium truncate max-w-full ${
-                  active ? "text-white" : ""
-                }`}
-              >
-                {item.label}
-              </span>
+              />
+              <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );
         })}
