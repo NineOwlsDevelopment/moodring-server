@@ -22,6 +22,7 @@ import { formatDistanceToNow } from "@/utils/format";
 import { toast } from "sonner";
 import { useUserStore } from "@/stores/userStore";
 import api from "@/config/axios";
+import { ImageModal } from "@/components/ImageModal";
 import {
   ArrowLeft,
   Settings,
@@ -598,6 +599,7 @@ const ProfilePostCard = ({
   showReplies,
   onReplyCreated,
   profile,
+  onImageClick,
 }: {
   post: Post;
   onLike: () => void;
@@ -605,6 +607,7 @@ const ProfilePostCard = ({
   showReplies: boolean;
   onReplyCreated: () => void;
   profile: UserProfileData;
+  onImageClick?: (imageUrl: string) => void;
 }) => {
   const handleShare = async () => {
     try {
@@ -694,7 +697,8 @@ const ProfilePostCard = ({
             src={post.image_url}
             alt="Post attachment"
             loading="lazy"
-            className="w-full max-h-[500px] object-cover max-w-full"
+            className="w-full max-h-[500px] object-cover max-w-full cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => onImageClick?.(post.image_url!)}
           />
         </div>
       )}
@@ -848,7 +852,13 @@ const PostSkeleton = () => (
 );
 
 // Market card component - Twitter-style feed item (World-class UI/UX)
-const MarketFeedCard = ({ market }: { market: Market }) => {
+const MarketFeedCard = ({
+  market,
+  onImageClick,
+}: {
+  market: Market;
+  onImageClick?: (imageUrl: string) => void;
+}) => {
   const navigate = useNavigate();
 
   // For binary markets, show both Yes and No from the single option
@@ -916,7 +926,13 @@ const MarketFeedCard = ({ market }: { market: Market }) => {
           <div className="flex gap-3 mb-2">
             {/* Image - Square, compact */}
             {market.image_url && (
-              <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden">
+              <div
+                className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImageClick?.(market.image_url!);
+                }}
+              >
                 <img
                   src={market.image_url}
                   alt=""
@@ -1140,6 +1156,9 @@ export const UserProfile = () => {
     null
   );
   const [isCreatingPost, setIsCreatingPost] = useState(false);
+
+  // Image modal state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const isOwnProfile =
     currentUser?.id === identifier || currentUser?.username === identifier;
@@ -1723,6 +1742,7 @@ export const UserProfile = () => {
                         showReplies={expandedReplies.has(post.id)}
                         onReplyCreated={() => handleReplyCreated(post.id)}
                         profile={profile}
+                        onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
                       />
                     </div>
                   ))}
@@ -1771,7 +1791,10 @@ export const UserProfile = () => {
                       style={{ animationDelay: `${index * 0.05}s` }}
                       className="animate-fade-in-up"
                     >
-                      <MarketFeedCard market={market} />
+                      <MarketFeedCard
+                        market={market}
+                        onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1828,6 +1851,14 @@ export const UserProfile = () => {
           )}
         </div>
       </div>
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={selectedImage !== null}
+        onClose={() => setSelectedImage(null)}
+        imageUrl={selectedImage || ""}
+        alt="Image"
+      />
     </div>
   );
 };

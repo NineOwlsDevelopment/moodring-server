@@ -33,6 +33,7 @@ import { PriceUpdate, MarketUpdate } from "@/services/socket";
 import { useUserStore } from "@/stores/userStore";
 import { toast } from "sonner";
 import api from "@/config/axios";
+import { getUserProfileUrl } from "@/utils/userProfile";
 
 type Tab = "about" | "activity" | "discussion";
 
@@ -1105,77 +1106,87 @@ export const MarketDetail = () => {
 
               <div className="relative z-10 p-4 sm:p-6">
                 {/* Tags */}
-                <div className="flex items-center gap-2 mb-4 flex-wrap">
-                  <WatchlistButton marketId={market.id} />
-                  {categories.slice(0, 2).map((cat) => (
-                    <span
-                      key={cat.id}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]"
-                    >
-                      {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
-                    </span>
-                  ))}
-                  {categories.length === 0 && (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]">
-                      {primaryCategory.charAt(0).toUpperCase() +
-                        primaryCategory.slice(1)}
-                    </span>
-                  )}
-                  {market.is_resolved && (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                      ✓ Resolved
-                    </span>
-                  )}
-                  {/* Trending Badge */}
-                  {!market.is_resolved &&
-                    (() => {
-                      const trendingStatus = getTrendingStatus({
-                        total_volume: market.total_volume || 0,
-                        created_at: market.created_at,
-                        total_open_interest:
-                          (market as any).total_open_interest || 0,
-                      });
-                      return trendingStatus ? (
-                        <TrendingBadge type={trendingStatus} size="sm" />
-                      ) : null;
-                    })()}
-                  {/* Creator Info */}
-                  {(market.creator_username || market.creator_display_name) && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/[0.06]">
-                      <UserAvatar
-                        name={
-                          market.creator_display_name ||
-                          market.creator_username ||
-                          "User"
-                        }
-                        imageUrl={market.creator_avatar_url}
-                        size="sm"
-                      />
-                      <span className="text-[11px] text-moon-grey font-medium">
-                        {market.creator_display_name ||
-                          (market.creator_username
-                            ? `@${market.creator_username}`
-                            : "User")}
+                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <WatchlistButton marketId={market.id} />
+                    {/* Creator Info */}
+                    {(market.creator_username ||
+                      market.creator_display_name) && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/[0.06]">
+                        <UserAvatar
+                          name={
+                            market.creator_display_name ||
+                            market.creator_username ||
+                            "User"
+                          }
+                          imageUrl={market.creator_avatar_url}
+                          size="sm"
+                        />
+                        <Link
+                          to={getUserProfileUrl(
+                            market.creator_username || market.creator_id
+                          )}
+                          className="text-[11px] text-moon-grey font-medium hover:text-neon-iris transition-colors cursor-pointer"
+                        >
+                          {market.creator_display_name ||
+                            (market.creator_username
+                              ? `@${market.creator_username}`
+                              : "User")}
+                        </Link>
+                        {market.is_admin_creator && (
+                          <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
+                            <svg
+                              className="w-2.5 h-2.5 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {categories.slice(0, 2).map((cat) => (
+                      <span
+                        key={cat.id}
+                        className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]"
+                      >
+                        {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
                       </span>
-                      {market.is_admin_creator && (
-                        <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
-                          <svg
-                            className="w-2.5 h-2.5 text-white"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={3}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    ))}
+                    {categories.length === 0 && (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]">
+                        {primaryCategory.charAt(0).toUpperCase() +
+                          primaryCategory.slice(1)}
+                      </span>
+                    )}
+                    {market.is_resolved && (
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        ✓ Resolved
+                      </span>
+                    )}
+                    {/* Trending Badge */}
+                    {!market.is_resolved &&
+                      (() => {
+                        const trendingStatus = getTrendingStatus({
+                          total_volume: market.total_volume || 0,
+                          created_at: market.created_at,
+                          total_open_interest:
+                            (market as any).total_open_interest || 0,
+                        });
+                        return trendingStatus ? (
+                          <TrendingBadge type={trendingStatus} size="sm" />
+                        ) : null;
+                      })()}
+                  </div>
                 </div>
 
                 {/* Title & Probability */}
@@ -1504,12 +1515,17 @@ export const MarketDetail = () => {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-white font-semibold text-sm">
+                              <Link
+                                to={getUserProfileUrl(
+                                  market.creator_username || market.creator_id
+                                )}
+                                className="text-white font-semibold text-sm hover:text-neon-iris transition-colors cursor-pointer"
+                              >
                                 {market.creator_display_name ||
                                   (market.creator_username
                                     ? `@${market.creator_username}`
                                     : "User")}
-                              </span>
+                              </Link>
                               {market.is_admin_creator && (
                                 <div className="flex items-center justify-center w-4 h-4 rounded-full bg-neon-iris flex-shrink-0">
                                   <svg
