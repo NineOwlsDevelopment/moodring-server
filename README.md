@@ -88,19 +88,6 @@ yarn run dev
 
 https://www.loom.com/share/1288ac9a99094b8ab9d22977756ada30
 
-## Project Structure
-
-```
-moodring_app/
-├── client/          # React frontend
-├── src/             # Express backend
-│   ├── controllers/ # Route controllers
-│   ├── models/      # Database models
-│   ├── routes/      # API routes
-│   ├── services/    # Business logic
-│   └── migrations/  # Database migrations
-```
-
 ## License
 
 ISC
