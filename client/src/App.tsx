@@ -232,7 +232,7 @@ function App() {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/profile/:userId" element={<UserProfile />} />
+              <Route path="/user/:identifier" element={<UserProfile />} />
             </Route>
 
             {/* Admin Routes (Require Admin Role) */}

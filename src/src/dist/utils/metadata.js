@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadMetadataToS3 = exports.uploadImageToS3 = void 0;
+exports.uploadVideoToS3 = exports.uploadMetadataToS3 = exports.uploadImageToS3 = void 0;
 const client_s3_1 = require("@aws-sdk/client-s3");
 const uuid_1 = require("uuid");
 const imageCompression_1 = require("./imageCompression");
@@ -96,4 +96,25 @@ const uploadMetadataToS3 = async (tokenMetadata, imageBuffer, imageType, bucket,
     return metadataUrl;
 };
 exports.uploadMetadataToS3 = uploadMetadataToS3;
+const uploadVideoToS3 = async (fileBuffer, fileName, fileType, bucket) => {
+    try {
+        const s3 = getS3Client();
+        const extension = fileName.split(".").pop() || "mp4";
+        const key = `videos/${(0, uuid_1.v4)()}.${extension}`;
+        const command = new client_s3_1.PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: fileBuffer,
+            ContentType: fileType,
+        });
+        await s3.send(command);
+        // Return the public URL
+        return `https://${process.env.CLOUDFRONT_IMAGE_URL}/${key}`;
+    }
+    catch (error) {
+        console.error("Error uploading video to S3:", error);
+        throw error;
+    }
+};
+exports.uploadVideoToS3 = uploadVideoToS3;
 //# sourceMappingURL=metadata.js.map

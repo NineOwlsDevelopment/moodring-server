@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchLeaderboard, LeaderboardEntry } from "@/api/api";
 import { formatNumber, formatUSDC } from "@/utils/format";
 import { useUserStore } from "@/stores/userStore";
+import { getUserProfileUrl } from "@/utils/userProfile";
 
 type Metric = "profit" | "volume";
 
@@ -154,7 +155,7 @@ export const Leaderboard = () => {
               return (
                 <div
                   key={entry.user_id}
-                  onClick={() => navigate(`/profile/${entry.user_id}`)}
+                  onClick={() => navigate(getUserProfileUrl(entry.username || entry.user_id))}
                   className="bg-graphite-light rounded-lg p-4 border border-graphite-light hover:border-neon-iris/30 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3 mb-3">
@@ -278,7 +279,7 @@ export const Leaderboard = () => {
                   return (
                     <div
                       key={entry.user_id}
-                      onClick={() => navigate(`/profile/${entry.user_id}`)}
+                      onClick={() => navigate(getUserProfileUrl(entry.username || entry.user_id))}
                       className={`group grid grid-cols-12 gap-3 px-4 py-3 items-center transition-all cursor-pointer ${
                         isCurrentUser
                           ? "bg-neon-iris/10 border-l-2 border-neon-iris"

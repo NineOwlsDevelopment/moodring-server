@@ -12,7 +12,6 @@ import {
   Position,
   LiquidityPosition,
   fetchMyActivity,
-  fetchActivityFeed,
   Activity as ActivityType,
   updateUserProfile,
   uploadAvatar,
@@ -72,7 +71,6 @@ export const Settings = () => {
   );
 
   // Activity state
-  const [activityTab, setActivityTab] = useState<"my" | "global">("my");
   const [activities, setActivities] = useState<ActivityType[]>([]);
   const [activityFilter, setActivityFilter] = useState<string>("all");
 
@@ -100,7 +98,7 @@ export const Settings = () => {
     if (activeTab === "activity") {
       loadActivities();
     }
-  }, [activeTab, activityTab, activityFilter, user]);
+  }, [activeTab, activityFilter, user]);
 
   const loadPreferences = async () => {
     setIsLoading(true);
@@ -135,14 +133,13 @@ export const Settings = () => {
   const loadActivities = async () => {
     setIsLoading(true);
     try {
-      if (activityTab === "my" && user) {
+      if (user) {
         const { activities: data } = await fetchMyActivity({
           type: activityFilter !== "all" ? activityFilter : undefined,
         });
         setActivities(data);
       } else {
-        const { activities: data } = await fetchActivityFeed();
-        setActivities(data);
+        setActivities([]);
       }
     } catch (error) {
       console.error("Failed to load activities:", error);
@@ -966,32 +963,7 @@ export const Settings = () => {
             {/* Activity Tab */}
             {activeTab === "activity" && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex bg-graphite-light rounded-xl p-1 ">
-                    <button
-                      onClick={() => setActivityTab("my")}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[40px] ${
-                        activityTab === "my"
-                          ? "bg-gradient-brand text-white"
-                          : "text-moon-grey hover:text-white"
-                      }`}
-                    >
-                      My Activity
-                    </button>
-                    <button
-                      onClick={() => setActivityTab("global")}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[40px] ${
-                        activityTab === "global"
-                          ? "bg-gradient-brand text-white"
-                          : "text-moon-grey hover:text-white"
-                      }`}
-                    >
-                      Global Feed
-                    </button>
-                  </div>
-                </div>
-
-                {activityTab === "my" && (
+                {user && (
                   <div className="flex flex-wrap gap-2 overflow-x-auto -mx-3 sm:-mx-0 px-3 sm:px-0 pb-2 sm:pb-0">
                     {activityFilters.map((f) => {
                       const Icon = f.icon;
@@ -1022,9 +994,7 @@ export const Settings = () => {
                       </span>
                     </div>
                     <h2 className="text-lg font-semibold text-white">
-                      {activityTab === "my"
-                        ? "Recent Transactions"
-                        : "Platform Activity"}
+                      Recent Transactions
                     </h2>
                   </div>
                   {isLoading ? (

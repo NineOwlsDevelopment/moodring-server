@@ -347,6 +347,16 @@ export interface GetMarketTradesRequest extends Request {
   };
 }
 
+export interface GetUserTradesRequest extends UserRequest {
+  params: {
+    userId: string;
+  };
+  query: {
+    page?: string;
+    limit?: string;
+  };
+}
+
 export interface GetPriceHistoryRequest extends Request {
   params: {
     optionId: string;
@@ -462,6 +472,50 @@ export interface GetWithdrawalTotalsRequest extends UserRequest {}
 /**
  * Typed request interfaces for Comment Controller
  */
+export interface CreatePostRequest extends UserRequest {
+  body: {
+    content: string;
+    market_id?: string;
+  };
+  file?: Express.Multer.File;
+}
+
+export interface TogglePostLikeRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+}
+
+export interface GetPostCommentsRequest extends Request {
+  params: {
+    id: string;
+  };
+  query: {
+    limit?: string;
+    offset?: string;
+  };
+  id?: string; // Optional user ID from optionalAuth middleware
+}
+
+export interface CreatePostCommentRequest extends UserRequest {
+  body: {
+    post_id: string;
+    content: string;
+    parent_comment_id?: string;
+  };
+}
+
+export interface GetCommentRepliesRequest extends Request {
+  params: {
+    id: string;
+  };
+  query: {
+    limit?: string;
+    offset?: string;
+  };
+  id?: string; // Optional user ID from optionalAuth middleware
+}
+
 export interface CreateCommentRequest extends UserRequest {
   body: {
     market_id: string;
@@ -478,16 +532,6 @@ export interface GetMarketCommentsRequest extends UserRequest {
     page?: string;
     limit?: string;
     sort?: string;
-  };
-}
-
-export interface GetCommentRepliesRequest extends UserRequest {
-  params: {
-    id: string;
-  };
-  query: {
-    page?: string;
-    limit?: string;
   };
 }
 
@@ -565,6 +609,35 @@ export interface GetPublicUserByIdRequest extends Request {
 }
 
 export interface GetUserProfileRequest extends Request {
+  params: {
+    id: string;
+  };
+}
+
+export interface GetUserPostsRequest extends Request {
+  params: {
+    id: string;
+  };
+  query: {
+    limit?: string;
+    offset?: string;
+  };
+  id?: string; // Optional user ID from optionalAuth middleware
+}
+
+export interface FollowUserRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+}
+
+export interface UnfollowUserRequest extends UserRequest {
+  params: {
+    id: string;
+  };
+}
+
+export interface GetFollowStatusRequest extends UserRequest {
   params: {
     id: string;
   };

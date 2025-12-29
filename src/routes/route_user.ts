@@ -2,11 +2,15 @@ import { Router } from "express";
 import multer from "multer";
 import {
   getPublicUserById,
-  getUserProfile,
   updateCurrentUser,
   deleteCurrentUser,
   generateWallet,
   uploadAvatar,
+  getUserProfile,
+  getUserPosts,
+  followUser,
+  unfollowUser,
+  getFollowStatus,
 } from "../controllers/controller_user";
 import {
   getPortfolio,
@@ -14,7 +18,7 @@ import {
   getLiquidityPositions,
   getPnLSummary,
 } from "../controllers/controller_portfolio";
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, optionalAuth } from "../middleware/auth";
 import { typedHandler } from "../types/routeHandler";
 
 const router = Router();
@@ -43,8 +47,17 @@ router.post(
 
 // User routes - protected with authentication
 // Users can only update/delete their own account
+// Note: Specific routes must come before :id to avoid route conflicts
+router.post("/follow/:id", authenticateToken, typedHandler(followUser)); // Follow a user (supports UUID or username)
+router.post("/unfollow/:id", authenticateToken, typedHandler(unfollowUser)); // Unfollow a user (supports UUID or username)
+router.get(
+  "/follow-status/:id",
+  authenticateToken,
+  typedHandler(getFollowStatus)
+); // Get follow status (supports UUID or username)
+router.get("/:id/posts", optionalAuth, typedHandler(getUserPosts)); // Get user's posts (supports UUID or username, optional auth)
 router.get("/:id", typedHandler(getPublicUserById)); // Public profile view (limited data)
-router.get("/:id/profile", typedHandler(getUserProfile)); // Detailed public profile with stats
+router.get("/profile/:id", typedHandler(getUserProfile)); // Detailed public profile with stats
 router.put("/me", authenticateToken, typedHandler(updateCurrentUser)); // Update own profile
 router.post(
   "/me/avatar",

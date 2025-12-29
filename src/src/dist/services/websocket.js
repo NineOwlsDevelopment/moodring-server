@@ -266,18 +266,11 @@ exports.getIO = getIO;
 const emitTradeUpdate = (trade) => {
     if (!io)
         return;
-    // Emit to market room
+    // Emit to market room (for price updates)
     io.to(`market:${trade.market_id}`).emit("trade", trade);
-    // Emit to option room
+    // Emit to option room (for price updates)
     io.to(`option:${trade.option_id}`).emit("trade", trade);
-    // Emit to global activity
-    io.to("activity:global").emit("activity", {
-        activity_type: "trade",
-        entity_type: "option",
-        entity_id: trade.option_id,
-        metadata: trade,
-        timestamp: trade.timestamp,
-    });
+    // Trade activities are private and not broadcast to global activity feed
 };
 exports.emitTradeUpdate = emitTradeUpdate;
 /**

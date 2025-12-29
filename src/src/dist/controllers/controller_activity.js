@@ -160,7 +160,9 @@ const getMyActivity = async (req, res) => {
                 return (0, errors_1.sendValidationError)(res, `Invalid activity type: ${type}`);
             }
         }
-        const activities = await Activity_1.ActivityModel.getUserActivity(userId, limit, offset, type);
+        // Include trades for user's own activity
+        const activities = await Activity_1.ActivityModel.getUserActivity(userId, limit, offset, type, true // includeTrades = true for user's own activity
+        );
         // console share claim activity
         for (const activity of activities) {
             if (activity.activity_type === "claim") {

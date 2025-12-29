@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { ConfirmationModal } from "./ConfirmationModal";
+import { getUserProfileUrl } from "@/utils/userProfile";
 
 interface CommentSectionProps {
   marketId: string;
@@ -148,7 +149,7 @@ const CommentItem = ({
         {/* Avatar */}
         <div className="flex-shrink-0">
           <Link
-            to={`/profile/${comment.user_id}`}
+            to={getUserProfileUrl(comment.username || comment.user_id)}
             className="block hover:opacity-80 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >
@@ -162,7 +163,7 @@ const CommentItem = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Link
-              to={`/profile/${comment.user_id}`}
+              to={getUserProfileUrl(comment.username || comment.user_id)}
               className="font-medium text-white text-sm truncate max-w-[100px] sm:max-w-[150px] hover:text-neon-iris transition-colors cursor-pointer"
               onClick={(e) => e.stopPropagation()}
             >

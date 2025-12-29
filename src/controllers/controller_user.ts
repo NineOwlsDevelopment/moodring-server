@@ -15,11 +15,16 @@ import { uploadImageToS3 } from "../utils/metadata";
 import {
   GetPublicUserByIdRequest,
   GetUserProfileRequest,
+  GetUserPostsRequest,
+  FollowUserRequest,
+  UnfollowUserRequest,
+  GetFollowStatusRequest,
   UpdateCurrentUserRequest,
   DeleteCurrentUserRequest,
   GenerateWalletRequest,
   UploadAvatarRequest,
 } from "../types/requests";
+import { PostModel } from "../models/Post";
 
 /**
  * @route GET /api/user/:id
@@ -51,9 +56,10 @@ export const getPublicUserById = async (
 };
 
 /**
- * @route GET /api/user/:id/profile
+ * @route GET /api/profile/:id
  * @desc Get detailed public user profile with stats
  * @access Public
+ * @note Supports both username and UUID as identifier
  */
 export const getUserProfile = async (
   req: GetUserProfileRequest,
@@ -62,7 +68,13 @@ export const getUserProfile = async (
   try {
     const { id } = req.params;
 
-    // Get user with social stats
+    // Check if id is a UUID (36 chars with dashes) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id
+      );
+
+    // Get user with social stats - support both UUID and username
     const userResult = await pool.query(
       `SELECT 
         u.id, 
@@ -75,7 +87,7 @@ export const getUserProfile = async (
         COALESCE(u.following_count, 0)::int as following_count,
         COALESCE(u.posts_count, 0)::int as posts_count
       FROM users u 
-      WHERE u.id = $1`,
+      WHERE ${isUUID ? "u.id = $1" : "u.username = $1"}`,
       [id]
     );
 
@@ -84,6 +96,7 @@ export const getUserProfile = async (
     }
 
     const user = userResult.rows[0];
+    const userId = user.id;
 
     // Get trading stats from user_stats table (if exists) or calculate from trades
     const statsResult = await pool.query(
@@ -94,7 +107,7 @@ export const getUserProfile = async (
       FROM users u
       LEFT JOIN user_stats us ON us.user_id = u.id
       WHERE u.id = $1`,
-      [id]
+      [userId]
     );
 
     // If no stats found, try calculating from trades count
@@ -102,7 +115,7 @@ export const getUserProfile = async (
     if (!stats || stats.total_trades === 0) {
       const tradesCount = await pool.query(
         `SELECT COUNT(*)::int as total_trades FROM trades WHERE user_id = $1`,
-        [id]
+        [userId]
       );
       stats = {
         total_trades: tradesCount.rows[0]?.total_trades || 0,
@@ -388,6 +401,247 @@ export const deleteCurrentUser = async (
   } catch (error) {
     console.error("Delete user error:", error);
     return sendError(res, 500, "Failed to delete account");
+  }
+};
+
+/**
+ * @route GET /api/user/:id/posts
+ * @desc Get user's posts
+ * @access Public
+ * @note Supports both username and UUID as identifier
+ */
+export const getUserPosts = async (
+  req: GetUserPostsRequest,
+  res: Response
+) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const currentUserId = req.id || undefined; // Optional authenticated user ID
+
+    // Check if id is a UUID (36 chars with dashes) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id
+      );
+
+    // Get user ID from username or UUID
+    const userResult = await pool.query(
+      `SELECT id FROM users WHERE ${isUUID ? "id = $1" : "username = $1"}`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendNotFound(res, "User");
+    }
+
+    const userId = userResult.rows[0].id;
+
+    // Get posts using PostModel
+    const posts = await PostModel.getByUser(userId, currentUserId, limit, offset);
+
+    return sendSuccess(res, { posts });
+  } catch (error) {
+    console.error("Get user posts error:", error);
+    return sendError(res, 500, "Failed to get user posts");
+  }
+};
+
+/**
+ * @route POST /api/user/follow/:id
+ * @desc Follow a user
+ * @access Private
+ * @note Supports both username and UUID as identifier
+ */
+export const followUser = async (req: FollowUserRequest, res: Response) => {
+  try {
+    const currentUserId = req.id;
+    if (!currentUserId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    const { id } = req.params;
+
+    // Check if id is a UUID (36 chars with dashes) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id
+      );
+
+    // Get user ID from username or UUID
+    const userResult = await pool.query(
+      `SELECT id FROM users WHERE ${isUUID ? "id = $1" : "username = $1"}`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendNotFound(res, "User");
+    }
+
+    const targetUserId = userResult.rows[0].id;
+
+    // Can't follow yourself
+    if (currentUserId === targetUserId) {
+      return sendError(res, 400, "You cannot follow yourself");
+    }
+
+    // Check if already following
+    const existing = await pool.query(
+      `SELECT id FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [currentUserId, targetUserId]
+    );
+
+    if (existing.rows.length > 0) {
+      return sendSuccess(res, { message: "Already following this user" });
+    }
+
+    // Create follow relationship
+    const now = Math.floor(Date.now() / 1000);
+    await pool.query(
+      `INSERT INTO user_follows (follower_id, following_id, created_at) VALUES ($1, $2, $3)`,
+      [currentUserId, targetUserId, now]
+    );
+
+    // Update follower's following_count
+    await pool.query(
+      `UPDATE users SET following_count = COALESCE(following_count, 0) + 1 WHERE id = $1`,
+      [currentUserId]
+    );
+
+    // Update target user's followers_count
+    await pool.query(
+      `UPDATE users SET followers_count = COALESCE(followers_count, 0) + 1 WHERE id = $1`,
+      [targetUserId]
+    );
+
+    return sendSuccess(res, { message: "Successfully followed user" });
+  } catch (error: any) {
+    console.error("Follow user error:", error);
+    // Handle unique constraint violation
+    if (error.code === "23505") {
+      return sendSuccess(res, { message: "Already following this user" });
+    }
+    return sendError(res, 500, "Failed to follow user");
+  }
+};
+
+/**
+ * @route POST /api/user/unfollow/:id
+ * @desc Unfollow a user
+ * @access Private
+ * @note Supports both username and UUID as identifier
+ */
+export const unfollowUser = async (req: UnfollowUserRequest, res: Response) => {
+  try {
+    const currentUserId = req.id;
+    if (!currentUserId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    const { id } = req.params;
+
+    // Check if id is a UUID (36 chars with dashes) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id
+      );
+
+    // Get user ID from username or UUID
+    const userResult = await pool.query(
+      `SELECT id FROM users WHERE ${isUUID ? "id = $1" : "username = $1"}`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendNotFound(res, "User");
+    }
+
+    const targetUserId = userResult.rows[0].id;
+
+    // Check if following
+    const existing = await pool.query(
+      `SELECT id FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [currentUserId, targetUserId]
+    );
+
+    if (existing.rows.length === 0) {
+      return sendSuccess(res, { message: "Not following this user" });
+    }
+
+    // Remove follow relationship
+    await pool.query(
+      `DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [currentUserId, targetUserId]
+    );
+
+    // Update follower's following_count
+    await pool.query(
+      `UPDATE users SET following_count = GREATEST(COALESCE(following_count, 0) - 1, 0) WHERE id = $1`,
+      [currentUserId]
+    );
+
+    // Update target user's followers_count
+    await pool.query(
+      `UPDATE users SET followers_count = GREATEST(COALESCE(followers_count, 0) - 1, 0) WHERE id = $1`,
+      [targetUserId]
+    );
+
+    return sendSuccess(res, { message: "Successfully unfollowed user" });
+  } catch (error: any) {
+    console.error("Unfollow user error:", error);
+    return sendError(res, 500, "Failed to unfollow user");
+  }
+};
+
+/**
+ * @route GET /api/user/follow-status/:id
+ * @desc Get follow status (whether current user is following target user)
+ * @access Private
+ * @note Supports both username and UUID as identifier
+ */
+export const getFollowStatus = async (
+  req: GetFollowStatusRequest,
+  res: Response
+) => {
+  try {
+    const currentUserId = req.id;
+    if (!currentUserId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    const { id } = req.params;
+
+    // Check if id is a UUID (36 chars with dashes) or username
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        id
+      );
+
+    // Get user ID from username or UUID
+    const userResult = await pool.query(
+      `SELECT id FROM users WHERE ${isUUID ? "id = $1" : "username = $1"}`,
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendNotFound(res, "User");
+    }
+
+    const targetUserId = userResult.rows[0].id;
+
+    // Check if following
+    const followResult = await pool.query(
+      `SELECT 1 FROM user_follows WHERE follower_id = $1 AND following_id = $2`,
+      [currentUserId, targetUserId]
+    );
+
+    const is_following = followResult.rows.length > 0;
+
+    return sendSuccess(res, { is_following });
+  } catch (error: any) {
+    console.error("Get follow status error:", error);
+    return sendError(res, 500, "Failed to get follow status");
   }
 };
 

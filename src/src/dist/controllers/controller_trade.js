@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOHLCData = exports.getMarketPriceHistory = exports.getPriceHistory = exports.getMarketTrades = exports.getRecentTrades = exports.getTradeHistory = exports.getAllPositions = exports.getPosition = exports.claimWinnings = exports.sellShares = exports.buyShares = void 0;
+exports.getOHLCData = exports.getMarketPriceHistory = exports.getPriceHistory = exports.getMarketTrades = exports.getRecentTrades = exports.getUserTrades = exports.getTradeHistory = exports.getAllPositions = exports.getPosition = exports.claimWinnings = exports.sellShares = exports.buyShares = void 0;
 const anchor_1 = require("@coral-xyz/anchor");
 const db_1 = require("../db");
 const Trade_1 = require("../models/Trade");
@@ -515,34 +515,36 @@ const getTradeHistory = async (req, res) => {
 };
 exports.getTradeHistory = getTradeHistory;
 /**
- * @route GET /api/trade/recent
- * @desc Get recent public trades
- * @access Public
+ * @route GET /api/trade/user/:userId
+ * @desc Get another user's trades (only if current user is following them)
+ * @access Private
  */
-const getRecentTrades = async (req, res) => {
+const getUserTrades = async (req, res) => {
     try {
-        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-        const trades = await Trade_1.TradeModel.getRecentTrades(limit);
-        return (0, errors_1.sendSuccess)(res, { trades });
-    }
-    catch (error) {
-        console.error("Get recent trades error:", error);
-        return (0, errors_1.sendError)(res, 500, error.message || "Failed to get recent trades. Please try again.");
-    }
-};
-exports.getRecentTrades = getRecentTrades;
-/**
- * @route GET /api/trade/market/:id
- * @desc Get trades for a specific market
- * @access Public
- */
-const getMarketTrades = async (req, res) => {
-    try {
-        const { id } = req.params;
+        const currentUserId = req.id;
+        if (!currentUserId) {
+            return (0, errors_1.sendError)(res, 401, "Unauthorized");
+        }
+        const { userId } = req.params;
+        if (!userId) {
+            return (0, errors_1.sendValidationError)(res, "User ID is required");
+        }
+        // If it's the user's own profile, allow access
+        if (currentUserId === userId) {
+            // User can always view their own trades
+        }
+        else {
+            // Check if current user is following the target user
+            const followCheck = await db_1.pool.query(`SELECT 1 FROM user_follows 
+         WHERE follower_id = $1 AND following_id = $2`, [currentUserId, userId]);
+            if (followCheck.rows.length === 0) {
+                return (0, errors_1.sendError)(res, 403, "You must follow this user to view their trades");
+            }
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = Math.min(parseInt(req.query.limit) || 20, 100);
         const offset = (page - 1) * limit;
-        const { trades, total } = await Trade_1.TradeModel.findByMarket(id, limit, offset);
+        const { trades, total } = await Trade_1.TradeModel.findByUserId(userId, limit, offset);
         const totalPages = Math.ceil(total / limit);
         return (0, errors_1.sendSuccess)(res, {
             trades,
@@ -552,6 +554,51 @@ const getMarketTrades = async (req, res) => {
                 total,
                 totalPages,
                 hasMore: page < totalPages,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Get user trades error:", error);
+        return (0, errors_1.sendError)(res, 500, error.message || "Failed to get user trades. Please try again.");
+    }
+};
+exports.getUserTrades = getUserTrades;
+/**
+ * @route GET /api/trade/recent
+ * @desc Get recent public trades (DEPRECATED - trades are now private)
+ * @access Public
+ * @note This endpoint is kept for backward compatibility but returns empty array
+ *       Trades are now private and only visible to the user who made them
+ */
+const getRecentTrades = async (req, res) => {
+    try {
+        // Trades are now private - return empty array to prevent exposing other users' trades
+        return (0, errors_1.sendSuccess)(res, { trades: [] });
+    }
+    catch (error) {
+        console.error("Get recent trades error:", error);
+        return (0, errors_1.sendError)(res, 500, error.message || "Failed to get recent trades. Please try again.");
+    }
+};
+exports.getRecentTrades = getRecentTrades;
+/**
+ * @route GET /api/trade/market/:id
+ * @desc Get trades for a specific market (DEPRECATED - trades are now private)
+ * @access Public
+ * @note This endpoint is kept for backward compatibility but returns empty array
+ *       Trades are now private and only visible to the user who made them
+ */
+const getMarketTrades = async (req, res) => {
+    try {
+        // Trades are now private - return empty array to prevent exposing other users' trades
+        return (0, errors_1.sendSuccess)(res, {
+            trades: [],
+            pagination: {
+                page: 1,
+                limit: 20,
+                total: 0,
+                totalPages: 0,
+                hasMore: false,
             },
         });
     }

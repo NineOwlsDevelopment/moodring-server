@@ -174,7 +174,7 @@ export const initializeWebSocket = (server: HttpServer): Server => {
     socket.on("subscribe:market", (marketId: string) => {
       socket.join(`market:${marketId}`);
       console.log(`[WebSocket] ${socket.id} subscribed to market:${marketId}`);
-      
+
       // Emit watcher count update to all subscribers
       if (io) {
         const room = io.sockets.adapter.rooms.get(`market:${marketId}`);
@@ -192,7 +192,7 @@ export const initializeWebSocket = (server: HttpServer): Server => {
       console.log(
         `[WebSocket] ${socket.id} unsubscribed from market:${marketId}`
       );
-      
+
       // Emit watcher count update to all remaining subscribers
       if (io) {
         const room = io.sockets.adapter.rooms.get(`market:${marketId}`);
@@ -365,11 +365,11 @@ export const initializeWebSocket = (server: HttpServer): Server => {
 
     socket.on("disconnect", () => {
       console.log(`[WebSocket] Client disconnected: ${socket.id}`);
-      
+
       // Update watcher counts for all markets this socket was watching
       const socketIO = io;
       if (!socketIO || !socket.rooms) return;
-      
+
       socket.rooms.forEach((room) => {
         if (room.startsWith("market:")) {
           const marketId = room.replace("market:", "");
@@ -400,20 +400,13 @@ export const getIO = (): Server | null => io;
 export const emitTradeUpdate = (trade: TradeUpdate): void => {
   if (!io) return;
 
-  // Emit to market room
+  // Emit to market room (for price updates)
   io.to(`market:${trade.market_id}`).emit("trade", trade);
 
-  // Emit to option room
+  // Emit to option room (for price updates)
   io.to(`option:${trade.option_id}`).emit("trade", trade);
 
-  // Emit to global activity
-  io.to("activity:global").emit("activity", {
-    activity_type: "trade",
-    entity_type: "option",
-    entity_id: trade.option_id,
-    metadata: trade,
-    timestamp: trade.timestamp,
-  } as ActivityUpdate);
+  // Trade activities are private and not broadcast to global activity feed
 };
 
 /**

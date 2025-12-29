@@ -793,7 +793,12 @@ export const MarketDetail = () => {
         page,
         limit: 50,
       });
-      setActivities(data || []);
+      // Filter out trade activities - only show non-trade activities
+      const nonTradeActivities = (data || []).filter((activity: Activity) => {
+        const activityType = activity.type || (activity as any).activity_type;
+        return activityType !== "trade";
+      });
+      setActivities(nonTradeActivities);
       setHasMoreActivities(pagination?.hasMore || false);
       setCurrentPage(page);
     } catch {

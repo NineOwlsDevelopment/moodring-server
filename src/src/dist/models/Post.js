@@ -7,7 +7,7 @@ class PostModel {
      * Create a new post
      */
     static async create(data, client) {
-        const { user_id, content, image_url, market_id, parent_post_id } = data;
+        const { user_id, content, image_url, video_url, market_id, parent_post_id, } = data;
         const db = client || db_1.pool;
         // Validate required fields
         if (!content || typeof content !== "string") {
@@ -15,18 +15,20 @@ class PostModel {
         }
         // Ensure all values are properly typed (convert undefined to null)
         const imageUrl = image_url ?? null;
+        const videoUrl = video_url ?? null;
         const marketId = market_id ?? null;
         const parentPostId = parent_post_id ?? null;
         const now = Math.floor(Date.now() / 1000);
         const query = `
-      INSERT INTO posts (user_id, content, image_url, market_id, parent_post_id, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO posts (user_id, content, image_url, video_url, market_id, parent_post_id, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
         const result = await db.query(query, [
             user_id,
             content,
             imageUrl,
+            videoUrl,
             marketId,
             parentPostId,
             now,
@@ -346,41 +348,99 @@ class PostCommentModel {
      */
     static async getByPost(postId, currentUserId, limit = 50, offset = 0, client) {
         const db = client || db_1.pool;
-        const query = `
+        const query = currentUserId
+            ? `
       SELECT 
         pc.*,
         u.username,
         u.display_name,
-        0::int as likes_count,
+        u.avatar_url,
+        COALESCE(pcl.likes_count, 0)::int as likes_count,
+        EXISTS(
+          SELECT 1 FROM post_comment_likes pcl2 
+          WHERE pcl2.comment_id = pc.id AND pcl2.user_id = $4
+        ) as is_liked
+      FROM post_comments pc
+      LEFT JOIN users u ON pc.user_id = u.id
+      LEFT JOIN (
+        SELECT comment_id, COUNT(*)::int as likes_count
+        FROM post_comment_likes
+        GROUP BY comment_id
+      ) pcl ON pc.id = pcl.comment_id
+      WHERE pc.post_id = $1 AND pc.parent_comment_id IS NULL AND pc.is_deleted = FALSE
+      ORDER BY pc.created_at ASC
+      LIMIT $2 OFFSET $3
+    `
+            : `
+      SELECT 
+        pc.*,
+        u.username,
+        u.display_name,
+        u.avatar_url,
+        COALESCE(pcl.likes_count, 0)::int as likes_count,
         FALSE as is_liked
       FROM post_comments pc
       LEFT JOIN users u ON pc.user_id = u.id
+      LEFT JOIN (
+        SELECT comment_id, COUNT(*)::int as likes_count
+        FROM post_comment_likes
+        GROUP BY comment_id
+      ) pcl ON pc.id = pcl.comment_id
       WHERE pc.post_id = $1 AND pc.parent_comment_id IS NULL AND pc.is_deleted = FALSE
       ORDER BY pc.created_at ASC
       LIMIT $2 OFFSET $3
     `;
-        const result = await db.query(query, [postId, limit, offset]);
+        const result = await db.query(query, currentUserId ? [postId, limit, offset, currentUserId] : [postId, limit, offset]);
         return result.rows;
     }
     /**
      * Get replies to a comment
      */
-    static async getReplies(commentId, limit = 20, offset = 0, client) {
+    static async getReplies(commentId, currentUserId, limit = 20, offset = 0, client) {
         const db = client || db_1.pool;
-        const query = `
+        const query = currentUserId
+            ? `
       SELECT 
         pc.*,
         u.username,
         u.display_name,
-        0::int as likes_count,
+        u.avatar_url,
+        COALESCE(pcl.likes_count, 0)::int as likes_count,
+        EXISTS(
+          SELECT 1 FROM post_comment_likes pcl2 
+          WHERE pcl2.comment_id = pc.id AND pcl2.user_id = $4
+        ) as is_liked
+      FROM post_comments pc
+      LEFT JOIN users u ON pc.user_id = u.id
+      LEFT JOIN (
+        SELECT comment_id, COUNT(*)::int as likes_count
+        FROM post_comment_likes
+        GROUP BY comment_id
+      ) pcl ON pc.id = pcl.comment_id
+      WHERE pc.parent_comment_id = $1 AND pc.is_deleted = FALSE
+      ORDER BY pc.created_at ASC
+      LIMIT $2 OFFSET $3
+    `
+            : `
+      SELECT 
+        pc.*,
+        u.username,
+        u.display_name,
+        u.avatar_url,
+        COALESCE(pcl.likes_count, 0)::int as likes_count,
         FALSE as is_liked
       FROM post_comments pc
       LEFT JOIN users u ON pc.user_id = u.id
+      LEFT JOIN (
+        SELECT comment_id, COUNT(*)::int as likes_count
+        FROM post_comment_likes
+        GROUP BY comment_id
+      ) pcl ON pc.id = pcl.comment_id
       WHERE pc.parent_comment_id = $1 AND pc.is_deleted = FALSE
       ORDER BY pc.created_at ASC
       LIMIT $2 OFFSET $3
     `;
-        const result = await db.query(query, [commentId, limit, offset]);
+        const result = await db.query(query, currentUserId ? [commentId, limit, offset, currentUserId] : [commentId, limit, offset]);
         return result.rows;
     }
     /**
@@ -390,6 +450,42 @@ class PostCommentModel {
         const db = client || db_1.pool;
         const result = await db.query("UPDATE post_comments SET is_deleted = TRUE, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1 AND user_id = $2 RETURNING id", [commentId, userId]);
         return result.rows.length > 0;
+    }
+    /**
+     * Like/unlike a post comment
+     */
+    static async toggleLike(commentId, userId, client) {
+        const db = client || db_1.pool;
+        await db.query("BEGIN");
+        try {
+            // Check if already liked
+            const existing = await db.query("SELECT id FROM post_comment_likes WHERE comment_id = $1 AND user_id = $2", [commentId, userId]);
+            if (existing.rows.length > 0) {
+                // Unlike
+                await db.query("DELETE FROM post_comment_likes WHERE comment_id = $1 AND user_id = $2", [commentId, userId]);
+                const countResult = await db.query("SELECT COUNT(*)::int as count FROM post_comment_likes WHERE comment_id = $1", [commentId]);
+                await db.query("COMMIT");
+                return {
+                    liked: false,
+                    likes_count: countResult.rows[0].count,
+                };
+            }
+            else {
+                // Like
+                const now = Math.floor(Date.now() / 1000);
+                await db.query("INSERT INTO post_comment_likes (comment_id, user_id, created_at) VALUES ($1, $2, $3)", [commentId, userId, now]);
+                const countResult = await db.query("SELECT COUNT(*)::int as count FROM post_comment_likes WHERE comment_id = $1", [commentId]);
+                await db.query("COMMIT");
+                return {
+                    liked: true,
+                    likes_count: countResult.rows[0].count,
+                };
+            }
+        }
+        catch (error) {
+            await db.query("ROLLBACK");
+            throw error;
+        }
     }
 }
 exports.PostCommentModel = PostCommentModel;

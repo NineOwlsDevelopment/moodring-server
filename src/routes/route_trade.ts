@@ -15,6 +15,7 @@ import {
   getPriceHistory,
   getMarketPriceHistory,
   getOHLCData,
+  getUserTrades,
 } from "../controllers/controller_trade";
 
 const router = Router();
@@ -43,6 +44,12 @@ router.get("/positions", authenticateToken, typedHandler(getAllPositions));
 
 // Trade history routes
 router.get("/history", authenticateToken, typedHandler(getTradeHistory));
+router.get(
+  "/user/:userId",
+  authenticateToken,
+  validateUUID("userId"),
+  typedHandler(getUserTrades)
+);
 router.get("/recent", typedHandler(getRecentTrades));
 router.get("/market/:id", typedHandler(getMarketTrades));
 

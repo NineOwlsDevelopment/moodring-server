@@ -20,8 +20,13 @@ router.get("/portfolio/pnl", auth_1.authenticateToken, (0, routeHandler_1.typedH
 router.post("/wallet/generate", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.generateWallet));
 // User routes - protected with authentication
 // Users can only update/delete their own account
+// Note: Specific routes must come before :id to avoid route conflicts
+router.post("/follow/:id", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.followUser)); // Follow a user (supports UUID or username)
+router.post("/unfollow/:id", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.unfollowUser)); // Unfollow a user (supports UUID or username)
+router.get("/follow-status/:id", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.getFollowStatus)); // Get follow status (supports UUID or username)
+router.get("/:id/posts", auth_1.optionalAuth, (0, routeHandler_1.typedHandler)(controller_user_1.getUserPosts)); // Get user's posts (supports UUID or username, optional auth)
 router.get("/:id", (0, routeHandler_1.typedHandler)(controller_user_1.getPublicUserById)); // Public profile view (limited data)
-router.get("/:id/profile", (0, routeHandler_1.typedHandler)(controller_user_1.getUserProfile)); // Detailed public profile with stats
+router.get("/profile/:id", (0, routeHandler_1.typedHandler)(controller_user_1.getUserProfile)); // Detailed public profile with stats
 router.put("/me", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.updateCurrentUser)); // Update own profile
 router.post("/me/avatar", auth_1.authenticateToken, upload.single("avatar"), (0, routeHandler_1.typedHandler)(controller_user_1.uploadAvatar)); // Upload avatar/profile picture
 router.delete("/me", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_user_1.deleteCurrentUser)); // Delete own account

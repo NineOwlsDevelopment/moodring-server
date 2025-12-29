@@ -6,6 +6,7 @@ import { apiCache, CACHE_TTL } from "@/utils/cache";
 // MARKETS
 // ============================================
 export interface FetchMarketsParams {
+  creator?: string;
   page?: number;
   limit?: number;
   search?: string;
@@ -14,6 +15,12 @@ export interface FetchMarketsParams {
   order?: "asc" | "desc";
   status?: string;
   creator_type?: "platform" | "admin" | "user" | "all";
+}
+
+export interface FetchUserMarketsParams {
+  user_id: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface MarketsApiResponse {
@@ -29,6 +36,12 @@ export interface MarketsApiResponse {
 
 export interface MarketApiResponse {
   market: Market;
+}
+
+export interface FetchUserMarketsParams {
+  user_id: string;
+  page?: number;
+  limit?: number;
 }
 
 export const fetchMarkets = async (
@@ -51,6 +64,7 @@ export const fetchMarkets = async (
           sort: params.sort,
           order: params.order,
           status: params.status,
+          creator: params.creator,
           creator_type:
             params.creator_type && params.creator_type !== "all"
               ? params.creator_type
@@ -446,6 +460,32 @@ export const fetchTradeHistory = async (params?: {
 }): Promise<{ trades: Trade[]; pagination?: any }> => {
   const response = await api.get("/trade/history", { params });
   return response.data;
+};
+
+export const fetchUserTrades = async (
+  userId: string,
+  params?: {
+    page?: number;
+    limit?: number;
+  }
+): Promise<{ trades: Trade[]; pagination?: any }> => {
+  const response = await api.get(`/trade/user/${userId}`, { params });
+  // Transform snake_case backend fields to camelCase frontend fields
+  const trades = (response.data.trades || []).map((t: any) => ({
+    id: t.id,
+    market_id: t.market_id,
+    market_question: t.market_question,
+    option_id: t.option_id,
+    option_label: t.option_label,
+    side: t.side,
+    action: t.trade_type,
+    shares: t.quantity,
+    pricePerShare: t.price_per_share ? t.price_per_share / 1_000_000 : 0,
+    amount: t.total_cost,
+    fee: t.fees_paid,
+    created_at: t.created_at,
+  }));
+  return { trades, pagination: response.data.pagination };
 };
 
 export const fetchMarketTrades = async (
@@ -1175,6 +1215,7 @@ export interface Post {
   user_id: string;
   content: string;
   image_url: string | null;
+  video_url: string | null;
   market_id: string | null;
   parent_post_id: string | null;
   created_at: string;
@@ -1195,10 +1236,13 @@ export interface PostComment {
   user_id: string;
   username: string;
   display_name: string | null;
+  avatar_url: string | null;
   content: string;
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string;
+  likes_count?: number;
+  is_liked?: boolean;
 }
 
 export const getUserPosts = async (
@@ -1224,6 +1268,16 @@ export const getComments = async (
   return response.data;
 };
 
+export const getCommentReplies = async (
+  commentId: string,
+  params?: { limit?: number; offset?: number }
+): Promise<{ replies: PostComment[] }> => {
+  const response = await api.get(`/posts/comments/${commentId}/replies`, {
+    params,
+  });
+  return response.data;
+};
+
 export const createPostComment = async (data: {
   post_id: string;
   content: string;
@@ -1233,22 +1287,49 @@ export const createPostComment = async (data: {
   return response.data.comment || response.data;
 };
 
+export const togglePostCommentLike = async (
+  commentId: string
+): Promise<{ liked: boolean; likes_count: number }> => {
+  const response = await api.post(`/posts/comments/${commentId}/like`);
+  return response.data;
+};
+
+export const createPost = async (data: {
+  content: string;
+  market_id?: string;
+  media?: File;
+}): Promise<Post> => {
+  const formData = new FormData();
+  formData.append("content", data.content);
+  if (data.market_id) {
+    formData.append("market_id", data.market_id);
+  }
+  if (data.media) {
+    formData.append("media", data.media);
+  }
+
+  const response = await api.post("/posts", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data.post;
+};
+
 // ============================================
 // USER FOLLOWS
 // ============================================
 export const getFollowStatus = async (
   userId: string
 ): Promise<{ is_following: boolean }> => {
-  const response = await api.get(`/user/${userId}/follow-status`);
+  const response = await api.get(`/user/follow-status/${userId}`);
   return response.data;
 };
 
 export const followUser = async (userId: string): Promise<void> => {
-  await api.post(`/user/${userId}/follow`);
+  await api.post(`/user/follow/${userId}`);
 };
 
 export const unfollowUser = async (userId: string): Promise<void> => {
-  await api.post(`/user/${userId}/unfollow`);
+  await api.post(`/user/unfollow/${userId}`);
 };
 
 // ============================================

@@ -40,6 +40,7 @@ import {
   GetPriceHistoryRequest,
   GetMarketPriceHistoryRequest,
   GetOHLCDataRequest,
+  GetUserTradesRequest,
 } from "../types/requests";
 
 /**
@@ -682,19 +683,90 @@ export const getTradeHistory = async (
 };
 
 /**
+ * @route GET /api/trade/user/:userId
+ * @desc Get another user's trades (only if current user is following them)
+ * @access Private
+ */
+export const getUserTrades = async (
+  req: GetUserTradesRequest,
+  res: Response
+) => {
+  try {
+    const currentUserId = req.id;
+    if (!currentUserId) {
+      return sendError(res, 401, "Unauthorized");
+    }
+
+    const { userId } = req.params;
+    if (!userId) {
+      return sendValidationError(res, "User ID is required");
+    }
+
+    // If it's the user's own profile, allow access
+    if (currentUserId === userId) {
+      // User can always view their own trades
+    } else {
+      // Check if current user is following the target user
+      const followCheck = await pool.query(
+        `SELECT 1 FROM user_follows 
+         WHERE follower_id = $1 AND following_id = $2`,
+        [currentUserId, userId]
+      );
+
+      if (followCheck.rows.length === 0) {
+        return sendError(
+          res,
+          403,
+          "You must follow this user to view their trades"
+        );
+      }
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = (page - 1) * limit;
+
+    const { trades, total } = await TradeModel.findByUserId(
+      userId,
+      limit,
+      offset
+    );
+    const totalPages = Math.ceil(total / limit);
+
+    return sendSuccess(res, {
+      trades,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+      },
+    });
+  } catch (error: any) {
+    console.error("Get user trades error:", error);
+    return sendError(
+      res,
+      500,
+      error.message || "Failed to get user trades. Please try again."
+    );
+  }
+};
+
+/**
  * @route GET /api/trade/recent
- * @desc Get recent public trades
+ * @desc Get recent public trades (DEPRECATED - trades are now private)
  * @access Public
+ * @note This endpoint is kept for backward compatibility but returns empty array
+ *       Trades are now private and only visible to the user who made them
  */
 export const getRecentTrades = async (
   req: GetRecentTradesRequest,
   res: Response
 ) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-    const trades = await TradeModel.getRecentTrades(limit);
-
-    return sendSuccess(res, { trades });
+    // Trades are now private - return empty array to prevent exposing other users' trades
+    return sendSuccess(res, { trades: [] });
   } catch (error: any) {
     console.error("Get recent trades error:", error);
     return sendError(
@@ -707,30 +779,25 @@ export const getRecentTrades = async (
 
 /**
  * @route GET /api/trade/market/:id
- * @desc Get trades for a specific market
+ * @desc Get trades for a specific market (DEPRECATED - trades are now private)
  * @access Public
+ * @note This endpoint is kept for backward compatibility but returns empty array
+ *       Trades are now private and only visible to the user who made them
  */
 export const getMarketTrades = async (
   req: GetMarketTradesRequest,
   res: Response
 ) => {
   try {
-    const { id } = req.params;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const offset = (page - 1) * limit;
-
-    const { trades, total } = await TradeModel.findByMarket(id, limit, offset);
-    const totalPages = Math.ceil(total / limit);
-
+    // Trades are now private - return empty array to prevent exposing other users' trades
     return sendSuccess(res, {
-      trades,
+      trades: [],
       pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasMore: page < totalPages,
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
       },
     });
   } catch (error: any) {

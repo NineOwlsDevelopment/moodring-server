@@ -23,6 +23,14 @@ export const ActivityTicker = () => {
     const metadata = update.metadata || {};
     const activityType = update.activity_type;
 
+    // Only show market creation/initialization, never trades
+    if (
+      activityType !== "market_created" &&
+      activityType !== "market_initialized"
+    ) {
+      return;
+    }
+
     const newActivity: Activity = {
       id: `${Date.now()}-${Math.random()}`,
       type: activityType as any,

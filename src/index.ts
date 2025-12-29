@@ -34,6 +34,7 @@ import route_notification from "./routes/route_notification";
 import route_comment from "./routes/route_comment";
 import route_analytics from "./routes/route_analytics";
 import route_resolution from "./routes/route_resolution";
+import route_post from "./routes/route_post";
 
 // ============================================================================
 // Internal Services & Middleware
@@ -247,6 +248,7 @@ app.use(`${API_VERSION}/notifications`, route_notification);
 app.use(`${API_VERSION}/comments`, route_comment);
 app.use(`${API_VERSION}/analytics`, route_analytics);
 app.use(`${API_VERSION}/resolution`, route_resolution);
+app.use(`${API_VERSION}/posts`, route_post);
 
 // Admin routes with IP whitelist
 app.use(`${API_VERSION}/admin`, adminIPWhitelist, route_admin);
@@ -267,6 +269,7 @@ app.use("/api/notifications", route_notification);
 app.use("/api/comments", route_comment);
 app.use("/api/analytics", route_analytics);
 app.use("/api/resolution", route_resolution);
+app.use("/api/posts", route_post);
 app.use("/api/admin", adminIPWhitelist, route_admin);
 
 // ============================================================================

@@ -1,17 +1,15 @@
-import { memo, useState } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Market } from "@/types/market";
 import {
   formatUSDC,
   formatTimeRemaining,
   calculateYesPrice,
-  formatDistanceToNow,
 } from "@/utils/format";
 import { Clock, TrendingUp, ChevronDown } from "lucide-react";
 import { GradientAccent } from "./GradientAccent";
 import { UserAvatar } from "./UserAvatar";
 import { WatchlistButton } from "./WatchlistButton";
-import { TrendingBadge, getTrendingStatus } from "./TrendingBadge";
 
 interface MarketCardProps {
   market: Market;
@@ -34,11 +32,30 @@ const MarketCardComponent = ({
   variant = "default",
 }: MarketCardProps) => {
   const [showAllOptions, setShowAllOptions] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const isMultipleChoice = market.options && market.options.length > 1;
   const isResolved = market.is_resolved;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowAllOptions(false);
+      }
+    };
+
+    if (showAllOptions) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAllOptions]);
   const timeRemainingFull = formatTimeRemaining(market.expiration_timestamp);
-  const isEnding =
-    timeRemainingFull.includes("h") || timeRemainingFull.includes("m");
 
   // Shorten very long date strings for better display
   const shortenTimeRemaining = (timeStr: string): string => {
@@ -189,110 +206,37 @@ const MarketCardComponent = ({
   }
 
   return (
-    <Link to={`/market/${market.id}`} className="block h-full group">
-      {/* Enhanced card with gradient glow effects */}
-      <div className="relative h-full bg-graphite-light rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card-hover border border-transparent hover:border-neon-iris/30">
-        {/* Animated gradient background orbs */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial-iris opacity-0 group-hover:opacity-25 group-hover:w-80 group-hover:h-80 transition-all duration-500 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-radial-aqua opacity-0 group-hover:opacity-18 group-hover:w-64 group-hover:h-64 transition-all duration-500 blur-3xl pointer-events-none" />
-
+    <Link
+      to={`/market/${market.id}`}
+      className="block h-full group overflow-visible"
+    >
+      {/* Card */}
+      <div className="relative h-full rounded-xl overflow-visible transition-all duration-300">
+        {/* Background layer with rounded corners */}
+        <div className="absolute inset-0 bg-graphite-light rounded-xl overflow-hidden border border-transparent hover:border-neon-iris/20 transition-all" />
         <GradientAccent color="neon-iris" position="both" />
 
-        <div className="p-5 h-full flex flex-col relative z-10">
-          {/* Top Row: Creator Info (left) and Timestamp + Bookmark (right) */}
-          <div className="flex items-center justify-between mb-3">
-            {/* Creator Info */}
-            {(market.creator_username || market.creator_display_name) && (
-              <div className="flex items-center gap-2">
-                <UserAvatar
-                  name={
-                    market.creator_display_name ||
-                    market.creator_username ||
-                    "User"
-                  }
-                  imageUrl={market.creator_avatar_url}
-                  size="sm"
-                />
-                <span className="text-xs text-moon-grey-dark">
-                  {market.creator_display_name ||
-                    (market.creator_username
-                      ? `@${market.creator_username}`
-                      : "User")}
-                </span>
-                {market.is_admin_creator && (
-                  <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Timestamp and Bookmark */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-moon-grey-dark">
-                {formatDistanceToNow(market.created_at)}
-              </span>
-              <WatchlistButton marketId={market.id} />
-            </div>
-          </div>
-
-          {/* Status Tags Row */}
-          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-            {/* Active/Resolved Status + Trending Badge */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {isResolved ? (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-aqua-pulse" />
-                  <span className="text-xs text-moon-grey-dark">Resolved</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-brand-success" />
-                  <span className="text-xs text-moon-grey-dark">Active</span>
-                </div>
-              )}
-              {/* Trending Badge */}
-              {!isResolved && (() => {
-                const trendingStatus = getTrendingStatus({
-                  total_volume: market.total_volume || 0,
-                  created_at: market.created_at,
-                  total_open_interest: (market as any).total_open_interest || 0,
-                });
-                return trendingStatus ? (
-                  <TrendingBadge type={trendingStatus} size="sm" />
-                ) : null;
-              })()}
-            </div>
-            {/* Category Tag */}
-            <span className="px-2 py-0.5 rounded-full bg-neon-iris/10 text-neon-iris text-xs font-medium border border-neon-iris/20">
+        <div className="p-6 h-full flex flex-col relative z-10 overflow-visible">
+          {/* Top Row: Category + Bookmark */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="px-2.5 py-1 rounded-full bg-neon-iris/10 text-neon-iris text-xs font-medium">
               {categoryName}
             </span>
+            <WatchlistButton marketId={market.id} />
           </div>
 
           {/* Market Image and Title Row */}
-          <div className="flex items-start gap-3 mb-4">
+          <div className="flex items-start gap-3 mb-5">
             {/* Market Cover Image */}
             {market.image_url && (
-              <div className="relative flex-shrink-0 group/image">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-neon-iris/20 to-aqua-pulse/20 opacity-0 group-hover/image:opacity-50 transition-opacity blur-sm" />
+              <div className="relative flex-shrink-0">
                 <img
                   src={market.image_url}
                   alt=""
-                  width={80}
-                  height={80}
+                  width={64}
+                  height={64}
                   loading="lazy"
-                  className="relative w-20 h-20 rounded-xl object-cover border-2 border-white/10 shadow-lg group-hover:border-neon-iris/30 transition-all duration-300"
+                  className="relative w-16 h-16 rounded-lg object-cover border border-white/10"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
@@ -305,57 +249,27 @@ const MarketCardComponent = ({
             </h3>
           </div>
 
-          {/* Metrics Row */}
-          <div className="flex items-center justify-between gap-4 mb-4 text-xs text-moon-grey-dark">
-            <div className="flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-aqua-pulse" />
-              <span className="font-semibold text-white">
-                {formatUSDC(market.total_volume)}
-              </span>
-            </div>
-            <div
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg max-w-[50%] ${
-                isEnding
-                  ? "bg-brand-warning/10 text-brand-warning border border-brand-warning/20"
-                  : "bg-neon-iris/10 text-neon-iris border border-neon-iris/20"
-              }`}
-            >
-              <Clock
-                className={`w-3.5 h-3.5 flex-shrink-0 ${
-                  isEnding ? "text-brand-warning" : "text-neon-iris"
-                }`}
-              />
-              <span
-                className={`font-semibold truncate text-[10px] sm:text-xs ${
-                  isEnding ? "text-brand-warning" : "text-neon-iris"
-                }`}
-              >
-                {timeRemaining} left
-              </span>
-            </div>
-          </div>
-
-          {/* Mood Progress Bar Section */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <span className="text-sm font-medium text-white">Mood</span>
-              <span className="text-lg font-bold text-white tabular-nums">
+          {/* Mood Progress Bar Section - Simplified */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+              <span className="text-xs text-moon-grey-dark">Mood</span>
+              <span className="text-base font-bold text-white tabular-nums">
                 {moodPercentage}%
               </span>
             </div>
-            <div className="relative w-full h-2 bg-graphite-light rounded-full overflow-hidden">
+            <div className="relative w-full h-1.5 bg-graphite-deep rounded-full overflow-hidden">
               <div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-neon-iris/60 to-aqua-pulse/60 rounded-full transition-all duration-500"
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-neon-iris to-aqua-pulse rounded-full transition-all duration-500"
                 style={{ width: `${moodPercentage}%` }}
               />
             </div>
           </div>
 
           {/* Content Area - Action Buttons */}
-          <div className="flex-1 flex flex-col justify-end min-h-0">
+          <div className="flex-1 flex flex-col justify-end min-h-0 pt-1 overflow-visible relative">
             {isMultipleChoice ? (
               /* Multiple Choice Layout - Top Option + Dropdown */
-              <div className="space-y-2">
+              <div className="space-y-2.5 relative overflow-visible">
                 {topOption &&
                   (() => {
                     const optionPrice =
@@ -367,60 +281,33 @@ const MarketCardComponent = ({
                         isResolved
                       );
                     const percentage = (optionPrice * 100).toFixed(1);
-                    const percentageNum = parseFloat(percentage);
 
                     return (
-                      <div className="relative">
-                        <div className="relative rounded-xl overflow-hidden transition-all duration-300 group/option bg-graphite-light border border-white/5 shadow-lg hover:border-neon-iris/30 hover:shadow-neon-subtle">
-                          {/* Enhanced progress bar with gradient colors */}
+                      <div
+                        ref={dropdownRef}
+                        className="relative overflow-visible"
+                      >
+                        <div className="relative rounded-lg overflow-hidden bg-graphite-deep border border-white/10 hover:border-neon-iris/30 transition-all">
                           <div
-                            className={`absolute inset-0 transition-all duration-500 ${
-                              percentageNum >= 50
-                                ? "bg-gradient-to-r from-aqua-pulse/20 via-aqua-pulse/10 to-transparent"
-                                : percentageNum >= 25
-                                ? "bg-gradient-to-r from-brand-warning/20 via-brand-warning/10 to-transparent"
-                                : "bg-gradient-to-r from-brand-danger/20 via-brand-danger/10 to-transparent"
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                          {/* Glow effect on progress */}
-                          <div
-                            className="absolute inset-0 bg-gradient-to-r from-aqua-pulse/0 via-aqua-pulse/30 to-transparent opacity-0 group-hover/option:opacity-60 transition-opacity duration-500 blur-sm"
+                            className="absolute inset-0 bg-gradient-to-r from-neon-iris/15 to-aqua-pulse/15 transition-all duration-500"
                             style={{ width: `${percentage}%` }}
                           />
 
-                          <div className="relative flex items-center gap-2 p-3">
-                            {/* Option Image */}
+                          <div className="relative flex items-center gap-2.5 p-3">
                             {topOption.option_image_url ? (
-                              <div className="relative flex-shrink-0">
-                                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-neon-iris/20 to-aqua-pulse/20 opacity-0 group-hover/option:opacity-60 transition-opacity blur-sm" />
-                                <img
-                                  src={topOption.option_image_url}
-                                  alt={topOption.option_label}
-                                  className="relative w-8 h-8 rounded-lg object-cover border border-white/10 group-hover/option:border-neon-iris/40 transition-all"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-graphite-hover to-graphite-deep flex items-center justify-center font-bold text-moon-grey-dark flex-shrink-0 text-xs border border-white/10 group-hover/option:border-neon-iris/30 transition-all">
-                                1
-                              </div>
-                            )}
+                              <img
+                                src={topOption.option_image_url}
+                                alt={topOption.option_label}
+                                className="w-7 h-7 rounded object-cover flex-shrink-0"
+                              />
+                            ) : null}
 
-                            {/* Option Label */}
                             <div className="flex-1 min-w-0">
-                              <div>
-                                <span className="font-semibold truncate block text-sm text-white group-hover/option:text-neon-iris-light transition-colors">
-                                  {topOption.option_label}
-                                </span>
-                                {topOption.option_sub_label && (
-                                  <div className="text-gray-300 text-xs mt-0.5 truncate">
-                                    {topOption.option_sub_label}
-                                  </div>
-                                )}
-                              </div>
+                              <span className="font-medium truncate block text-sm text-white">
+                                {topOption.option_label}
+                              </span>
                             </div>
 
-                            {/* Dropdown Arrow + Count */}
                             {otherOptions.length > 0 && (
                               <button
                                 onClick={(e) => {
@@ -428,7 +315,7 @@ const MarketCardComponent = ({
                                   e.stopPropagation();
                                   setShowAllOptions(!showAllOptions);
                                 }}
-                                className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-graphite-hover hover:bg-graphite-light transition-colors text-xs text-moon-grey hover:text-white"
+                                className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded bg-graphite-light hover:bg-graphite-hover transition-colors text-xs text-moon-grey hover:text-white"
                               >
                                 <span>+{otherOptions.length}</span>
                                 <ChevronDown
@@ -444,13 +331,13 @@ const MarketCardComponent = ({
                         {/* Dropdown Options */}
                         {showAllOptions && otherOptions.length > 0 && (
                           <div
-                            className={`absolute bottom-full left-0 right-0 mb-2 space-y-2 bg-graphite-deep border border-white/10 rounded-xl p-2 shadow-lg z-10 ${
+                            className={`absolute bottom-full left-0 right-0 mb-2.5 space-y-2 bg-graphite-deep border border-white/10 rounded-lg p-2.5 shadow-2xl z-[9999] ${
                               otherOptions.length > 3
                                 ? "max-h-60 overflow-y-auto"
                                 : ""
                             }`}
                           >
-                            {otherOptions.map((option, index) => {
+                            {otherOptions.map((option) => {
                               const optionPrice =
                                 (option as any).yes_price ??
                                 calculateYesPrice(
@@ -460,58 +347,31 @@ const MarketCardComponent = ({
                                   isResolved
                                 );
                               const percentage = (optionPrice * 100).toFixed(1);
-                              const percentageNum = parseFloat(percentage);
 
                               return (
                                 <div
                                   key={option.id}
-                                  className="relative rounded-lg overflow-hidden transition-all duration-300 group/option bg-graphite-light border border-white/5 hover:border-neon-iris/30"
+                                  className="relative rounded overflow-hidden bg-graphite-light border border-white/10 hover:border-neon-iris/30 transition-all"
                                 >
-                                  {/* Progress bar with gradient colors */}
                                   <div
-                                    className={`absolute inset-0 transition-all duration-500 ${
-                                      percentageNum >= 50
-                                        ? "bg-gradient-to-r from-aqua-pulse/20 via-aqua-pulse/10 to-transparent"
-                                        : percentageNum >= 25
-                                        ? "bg-gradient-to-r from-brand-warning/20 via-brand-warning/10 to-transparent"
-                                        : "bg-gradient-to-r from-brand-danger/20 via-brand-danger/10 to-transparent"
-                                    }`}
+                                    className="absolute inset-0 bg-gradient-to-r from-neon-iris/15 to-aqua-pulse/15 transition-all duration-500"
                                     style={{ width: `${percentage}%` }}
                                   />
 
-                                  <div className="relative flex items-center gap-2 p-2">
+                                  <div className="relative flex items-center gap-2.5 p-2.5">
                                     {option.option_image_url ? (
                                       <img
                                         src={option.option_image_url}
                                         alt={option.option_label}
-                                        className="w-8 h-8 rounded-lg object-cover border border-white/10"
+                                        className="w-6 h-6 rounded object-cover flex-shrink-0"
                                       />
-                                    ) : (
-                                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-graphite-hover to-graphite-deep flex items-center justify-center font-bold text-moon-grey-dark text-xs border border-white/10">
-                                        {index + 2}
-                                      </div>
-                                    )}
+                                    ) : null}
                                     <div className="flex-1 min-w-0">
-                                      <div>
-                                        <span className="font-medium truncate block text-xs text-white">
-                                          {option.option_label}
-                                        </span>
-                                        {option.option_sub_label && (
-                                          <div className="text-gray-300 text-[9px] mt-0.5 truncate">
-                                            {option.option_sub_label}
-                                          </div>
-                                        )}
-                                      </div>
+                                      <span className="font-medium truncate block text-xs text-white">
+                                        {option.option_label}
+                                      </span>
                                     </div>
-                                    <div
-                                      className={`flex-shrink-0 px-2 py-1 rounded text-xs font-bold tabular-nums ${
-                                        percentageNum >= 50
-                                          ? "bg-aqua-pulse/20 text-aqua-pulse"
-                                          : percentageNum >= 25
-                                          ? "bg-brand-warning/20 text-brand-warning"
-                                          : "bg-brand-danger/20 text-brand-danger"
-                                      }`}
-                                    >
+                                    <div className="flex-shrink-0 px-2 py-0.5 rounded text-xs font-semibold tabular-nums bg-graphite-deep text-white">
                                       {percentage}%
                                     </div>
                                   </div>
@@ -525,101 +385,49 @@ const MarketCardComponent = ({
                   })()}
               </div>
             ) : (
-              /* Binary Market Layout - Yes/No side by side with gradient colors */
-              <div className="grid grid-cols-2 gap-2">
-                {/* Yes Option - Premium design with gradient */}
-                <div className="relative rounded-xl overflow-hidden transition-all duration-300 group/yes bg-graphite-light border border-white/5 shadow-lg hover:border-aqua-pulse/40 hover:shadow-aqua-subtle">
-                  {/* Enhanced progress bar with glow */}
+              /* Binary Market Layout - Yes/No side by side */
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Yes Option */}
+                <div className="relative rounded-lg overflow-hidden bg-graphite-deep border border-white/10 hover:border-aqua-pulse/30 transition-all">
                   <div
-                    className={`absolute inset-0 transition-all duration-500 ${
-                      yesPrice >= 0.5
-                        ? "bg-gradient-to-r from-aqua-pulse/20 via-aqua-pulse/10 to-transparent"
-                        : yesPrice >= 0.25
-                        ? "bg-gradient-to-r from-brand-warning/20 via-brand-warning/10 to-transparent"
-                        : "bg-gradient-to-r from-brand-danger/20 via-brand-danger/10 to-transparent"
-                    }`}
-                    style={{ width: `${(yesPrice * 100).toFixed(1)}%` }}
-                  />
-                  {/* Glow effect */}
-                  <div
-                    className="absolute inset-0 bg-gradient-to-r from-aqua-pulse/0 via-aqua-pulse/30 to-transparent opacity-0 group-hover/yes:opacity-60 transition-opacity duration-500 blur-sm"
+                    className="absolute inset-0 bg-gradient-to-r from-aqua-pulse/15 to-transparent transition-all duration-500"
                     style={{ width: `${(yesPrice * 100).toFixed(1)}%` }}
                   />
 
-                  <div className="relative flex items-center gap-2 p-3">
-                    {/* Yes Icon - Enhanced */}
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-aqua-pulse/25 to-aqua-pulse/10 flex items-center justify-center flex-shrink-0 border border-aqua-pulse/30 group-hover/yes:border-aqua-pulse/40 transition-all">
-                      <svg
-                        className="w-3.5 h-3.5 text-aqua-pulse"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-
-                    {/* Option Label */}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-bold text-white text-sm block group-hover/yes:text-aqua-pulse-light transition-colors">
-                        Yes
-                      </span>
-                    </div>
+                  <div className="relative flex items-center justify-center p-3">
+                    <span className="font-semibold text-white text-sm">
+                      Yes
+                    </span>
                   </div>
                 </div>
 
-                {/* No Option - Premium design with gradient */}
-                <div className="relative rounded-xl overflow-hidden transition-all duration-300 group/no bg-graphite-hover/60 border border-white/5 hover:border-brand-danger/40 hover:shadow-brand-danger/10">
-                  {/* Enhanced progress bar */}
+                {/* No Option */}
+                <div className="relative rounded-lg overflow-hidden bg-graphite-deep border border-white/10 hover:border-brand-danger/30 transition-all">
                   <div
-                    className={`absolute inset-0 transition-all duration-500 ${
-                      noPrice >= 0.5
-                        ? "bg-gradient-to-r from-brand-danger/20 via-brand-danger/10 to-transparent"
-                        : noPrice >= 0.25
-                        ? "bg-gradient-to-r from-brand-warning/20 via-brand-warning/10 to-transparent"
-                        : "bg-gradient-to-r from-aqua-pulse/20 via-aqua-pulse/10 to-transparent"
-                    }`}
-                    style={{ width: `${(noPrice * 100).toFixed(1)}%` }}
-                  />
-                  {/* Glow effect */}
-                  <div
-                    className="absolute inset-0 bg-gradient-to-r from-brand-danger/0 via-brand-danger/30 to-transparent opacity-0 group-hover/no:opacity-60 transition-opacity duration-500 blur-sm"
+                    className="absolute inset-0 bg-gradient-to-r from-brand-danger/15 to-transparent transition-all duration-500"
                     style={{ width: `${(noPrice * 100).toFixed(1)}%` }}
                   />
 
-                  <div className="relative flex items-center gap-2 p-3">
-                    {/* No Icon - Enhanced */}
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-danger/25 to-brand-danger/10 flex items-center justify-center flex-shrink-0 border border-brand-danger/30 group-hover/no:border-brand-danger/40 transition-all">
-                      <svg
-                        className="w-3.5 h-3.5 text-brand-danger"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </div>
-
-                    {/* Option Label */}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-bold text-white text-sm block group-hover/no:text-brand-danger transition-colors">
-                        No
-                      </span>
-                    </div>
+                  <div className="relative flex items-center justify-center p-3">
+                    <span className="font-semibold text-white text-sm">No</span>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Metrics Row - At Bottom */}
+            <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-white/5 text-xs text-moon-grey-dark">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-moon-grey-dark" />
+                <span className="text-white">
+                  {formatUSDC(market.total_volume)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                <span className="truncate">{timeRemaining}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

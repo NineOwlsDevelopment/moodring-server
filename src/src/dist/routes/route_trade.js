@@ -18,6 +18,7 @@ router.get("/position/:option", auth_1.authenticateToken, (0, routeHandler_1.typ
 router.get("/positions", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_trade_1.getAllPositions));
 // Trade history routes
 router.get("/history", auth_1.authenticateToken, (0, routeHandler_1.typedHandler)(controller_trade_1.getTradeHistory));
+router.get("/user/:userId", auth_1.authenticateToken, (0, validate_1.validateUUID)("userId"), (0, routeHandler_1.typedHandler)(controller_trade_1.getUserTrades));
 router.get("/recent", (0, routeHandler_1.typedHandler)(controller_trade_1.getRecentTrades));
 router.get("/market/:id", (0, routeHandler_1.typedHandler)(controller_trade_1.getMarketTrades));
 // Price history routes (for charts)

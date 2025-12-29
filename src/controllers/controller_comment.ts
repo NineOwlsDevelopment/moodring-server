@@ -217,9 +217,8 @@ export const getCommentReplies = async (
     if (!currentUserId) {
       return sendError(res, 401, "Unauthorized");
     }
-    const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-    const offset = (page - 1) * limit;
+    const offset = parseInt(req.query.offset as string) || 0;
 
     const replies = await CommentModel.findReplies(
       id,
@@ -231,7 +230,7 @@ export const getCommentReplies = async (
     return sendSuccess(res, {
       replies,
       pagination: {
-        page,
+        offset,
         limit,
         hasMore: replies.length === limit,
       },

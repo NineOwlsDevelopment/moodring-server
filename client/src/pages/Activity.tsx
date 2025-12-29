@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useUserStore } from "@/stores/userStore";
 import {
   fetchMyActivity,
-  fetchActivityFeed,
   Activity as ActivityType,
 } from "@/api/api";
 import {
@@ -229,28 +228,25 @@ const filters = [
 
 export const Activity = () => {
   const { user } = useUserStore();
-  const [activeTab, setActiveTab] = useState<"my" | "global">(
-    user ? "my" : "global"
-  );
   const [activities, setActivities] = useState<ActivityType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
     loadActivities();
-  }, [activeTab, filter, user]);
+  }, [filter, user]);
 
   const loadActivities = async () => {
     setIsLoading(true);
     try {
-      if (activeTab === "my" && user) {
+      if (user) {
         const { activities: data } = await fetchMyActivity({
           type: filter !== "all" ? filter : undefined,
         });
         setActivities(data);
       } else {
-        const { activities: data } = await fetchActivityFeed();
-        setActivities(data);
+        // If user is not logged in, show empty state
+        setActivities([]);
       }
     } catch (error) {
       console.error("Failed to load activities:", error);
@@ -272,39 +268,13 @@ export const Activity = () => {
               Activity
             </h1>
             <p className="text-moon-grey text-sm">
-              Track your transactions and platform activity
+              Track your transactions and activity
             </p>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex bg-graphite-light rounded-xl p-1 ">
-            {user && (
-              <button
-                onClick={() => setActiveTab("my")}
-                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 min-h-[40px] ${
-                  activeTab === "my"
-                    ? "bg-gradient-brand text-white shadow-neon-subtle"
-                    : "text-moon-grey hover:text-white hover:bg-white/5"
-                }`}
-              >
-                My Activity
-              </button>
-            )}
-            <button
-              onClick={() => setActiveTab("global")}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 min-h-[40px] ${
-                activeTab === "global"
-                  ? "bg-gradient-brand text-white shadow-neon-subtle"
-                  : "text-moon-grey hover:text-white hover:bg-white/5"
-              }`}
-            >
-              Global Feed
-            </button>
           </div>
         </div>
 
-        {/* Filters (only for My Activity) */}
-        {activeTab === "my" && user && (
+        {/* Filters */}
+        {user && (
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-moon-grey-dark" />
@@ -342,7 +312,7 @@ export const Activity = () => {
               </span>
             </div>
             <h2 className="text-lg font-semibold text-white">
-              {activeTab === "my" ? "Recent Transactions" : "Platform Activity"}
+              Recent Transactions
             </h2>
           </div>
 
@@ -364,11 +334,11 @@ export const Activity = () => {
                 No activity yet
               </h3>
               <p className="text-moon-grey text-center max-w-sm mb-6">
-                {activeTab === "my"
+                {user
                   ? "Start trading to see your transaction history here!"
-                  : "No recent activity on the platform."}
+                  : "Please log in to view your activity."}
               </p>
-              {activeTab === "my" && (
+              {user && (
                 <Link to="/markets" className="btn btn-primary">
                   Browse Markets
                 </Link>

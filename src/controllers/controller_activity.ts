@@ -198,11 +198,13 @@ export const getMyActivity = async (
       }
     }
 
+    // Include trades for user's own activity
     const activities = await ActivityModel.getUserActivity(
       userId,
       limit,
       offset,
-      type
+      type,
+      true // includeTrades = true for user's own activity
     );
 
     // console share claim activity

@@ -135,3 +135,31 @@ export const uploadMetadataToS3 = async (
   // Return metadata URI for the Metaplex Metadata PDA
   return metadataUrl;
 };
+
+export const uploadVideoToS3 = async (
+  fileBuffer: Buffer,
+  fileName: string,
+  fileType: string,
+  bucket: string
+): Promise<string> => {
+  try {
+    const s3 = getS3Client();
+    const extension = fileName.split(".").pop() || "mp4";
+    const key = `videos/${uuidv4()}.${extension}`;
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: fileType,
+    });
+
+    await s3.send(command);
+
+    // Return the public URL
+    return `https://${process.env.CLOUDFRONT_IMAGE_URL}/${key}`;
+  } catch (error) {
+    console.error("Error uploading video to S3:", error);
+    throw error;
+  }
+};

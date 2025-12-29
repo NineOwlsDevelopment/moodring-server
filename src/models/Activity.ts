@@ -112,7 +112,7 @@ export class ActivityModel {
         )
         LIMIT 1
       ) m ON true
-      WHERE a.is_public = TRUE
+      WHERE a.is_public = TRUE AND a.activity_type != 'trade'
       ORDER BY a.created_at DESC
       LIMIT $1 OFFSET $2
     `,
@@ -126,9 +126,14 @@ export class ActivityModel {
     limit = 50,
     offset = 0,
     activityType?: ActivityType,
+    includeTrades = false,
     client?: QueryClient
   ): Promise<ActivityWithUser[]> {
     const db = client || pool;
+    // Exclude trades from public user activity (used for viewing other users' profiles)
+    // Trades should only be visible to the user themselves via getMyActivity
+    // When includeTrades is true, include all activities including trades (for user's own activity)
+    const tradeFilter = includeTrades ? "" : "AND a.activity_type != 'trade'";
     const typeFilter = activityType ? "AND a.activity_type = $4" : "";
     const params = activityType
       ? [userId, limit, offset, activityType]
@@ -143,7 +148,7 @@ export class ActivityModel {
         u.avatar_url
       FROM activities a
       LEFT JOIN users u ON a.user_id = u.id
-      WHERE a.user_id = $1 ${typeFilter}
+      WHERE a.user_id = $1 ${tradeFilter} ${typeFilter}
       ORDER BY a.created_at DESC
       LIMIT $2 OFFSET $3
     `,
@@ -171,10 +176,10 @@ export class ActivityModel {
       FROM activities a
       LEFT JOIN users u ON a.user_id = u.id
       LEFT JOIN markets m ON m.id::text = $1
-      WHERE (a.entity_type = 'market' AND a.entity_id::text = $1)
+      WHERE ((a.entity_type = 'market' AND a.entity_id::text = $1)
          OR (a.entity_type = 'option' AND a.metadata->>'market_id' = $1)
-         OR (a.entity_type = 'trade' AND a.metadata->>'market_id' = $1)
-         OR (a.entity_id::text = $1)
+         OR (a.entity_id::text = $1))
+         AND a.activity_type != 'trade'
       ORDER BY a.created_at DESC
       LIMIT $2 OFFSET $3
     `,
@@ -190,6 +195,10 @@ export class ActivityModel {
     client?: QueryClient
   ): Promise<ActivityWithUser[]> {
     const db = client || pool;
+    // Prevent returning trade activities through public endpoint
+    if (activityType === "trade") {
+      return [];
+    }
     const result = await db.query(
       `
       SELECT 
@@ -230,12 +239,13 @@ export class ActivityModel {
     client?: QueryClient
   ): Promise<ActivityWithUser[]> {
     const db = client || pool;
+    // Exclude trade activities - trades should not be exposed through this method
     const result = await db.query(
       `
       SELECT a.*, u.username, u.display_name, u.avatar_url
       FROM activities a
       LEFT JOIN users u ON a.user_id = u.id
-      WHERE a.entity_type = $1 AND a.entity_id = $2
+      WHERE a.entity_type = $1 AND a.entity_id = $2 AND a.activity_type != 'trade'
       ORDER BY a.created_at DESC
       LIMIT $3
     `,

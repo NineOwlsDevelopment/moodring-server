@@ -59,6 +59,7 @@ const route_notification_1 = __importDefault(require("./routes/route_notificatio
 const route_comment_1 = __importDefault(require("./routes/route_comment"));
 const route_analytics_1 = __importDefault(require("./routes/route_analytics"));
 const route_resolution_1 = __importDefault(require("./routes/route_resolution"));
+const route_post_1 = __importDefault(require("./routes/route_post"));
 // ============================================================================
 // Internal Services & Middleware
 // ============================================================================
@@ -242,6 +243,7 @@ app.use(`${API_VERSION}/notifications`, route_notification_1.default);
 app.use(`${API_VERSION}/comments`, route_comment_1.default);
 app.use(`${API_VERSION}/analytics`, route_analytics_1.default);
 app.use(`${API_VERSION}/resolution`, route_resolution_1.default);
+app.use(`${API_VERSION}/posts`, route_post_1.default);
 // Admin routes with IP whitelist
 app.use(`${API_VERSION}/admin`, ipFilter_1.adminIPWhitelist, route_admin_1.default);
 // Legacy API routes (backward compatibility - deprecated)
@@ -259,6 +261,7 @@ app.use("/api/notifications", route_notification_1.default);
 app.use("/api/comments", route_comment_1.default);
 app.use("/api/analytics", route_analytics_1.default);
 app.use("/api/resolution", route_resolution_1.default);
+app.use("/api/posts", route_post_1.default);
 app.use("/api/admin", ipFilter_1.adminIPWhitelist, route_admin_1.default);
 // ============================================================================
 // Service Initialization

@@ -10,6 +10,7 @@ import { useActivitySocket } from "@/hooks/useSocket";
 import { ActivityUpdate } from "@/services/socket";
 import { Activity as ActivityIcon, ArrowRight } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { getUserProfileUrl } from "@/utils/userProfile";
 
 interface ActivityFeedProps {
   limit?: number;
@@ -314,11 +315,17 @@ export const ActivityFeed = ({
               style={{ animationDelay: `${index * 50}ms` }}
             >
               {activity.username && (
-                <UserAvatar
-                  name={activity.username}
-                  imageUrl={activity.avatar_url}
-                  size="md"
-                />
+                <Link
+                  to={getUserProfileUrl(activity.username || activity.user_id)}
+                  className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <UserAvatar
+                    name={activity.username}
+                    imageUrl={activity.avatar_url}
+                    size="md"
+                  />
+                </Link>
               )}
               <div className="flex-1 min-w-0 overflow-hidden">
                 <div className="text-sm text-moon-grey leading-relaxed">
