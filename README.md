@@ -23,13 +23,13 @@ A Solana-native prediction market platform with deep LMSR liquidity and instant 
 
 ## Features
 
-- 🔐 Solana wallet integration (Phantom, Solflare, etc)
-- 📊 Real-time prediction markets with LMSR liquidity
-- 💼 Portfolio management and trading history
-- 🎯 YES/NO binary markets
-- 👨‍💼 Admin panel for market management
-- ⚡ Real-time updates via WebSocket
-- 📱 Responsive design
+- Solana wallet integration (Phantom, Solflare, etc)
+- Real-time prediction markets with LMSR liquidity
+- Portfolio management and trading history
+- YES/NO binary markets
+- Admin panel for market management
+- Real-time updates via WebSocket
+- Responsive design
 
 ## Getting Started
 

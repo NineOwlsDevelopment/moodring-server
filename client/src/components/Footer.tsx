@@ -14,16 +14,16 @@ export const Footer = () => {
       <div className="section-container py-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Left: Social Links */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3.5">
             <a
               href="https://twitter.com/moodring_io"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Twitter"
-              className="w-9 h-9 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
+              className="w-8 h-8 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
             >
               <svg
-                className="w-4.5 h-4.5"
+                className="w-4 h-4"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -35,10 +35,10 @@ export const Footer = () => {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Discord"
-              className="w-9 h-9 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
+              className="w-8 h-8 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
             >
               <svg
-                className="w-4.5 h-4.5"
+                className="w-4 h-4"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -50,10 +50,10 @@ export const Footer = () => {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Telegram"
-              className="w-9 h-9 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
+              className="w-8 h-8 rounded-lg bg-graphite-light flex items-center justify-center text-moon-grey hover:text-white hover:bg-graphite-hover transition-all duration-200"
             >
               <svg
-                className="w-4.5 h-4.5"
+                className="w-4 h-4"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >

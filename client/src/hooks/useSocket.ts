@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   socketService,
   TradeUpdate,
@@ -6,6 +6,7 @@ import {
   MarketUpdate,
   ActivityUpdate,
   CommentUpdate,
+  WatcherUpdate,
 } from "@/services/socket";
 
 /**
@@ -179,4 +180,41 @@ export function useCommentSocket(
       unsubComment?.();
     };
   }, [marketId, onComment]);
+}
+
+/**
+ * Hook to track watchers for a market
+ */
+export function useMarketWatchers(
+  marketId: string | undefined,
+  onWatchers?: (count: number) => void
+) {
+  const [watcherCount, setWatcherCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!marketId) return;
+
+    // Ensure connected
+    socketService.connect();
+
+    // Subscribe to market (this will trigger watcher count)
+    socketService.subscribeToMarket(marketId);
+
+    // Set up watcher listener
+    const unsubWatchers = socketService.onWatchers((update: WatcherUpdate) => {
+      if (update.market_id === marketId) {
+        setWatcherCount(update.count);
+        if (onWatchers) {
+          onWatchers(update.count);
+        }
+      }
+    });
+
+    return () => {
+      socketService.unsubscribeFromMarket(marketId);
+      unsubWatchers();
+    };
+  }, [marketId, onWatchers]);
+
+  return watcherCount;
 }

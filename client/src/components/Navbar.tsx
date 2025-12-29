@@ -24,6 +24,8 @@ import {
   X,
   Copy,
   Bookmark,
+  TrendingUp,
+  Droplets,
 } from "lucide-react";
 
 /**
@@ -139,15 +141,9 @@ export const Navbar = () => {
   };
 
   const navLinks = [
-    { path: "/markets", label: "Markets" },
-    { path: "/leaderboard", label: "Leaderboard" },
-    ...(user
-      ? [
-          { path: "/pools", label: "Pools" },
-          { path: "/create", label: "Create" },
-        ]
-      : []),
-    ...(isAdmin ? [{ path: "/admin", label: "Admin" }] : []),
+    { path: "/markets", label: "Markets", icon: TrendingUp },
+    { path: "/pools", label: "Pools", icon: Droplets },
+    ...(isAdmin ? [{ path: "/admin", label: "Admin", icon: Settings }] : []),
   ];
 
   const truncateAddress = (address: string) => {
@@ -233,7 +229,7 @@ export const Navbar = () => {
             {user ? (
               <>
                 {/* Balance */}
-                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-graphite-light rounded-xl">
+                <div className="flex items-center gap-2 px-3 py-2 bg-graphite-light rounded-xl">
                   <span className="text-sm font-semibold text-white tabular-nums">
                     {formatUSDC(user?.wallet?.balance_usdc) || "0.00"}
                   </span>
@@ -243,14 +239,12 @@ export const Navbar = () => {
                 </div>
 
                 {/* Wallet Icon */}
-                <Tooltip content="Deposit & Withdraw" position="bottom">
-                  <button
-                    onClick={() => setIsWalletModalOpen(true)}
-                    className="p-2 rounded-xl hover:bg-white/5 transition-colors text-moon-grey hover:text-white"
-                  >
-                    <Wallet className="w-5 h-5" />
-                  </button>
-                </Tooltip>
+                <button
+                  onClick={() => setIsWalletModalOpen(true)}
+                  className="p-2 rounded-xl hover:bg-white/5 transition-colors text-moon-grey hover:text-white"
+                >
+                  <Wallet className="w-5 h-5" />
+                </button>
 
                 {/* Notifications */}
                 <NotificationDropdown />
@@ -475,32 +469,88 @@ export const Navbar = () => {
 
                       {/* Nav Links */}
                       <div className="space-y-1">
-                        {navLinks.map((link) => (
-                          <Link
-                            key={link.path}
-                            to={link.path}
-                            onClick={closeMobileMenu}
-                            className={`block px-4 py-3 rounded-xl font-medium transition-all ${
-                              isActive(link.path)
-                                ? "bg-neon-iris/15 text-white"
-                                : "text-moon-grey hover:text-white hover:bg-white/5"
-                            }`}
-                          >
-                            {link.label}
-                          </Link>
-                        ))}
+                        {navLinks.map((link) => {
+                          const Icon = link.icon;
+                          return (
+                            <Link
+                              key={link.path}
+                              to={link.path}
+                              onClick={closeMobileMenu}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive(link.path)
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <Icon className="w-5 h-5" />
+                              {link.label}
+                            </Link>
+                          );
+                        })}
 
                         {user && (
                           <>
+                            {/* Divider */}
+                            <div className="my-2 border-t border-white/[0.08]" />
+                            
+                            <Link
+                              to="/my-markets"
+                              onClick={closeMobileMenu}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive("/my-markets")
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <BarChart3 className="w-5 h-5" />
+                              My Markets
+                            </Link>
+                            <Link
+                              to="/portfolio"
+                              onClick={closeMobileMenu}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive("/portfolio")
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <Wallet className="w-5 h-5" />
+                              Portfolio
+                            </Link>
+                            <Link
+                              to="/watchlist"
+                              onClick={closeMobileMenu}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive("/watchlist")
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <Bookmark className="w-5 h-5" />
+                              Watchlist
+                            </Link>
+                            <Link
+                              to="/activity"
+                              onClick={closeMobileMenu}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                                isActive("/activity")
+                                  ? "bg-neon-iris/15 text-white"
+                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                              }`}
+                            >
+                              <Clock className="w-5 h-5" />
+                              Activity
+                            </Link>
                             <Link
                               to="/settings"
                               onClick={closeMobileMenu}
-                              className={`block px-4 py-3 rounded-xl font-medium transition-all ${
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
                                 isActive("/settings")
                                   ? "bg-neon-iris/15 text-white"
                                   : "text-moon-grey hover:text-white hover:bg-white/5"
                               }`}
                             >
+                              <Settings className="w-5 h-5" />
                               Settings
                             </Link>
                             <button
@@ -508,8 +558,9 @@ export const Navbar = () => {
                                 closeMobileMenu();
                                 handleLogout();
                               }}
-                              className="w-full text-left px-4 py-3 rounded-xl font-medium text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-all"
+                              className="w-full flex items-center gap-3 text-left px-4 py-3 rounded-xl font-medium text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-all"
                             >
+                              <LogOut className="w-5 h-5" />
                               Logout
                             </button>
                           </>

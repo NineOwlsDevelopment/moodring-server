@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useMarketStore } from "@/stores/marketStore";
+import { useUserStore } from "@/stores/userStore";
 import { MarketCard } from "@/components/MarketCard";
 import { fetchCategories, MarketsApiResponse } from "@/api/api";
 import { sortCategories } from "@/utils/categorySort";
@@ -51,6 +52,7 @@ const fetchMarketsDirect = async (params: {
 export const Markets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { selectedCategory, setSelectedCategory } = useMarketStore();
+  const { user } = useUserStore();
 
   // Markets state - append only, never replace existing items
   const [markets, setMarkets] = useState<any[]>([]);
@@ -396,9 +398,32 @@ export const Markets = () => {
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 md:pb-8">
       {/* Header - Minimal */}
       <div className="mb-5">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-          Markets
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            Markets
+          </h1>
+          
+          {/* Create Market CTA - Always visible */}
+          <Link
+            to="/create"
+            className="btn btn-outline-gradient font-semibold group hover:scale-105 active:scale-100 transition-all whitespace-nowrap inline-flex items-center justify-center gap-2"
+          >
+            <svg
+              className="w-5 h-5 transition-transform group-hover:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Create Market
+          </Link>
+        </div>
 
         {/* Creator Type Tabs - Integrated design */}
         <div className="flex items-center gap-2 bg-graphite-deep rounded-xl p-1 border border-graphite-light inline-flex">

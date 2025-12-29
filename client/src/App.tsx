@@ -214,6 +214,7 @@ function App() {
               <Route path="/markets" element={<Markets />} />
               <Route path="/market/:id" element={<MarketDetail />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/pools" element={<Pools />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               {/* Legal Pages */}
@@ -228,7 +229,6 @@ function App() {
               <Route path="/create" element={<CreateMarket />} />
               <Route path="/my-markets" element={<MyMarkets />} />
               <Route path="/watchlist" element={<Watchlist />} />
-              <Route path="/pools" element={<Pools />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />

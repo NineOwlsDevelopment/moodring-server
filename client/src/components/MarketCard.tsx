@@ -11,6 +11,7 @@ import { Clock, TrendingUp, ChevronDown } from "lucide-react";
 import { GradientAccent } from "./GradientAccent";
 import { UserAvatar } from "./UserAvatar";
 import { WatchlistButton } from "./WatchlistButton";
+import { TrendingBadge, getTrendingStatus } from "./TrendingBadge";
 
 interface MarketCardProps {
   market: Market;
@@ -247,9 +248,9 @@ const MarketCardComponent = ({
           </div>
 
           {/* Status Tags Row */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            {/* Active/Resolved Status */}
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            {/* Active/Resolved Status + Trending Badge */}
+            <div className="flex items-center gap-2 flex-wrap">
               {isResolved ? (
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-aqua-pulse" />
@@ -261,6 +262,17 @@ const MarketCardComponent = ({
                   <span className="text-xs text-moon-grey-dark">Active</span>
                 </div>
               )}
+              {/* Trending Badge */}
+              {!isResolved && (() => {
+                const trendingStatus = getTrendingStatus({
+                  total_volume: market.total_volume || 0,
+                  created_at: market.created_at,
+                  total_open_interest: (market as any).total_open_interest || 0,
+                });
+                return trendingStatus ? (
+                  <TrendingBadge type={trendingStatus} size="sm" />
+                ) : null;
+              })()}
             </div>
             {/* Category Tag */}
             <span className="px-2 py-0.5 rounded-full bg-neon-iris/10 text-neon-iris text-xs font-medium border border-neon-iris/20">

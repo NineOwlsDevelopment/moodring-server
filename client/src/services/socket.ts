@@ -48,6 +48,12 @@ export interface BalanceUpdate {
   timestamp: Date;
 }
 
+export interface WatcherUpdate {
+  market_id: string;
+  count: number;
+  timestamp: Date;
+}
+
 export interface CommentUpdate {
   comment_id: string;
   market_id: string;
@@ -294,6 +300,11 @@ class SocketService {
   onBalance(callback: (update: BalanceUpdate) => void): () => void {
     this.socket?.on("balance", callback);
     return () => this.socket?.off("balance", callback);
+  }
+
+  onWatchers(callback: (update: WatcherUpdate) => void): () => void {
+    this.socket?.on("watchers", callback);
+    return () => this.socket?.off("watchers", callback);
   }
 
   onComment(callback: (update: CommentUpdate) => void): () => void {

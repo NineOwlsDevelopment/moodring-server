@@ -11,6 +11,9 @@ import { ResolutionViewer } from "@/components/ResolutionViewer";
 import { DisputeResolution } from "@/components/DisputeResolution";
 import { ResolveOption } from "@/components/ResolveOption";
 import { UserAvatar } from "@/components/UserAvatar";
+import { SocialProof } from "@/components/SocialProof";
+import { QuickTradeButton } from "@/components/QuickTradeButton";
+import { TrendingBadge, getTrendingStatus } from "@/components/TrendingBadge";
 import {
   formatUSDC,
   formatDate,
@@ -1119,6 +1122,17 @@ export const MarketDetail = () => {
                       ✓ Resolved
                     </span>
                   )}
+                  {/* Trending Badge */}
+                  {!market.is_resolved && (() => {
+                    const trendingStatus = getTrendingStatus({
+                      total_volume: market.total_volume || 0,
+                      created_at: market.created_at,
+                      total_open_interest: (market as any).total_open_interest || 0,
+                    });
+                    return trendingStatus ? (
+                      <TrendingBadge type={trendingStatus} size="sm" />
+                    ) : null;
+                  })()}
                   {/* Creator Info */}
                   {(market.creator_username || market.creator_display_name) && (
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/[0.06]">
@@ -1312,6 +1326,16 @@ export const MarketDetail = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Social Proof */}
+                {!market.is_resolved && (
+                  <div className="mt-4">
+                    <SocialProof
+                      marketId={market.id}
+                      recentActivity={[]} // TODO: Add real recent activity
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

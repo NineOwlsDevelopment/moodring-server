@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "@/stores/userStore";
 import { AddLiquidity } from "@/components/AddLiquidity";
 import { RemoveLiquidity } from "@/components/RemoveLiquidity";
@@ -34,10 +34,11 @@ type View = "all" | "my-pools";
 type CreatorTypeOption = "all" | "admin" | "user";
 type SortOption = "tvl" | "apr" | "fees" | "newest" | "oldest" | "volume";
 
-const POOLS_PER_PAGE = 9;
+const POOLS_PER_PAGE = 12;
 
 export const Pools = () => {
   const { user } = useUserStore();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>("all");
   const [creatorType, setCreatorType] = useState<CreatorTypeOption>("admin");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -273,8 +274,13 @@ export const Pools = () => {
     loadPools();
     if (user) {
       loadMyPositions();
+    } else {
+      // Reset to "all" view if user logs out while on "my-pools"
+      if (view === "my-pools") {
+        setView("all");
+      }
     }
-  }, [user, creatorType, selectedCategory]);
+  }, [user, creatorType, selectedCategory, view]);
 
   const loadMyPositions = async () => {
     try {
@@ -382,24 +388,6 @@ export const Pools = () => {
     }).format(amount);
   };
 
-  if (!user) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <div className="text-6xl mb-4">💧</div>
-        <h1 className="text-3xl font-bold text-white mb-4">Liquidity Pools</h1>
-        <p className="text-gray-400 mb-6">
-          Connect your wallet to view and manage liquidity pools
-        </p>
-        <Link
-          to="/login"
-          className="inline-block px-6 py-3 bg-neon-iris hover:bg-neon-iris/90 text-white rounded-xl font-semibold transition-all"
-        >
-          Connect Wallet
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 md:pb-8">
       {/* Header - Clean & Compact */}
@@ -428,7 +416,7 @@ export const Pools = () => {
 
         {/* Main Filter Bar - Single Row */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          {/* View Toggle */}
+          {/* View Toggle - Only show "My Pools" if user is logged in */}
           <div className="flex items-center gap-1 bg-graphite-deep rounded-lg p-1 border border-graphite-light">
             <button
               onClick={() => setView("all")}
@@ -440,16 +428,18 @@ export const Pools = () => {
             >
               All
             </button>
-            <button
-              onClick={() => setView("my-pools")}
-              className={`px-3 py-1 rounded-md font-medium text-xs transition-all ${
-                view === "my-pools"
-                  ? "bg-graphite-light text-white"
-                  : "text-moon-grey hover:text-white"
-              }`}
-            >
-              My Pools ({myPositions.length})
-            </button>
+            {user && (
+              <button
+                onClick={() => setView("my-pools")}
+                className={`px-3 py-1 rounded-md font-medium text-xs transition-all ${
+                  view === "my-pools"
+                    ? "bg-graphite-light text-white"
+                    : "text-moon-grey hover:text-white"
+                }`}
+              >
+                My Pools ({myPositions.length})
+              </button>
+            )}
           </div>
 
           {/* Creator Type */}
@@ -587,19 +577,19 @@ export const Pools = () => {
               return (
                 <div
                   key={pool.id}
-                  className="bg-graphite-light rounded-xl p-4 border border-graphite-light hover:border-neon-iris/30 transition-all"
+                  className="bg-graphite-light rounded-xl p-5 border border-graphite-light hover:border-neon-iris/30 transition-all"
                 >
                   {/* Pool Header */}
-                  <div className="flex items-start gap-3 mb-3">
+                  <div className="flex items-start gap-4 mb-4">
                     {pool.image_url ? (
                       <img
                         src={pool.image_url}
                         alt=""
-                        className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                        className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-neon-iris to-aqua-pulse flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-bold text-sm">
+                      <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-neon-iris to-aqua-pulse flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-base">
                           {pool.question.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -607,43 +597,43 @@ export const Pools = () => {
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/market/${pool.id}`}
-                        className="text-white font-semibold hover:text-neon-iris transition-colors line-clamp-2 text-sm"
+                        className="text-white font-semibold hover:text-neon-iris transition-colors line-clamp-2 text-base block h-12"
                       >
                         {pool.question}
                       </Link>
-                      <div className="text-xs text-moon-grey-dark mt-0.5">
+                      <div className="text-sm text-moon-grey-dark mt-1">
                         {pool.lp_count} LP{pool.lp_count !== 1 ? "s" : ""}
                       </div>
                     </div>
                   </div>
 
                   {/* Pool Stats - Compact */}
-                  <div className="space-y-2 mb-3">
+                  <div className="space-y-2.5 mb-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-moon-grey-dark">TVL</span>
-                      <span className="text-sm font-semibold text-white tabular-nums">
+                      <span className="text-sm text-moon-grey-dark">TVL</span>
+                      <span className="text-base font-semibold text-white tabular-nums">
                         {formatRegularUSDC(tvl)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-moon-grey-dark">Fees</span>
-                      <span className="text-sm font-semibold text-emerald-400 tabular-nums">
+                      <span className="text-sm text-moon-grey-dark">Fees</span>
+                      <span className="text-base font-semibold text-emerald-400 tabular-nums">
                         {formatRegularUSDC(feesEarned)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-moon-grey-dark">APR</span>
-                      <span className="text-sm font-semibold text-neon-iris tabular-nums">
+                      <span className="text-sm text-moon-grey-dark">APR</span>
+                      <span className="text-base font-semibold text-neon-iris tabular-nums">
                         {apr.toFixed(2)}%
                       </span>
                     </div>
                     {myPosition && (
-                      <div className="pt-2 mt-2 border-t border-graphite-hover">
+                      <div className="pt-2.5 mt-2.5 border-t border-graphite-hover">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-moon-grey-dark">
+                          <span className="text-sm text-moon-grey-dark">
                             Your Position
                           </span>
-                          <span className="text-xs font-semibold text-white tabular-nums">
+                          <span className="text-sm font-semibold text-white tabular-nums">
                             {formatUSDC(myPosition.current_value)}
                           </span>
                         </div>
@@ -652,28 +642,37 @@ export const Pools = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    {myPosition ? (
-                      <>
+                  <div className="flex gap-2.5">
+                    {user ? (
+                      myPosition ? (
+                        <>
+                          <button
+                            onClick={() => handleAddLiquidity(pool.id)}
+                            className="flex-1 px-4 py-2 bg-neon-iris/20 hover:bg-neon-iris/30 text-neon-iris rounded-lg font-medium text-sm transition-all"
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => handleRemoveLiquidity(pool.id)}
+                            className="flex-1 px-4 py-2 bg-graphite-hover hover:bg-graphite-deep text-white rounded-lg font-medium text-sm transition-all"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
                         <button
                           onClick={() => handleAddLiquidity(pool.id)}
-                          className="flex-1 px-3 py-1.5 bg-neon-iris/20 hover:bg-neon-iris/30 text-neon-iris rounded-lg font-medium text-xs transition-all"
+                          className="w-full px-4 py-2 bg-neon-iris hover:bg-neon-iris/90 text-white rounded-lg font-medium text-sm transition-all"
                         >
-                          Add
+                          Add Liquidity
                         </button>
-                        <button
-                          onClick={() => handleRemoveLiquidity(pool.id)}
-                          className="flex-1 px-3 py-1.5 bg-graphite-hover hover:bg-graphite-deep text-white rounded-lg font-medium text-xs transition-all"
-                        >
-                          Remove
-                        </button>
-                      </>
+                      )
                     ) : (
                       <button
-                        onClick={() => handleAddLiquidity(pool.id)}
-                        className="w-full px-3 py-1.5 bg-neon-iris hover:bg-neon-iris/90 text-white rounded-lg font-medium text-xs transition-all"
+                        onClick={() => navigate("/login")}
+                        className="w-full px-4 py-2 bg-neon-iris hover:bg-neon-iris/90 text-white rounded-lg font-medium text-sm transition-all"
                       >
-                        Add Liquidity
+                        Connect to Add Liquidity
                       </button>
                     )}
                   </div>
@@ -698,7 +697,7 @@ export const Pools = () => {
       )}
 
       {/* Add Liquidity Modal */}
-      {showAddModal && selectedPool && (
+      {showAddModal && selectedPool && user && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -744,7 +743,7 @@ export const Pools = () => {
       )}
 
       {/* Remove Liquidity Modal */}
-      {showRemoveModal && selectedPool && (
+      {showRemoveModal && selectedPool && user && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
