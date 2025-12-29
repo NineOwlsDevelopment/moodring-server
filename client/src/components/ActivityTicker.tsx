@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { fetchActivityFeed, Activity } from "@/api/api";
-import {
-  formatUSDC,
-  formatDistanceToNow,
-} from "@/utils/format";
 import { useActivitySocket } from "@/hooks/useSocket";
 import { ActivityUpdate } from "@/services/socket";
 import { Zap } from "lucide-react";
@@ -33,9 +29,7 @@ export const ActivityTicker = () => {
       username: update.username || "anonymous",
       metadata: metadata,
       market_id:
-        update.entity_type === "market"
-          ? update.entity_id
-          : metadata.market_id,
+        update.entity_type === "market" ? update.entity_id : metadata.market_id,
       market_question:
         metadata.market_question ||
         (activityType === "market_created" ? metadata.question : null),
@@ -74,14 +68,20 @@ export const ActivityTicker = () => {
       const activityType = getType(activity);
 
       // Only show market creation/initialization
-      if (activityType === "market_created" || activityType === "market_initialized") {
+      if (
+        activityType === "market_created" ||
+        activityType === "market_initialized"
+      ) {
         const metadata =
           typeof activity.metadata === "string"
             ? JSON.parse(activity.metadata)
             : activity.metadata || {};
-        
-        const marketQuestion = activity.market_question || metadata.question || metadata.market_question;
-        
+
+        const marketQuestion =
+          activity.market_question ||
+          metadata.question ||
+          metadata.market_question;
+
         return (
           <span className="flex items-center gap-1.5 whitespace-nowrap">
             <Zap className="w-2.5 h-2.5 text-neon-iris flex-shrink-0" />
@@ -91,7 +91,7 @@ export const ActivityTicker = () => {
           </span>
         );
       }
-      
+
       return null;
     } catch {
       return null;
@@ -197,10 +197,10 @@ export const ActivityTicker = () => {
                       </div>
                     )
                   ) : null}
-                  
+
                   {/* Activity text */}
                   {activityText}
-                  
+
                   {/* Separator */}
                   <span className="text-moon-grey-dark/50 text-[8px]">•</span>
                 </Link>
@@ -226,4 +226,3 @@ export const ActivityTicker = () => {
     </div>
   );
 };
-

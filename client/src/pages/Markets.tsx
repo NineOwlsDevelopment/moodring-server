@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useMarketStore } from "@/stores/marketStore";
-import { useUserStore } from "@/stores/userStore";
 import { MarketCard } from "@/components/MarketCard";
 import { fetchCategories, MarketsApiResponse } from "@/api/api";
 import { sortCategories } from "@/utils/categorySort";
@@ -52,7 +51,6 @@ const fetchMarketsDirect = async (params: {
 export const Markets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { selectedCategory, setSelectedCategory } = useMarketStore();
-  const { user } = useUserStore();
 
   // Markets state - append only, never replace existing items
   const [markets, setMarkets] = useState<any[]>([]);
@@ -399,10 +397,8 @@ export const Markets = () => {
       {/* Header - Minimal */}
       <div className="mb-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
-            Markets
-          </h1>
-          
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Markets</h1>
+
           {/* Create Market CTA - Always visible */}
           <Link
             to="/create"

@@ -86,6 +86,8 @@ app.set("trust proxy", 1);
 // Allowed origins for CORS - includes environment variable and common domains
 const allowedOrigins = [
     process.env.CLIENT_URL || "http://localhost:5173",
+    "http://10.0.0.35:5173",
+    "https://10.0.0.35:5173",
     "https://moodring.io",
     "http://moodring.io",
     "https://www.moodring.io",
@@ -168,6 +170,8 @@ app.use((0, helmet_1.default)({
             imgSrc: ["'self'", "data:", "https:"], // Allow images from any HTTPS source
             connectSrc: [
                 "'self'",
+                "http://10.0.0.35:5173",
+                "https://10.0.0.35:5173",
                 "ws://localhost:*",
                 "wss://localhost:*",
                 "https://moodring.io",

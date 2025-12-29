@@ -94,10 +94,30 @@ const initializeWebSocket = (server) => {
         socket.on("subscribe:market", (marketId) => {
             socket.join(`market:${marketId}`);
             console.log(`[WebSocket] ${socket.id} subscribed to market:${marketId}`);
+            // Emit watcher count update to all subscribers
+            if (io) {
+                const room = io.sockets.adapter.rooms.get(`market:${marketId}`);
+                const watcherCount = room ? room.size : 0;
+                io.to(`market:${marketId}`).emit("watchers", {
+                    market_id: marketId,
+                    count: watcherCount,
+                    timestamp: new Date(),
+                });
+            }
         });
         socket.on("unsubscribe:market", (marketId) => {
             socket.leave(`market:${marketId}`);
             console.log(`[WebSocket] ${socket.id} unsubscribed from market:${marketId}`);
+            // Emit watcher count update to all remaining subscribers
+            if (io) {
+                const room = io.sockets.adapter.rooms.get(`market:${marketId}`);
+                const watcherCount = room ? room.size : 0;
+                io.to(`market:${marketId}`).emit("watchers", {
+                    market_id: marketId,
+                    count: watcherCount,
+                    timestamp: new Date(),
+                });
+            }
         });
         // Join option-specific rooms for price updates
         socket.on("subscribe:option", (optionId) => {
@@ -213,6 +233,22 @@ const initializeWebSocket = (server) => {
         });
         socket.on("disconnect", () => {
             console.log(`[WebSocket] Client disconnected: ${socket.id}`);
+            // Update watcher counts for all markets this socket was watching
+            const socketIO = io;
+            if (!socketIO || !socket.rooms)
+                return;
+            socket.rooms.forEach((room) => {
+                if (room.startsWith("market:")) {
+                    const marketId = room.replace("market:", "");
+                    const roomObj = socketIO.sockets.adapter.rooms.get(room);
+                    const watcherCount = roomObj ? roomObj.size : 0;
+                    socketIO.to(room).emit("watchers", {
+                        market_id: marketId,
+                        count: watcherCount,
+                        timestamp: new Date(),
+                    });
+                }
+            });
         });
     });
     console.log("[WebSocket] Server initialized");
