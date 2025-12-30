@@ -342,39 +342,54 @@ if (process.env.NODE_ENV === "production") {
       return next();
     }
 
-    // Check if this is a market route and if the user agent is a social media crawler
-    const marketRouteMatch = req.path.match(/^\/market\/([a-f0-9-]{36})$/i);
+    // Check if this is a market route - serve meta HTML for crawlers or when ?meta=true
+    // Match UUID format: 8-4-4-4-12 hex digits with optional dashes
+    const marketRouteMatch = req.path.match(/^\/market\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
     if (marketRouteMatch) {
-      const userAgent = req.get("user-agent") || "";
-      // List of social media crawler user agents
+      const userAgent = (req.get("user-agent") || "").toLowerCase();
+      // List of social media crawler user agents (case-insensitive check)
       const socialCrawlers = [
         "facebookexternalhit",
-        "Facebot",
-        "Twitterbot",
-        "LinkedInBot",
-        "WhatsApp",
-        "Discordbot",
-        "TelegramBot",
-        "Slackbot",
-        "Applebot",
-        "Googlebot",
+        "facebot",
+        "twitterbot",
+        "linkedinbot",
+        "whatsapp",
+        "discordbot",
+        "discord",
+        "telegrambot",
+        "slackbot",
+        "applebot",
+        "googlebot",
         "bingbot",
-        "Slurp",
-        "DuckDuckBot",
-        "Baiduspider",
-        "YandexBot",
-        "Sogou",
-        "Exabot",
+        "slurp",
+        "duckduckbot",
+        "baiduspider",
+        "yandexbot",
+        "sogou",
+        "exabot",
         "ia_archiver",
+        "bot",
+        "crawler",
+        "spider",
+        "curl",
+        "wget",
+        "postman",
       ];
+      
+      // Check for ?meta=true query parameter to force meta HTML (for testing)
+      const forceMeta = req.query.meta === "true" || req.query.meta === "1";
 
+      // Check if it's a crawler (more lenient - check if user agent contains any crawler keyword)
       const isSocialCrawler = socialCrawlers.some((crawler) =>
-        userAgent.toLowerCase().includes(crawler.toLowerCase())
-      );
+        userAgent.includes(crawler)
+      ) || userAgent.includes("bot") || !userAgent; // Also treat missing user agent as potential crawler
 
-      if (isSocialCrawler) {
+      if (isSocialCrawler || forceMeta) {
         // Extract market ID and serve meta HTML
         const marketId = marketRouteMatch[1];
+        console.log(
+          `[Meta] Serving meta HTML for market ${marketId}. User-Agent: ${userAgent || "none"}, forceMeta: ${forceMeta}`
+        );
         // Create a mock request object for getMarketMeta
         const mockReq = {
           params: { id: marketId },
@@ -382,9 +397,22 @@ if (process.env.NODE_ENV === "production") {
         try {
           await getMarketMeta(mockReq, res);
           return; // getMarketMeta handles the response
-        } catch (error) {
-          console.error("Error serving market meta:", error);
-          // Fall through to serve regular index.html on error
+        } catch (error: any) {
+          console.error(`[Meta] Error serving market meta for ${marketId}:`, error);
+          console.error(`[Meta] Error stack:`, error?.stack);
+          // Don't fall through - return error HTML instead
+          res.status(500).send(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>Error</title></head>
+            <body>
+              <h1>Error loading market</h1>
+              <p>${error?.message || "Unknown error"}</p>
+              <p><a href="${req.path}">Try again</a></p>
+            </body>
+            </html>
+          `);
+          return;
         }
       }
     }
