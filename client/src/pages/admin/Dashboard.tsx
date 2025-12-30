@@ -181,7 +181,7 @@ export const AdminDashboard = () => {
 
         <Link
           to="/admin/users"
-          className="card bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20 hover:border-green-500/40 transition-colors cursor-pointer"
+          className="card bg-gradient-to-br from-aqua-pulse/10 to-aqua-pulse/5 border-aqua-pulse/20 hover:border-aqua-pulse/40 transition-colors cursor-pointer"
         >
           <div className="text-sm text-gray-400 mb-1">User Management</div>
           <div className="text-lg font-semibold text-white">
@@ -238,7 +238,7 @@ export const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+        <div className="card bg-gradient-to-br from-aqua-pulse/10 to-aqua-pulse/5 border-aqua-pulse/20">
           <div className="text-sm text-gray-400 mb-1">Total Users</div>
           <div className="text-2xl font-bold text-white">
             {stats?.users.total.toLocaleString() ?? 0}
@@ -403,7 +403,7 @@ export const AdminDashboard = () => {
                     <span
                       className={`font-semibold ${
                         hotWallet.reserve_ratio.status === "healthy"
-                          ? "text-green-400"
+                          ? "text-aqua-pulse"
                           : hotWallet.reserve_ratio.status === "warning"
                           ? "text-yellow-400"
                           : "text-red-400"
@@ -518,7 +518,7 @@ export const AdminDashboard = () => {
           </div>
           <div>
             <div className="text-sm text-gray-400 mb-1">Resolved</div>
-            <div className="text-2xl font-bold text-green-400">
+            <div className="text-2xl font-bold text-aqua-pulse">
               {stats?.markets.resolved ?? 0}
             </div>
           </div>

@@ -216,7 +216,7 @@ export const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
                   </div>
                 </div>
                 {connected && (
-                  <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-full">
+                  <span className="text-xs text-aqua-pulse bg-aqua-pulse/20 px-2 py-1 rounded-full">
                     Connected
                   </span>
                 )}

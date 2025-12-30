@@ -21,7 +21,7 @@ const COLORS = [
   { start: "#c084fc", end: "#9333ea" }, // Neon Purple
   { start: "#60a5fa", end: "#2563eb" }, // Neon Blue
   { start: "#f472b6", end: "#ec4899" }, // Neon Pink
-  { start: "#34d399", end: "#10b981" }, // Neon Green
+  { start: "#5FFAE6", end: "#21F6D2" }, // Aqua Teal (replacing neon green)
   { start: "#fbbf24", end: "#f59e0b" }, // Neon Yellow
   { start: "#fb923c", end: "#f97316" }, // Neon Orange
   { start: "#a78bfa", end: "#7c3aed" }, // Neon Violet

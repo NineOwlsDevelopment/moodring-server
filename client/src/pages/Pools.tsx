@@ -404,7 +404,7 @@ export const Pools = () => {
             </div>
             <div className="text-moon-grey-dark">
               <span className="text-moon-grey">Fees: </span>
-              <span className="text-emerald-400 font-semibold tabular-nums">
+              <span className="text-aqua-pulse font-semibold tabular-nums">
                 {formatRegularUSDC(totalFees)}
               </span>
             </div>
@@ -617,7 +617,7 @@ export const Pools = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-moon-grey-dark">Fees</span>
-                      <span className="text-base font-semibold text-emerald-400 tabular-nums">
+                      <span className="text-base font-semibold text-aqua-pulse tabular-nums">
                         {formatRegularUSDC(feesEarned)}
                       </span>
                     </div>

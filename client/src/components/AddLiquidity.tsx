@@ -226,7 +226,7 @@ export const AddLiquidity = ({
           <div className="text-[10px] text-moon-grey-dark space-y-0.5">
             <div>Pool: {formatUSDC(liquidityInfo.shared_pool_liquidity)}</div>
             {lpSharesPreview !== null && amount && parseFloat(amount) > 0 && (
-              <div className="text-emerald-400/80">
+              <div className="text-aqua-pulse/80">
                 You will receive: {formatUSDC(lpSharesPreview).replace("$", "")}{" "}
                 LP shares
               </div>
@@ -352,7 +352,7 @@ export const AddLiquidity = ({
               </div>
             )}
             {lpSharesPreview !== null && amount && parseFloat(amount) > 0 && (
-              <div className="text-emerald-400/80 font-medium pt-1 border-t border-white/5">
+              <div className="text-aqua-pulse/80 font-medium pt-1 border-t border-white/5">
                 You will receive: {formatUSDC(lpSharesPreview).replace("$", "")}{" "}
                 LP shares
               </div>

@@ -92,7 +92,7 @@ const TradePreview = ({
             <span className="text-moon-grey-dark">
               If {side.toUpperCase()} wins
             </span>
-            <span className="text-emerald-400 font-semibold tabular-nums">
+            <span className="text-neon-iris font-semibold tabular-nums">
               ${displayShares.toFixed(2)}
             </span>
           </div>
@@ -134,7 +134,7 @@ const TradePreview = ({
           </div>
           <div className="pt-2.5 mt-2.5 border-t border-white/[0.04] flex justify-between">
             <span className="text-moon-grey font-medium">Net payout</span>
-            <span className="text-emerald-400 font-semibold tabular-nums">
+            <span className="text-neon-iris font-semibold tabular-nums">
               ≈
               {netPayout < 100
                 ? `$${netPayout.toFixed(2)}`
@@ -166,7 +166,7 @@ export const TradeForm = ({
   const { user } = useUserStore();
   const [action, setAction] = useState<"buy" | "sell">("buy");
   const [side, setSide] = useState<"yes" | "no">(preSelectedSide || "yes");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState("1");
   const [shares, setShares] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [userPosition, setUserPosition] = useState<Position | null>(null);
@@ -322,7 +322,7 @@ export const TradeForm = ({
             2
           )} ${side.toUpperCase()} shares for ${formatCurrency(numAmount)}`
         );
-        setAmount("");
+        setAmount("1");
         setShares(0);
         setError(null);
       } else {
@@ -338,7 +338,7 @@ export const TradeForm = ({
         });
 
         toast.success(`Sold ${displayShares} ${side.toUpperCase()} shares`);
-        setAmount("");
+        setAmount("1");
         setShares(0);
         setError(null);
       }
@@ -384,7 +384,7 @@ export const TradeForm = ({
           }}
           className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${
             action === "buy"
-              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+              ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
               : "text-moon-grey hover:text-white"
           }`}
         >
@@ -417,11 +417,11 @@ export const TradeForm = ({
             className={`py-3 rounded-xl font-medium transition-all ${
               optionIsResolved
                 ? winningSide === 1
-                  ? "bg-emerald-500/20 ring-1 ring-emerald-500/50 text-emerald-400"
+                  ? "bg-muted-green/20 ring-1 ring-muted-green/50 text-muted-green"
                   : "bg-white/[0.03] text-moon-grey-dark cursor-not-allowed opacity-50"
                 : side === "yes"
-                ? "bg-emerald-500/20 ring-1 ring-emerald-500/50 text-emerald-400"
-                : "bg-white/[0.03] text-moon-grey hover:bg-emerald-500/10 hover:text-emerald-400"
+                ? "bg-muted-green/20 ring-1 ring-muted-green/50 text-muted-green"
+                : "bg-white/[0.03] text-moon-grey hover:bg-muted-green/10 hover:text-muted-green"
             }`}
           >
             <div className="text-[10px] uppercase tracking-wider opacity-70 mb-0.5">
@@ -466,6 +466,9 @@ export const TradeForm = ({
       <div className="mb-4">
         <label className="block text-[10px] font-medium text-moon-grey-dark uppercase tracking-wider mb-2">
           {action === "buy" ? "Amount (USD)" : "Shares to Sell"}
+          <span className="ml-1.5 text-[9px] normal-case font-normal text-moon-grey-dark/70">
+            (min: {action === "buy" ? `$${MIN_TRADE_AMOUNT.toFixed(2)}` : `${MIN_SHARES} shares`})
+          </span>
         </label>
         <div className="relative">
           <input
@@ -475,14 +478,14 @@ export const TradeForm = ({
               setAmount(e.target.value);
               setError(null);
             }}
-            placeholder={action === "buy" ? "0.00" : "0"}
+            placeholder={action === "buy" ? `1 (min: $${MIN_TRADE_AMOUNT.toFixed(2)})` : `1 (min: ${MIN_SHARES})`}
             className={`w-full px-4 py-3 ${
               action === "sell" && availableShares > 0 ? "pr-24" : "pr-16"
             } bg-white/[0.03] border rounded-xl text-white placeholder-moon-grey-dark focus:border-neon-iris/50 focus:ring-1 focus:ring-neon-iris/25 transition-all text-lg font-medium tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
               error ? "border-rose-500/50" : "border-white/[0.08]"
             }`}
             min="0"
-            step="1.00"
+            step="1"
             disabled={isLoading || market.is_resolved || optionIsResolved}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col border border-white/[0.08] rounded-md overflow-hidden bg-white/[0.03] backdrop-blur-sm">
@@ -724,9 +727,9 @@ export const TradeForm = ({
             ? "bg-moon-grey-dark"
             : action === "buy"
             ? side === "yes"
-              ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/25"
+              ? "bg-muted-green hover:bg-muted-green-light text-white shadow-lg shadow-muted-green/25"
               : "bg-rose-500 hover:bg-rose-400 text-white shadow-lg shadow-rose-500/25"
-            : "bg-amber-500 hover:bg-amber-400 text-white shadow-lg shadow-amber-500/25"
+            : "bg-rose-500 hover:bg-rose-400 text-white shadow-lg shadow-rose-500/25"
         }`}
       >
         {isLoading ? (

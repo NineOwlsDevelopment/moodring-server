@@ -79,13 +79,13 @@ const getCutoffTime = (range: TimeRange): number => {
 
 // Professional color palette inspired by Polymarket/Kalshi
 const OPTION_COLORS = [
-  "#10b981", // emerald
+  "#21F6D2", // aqua-pulse (replacing emerald)
   "#3b82f6", // blue
   "#f59e0b", // amber
   "#8b5cf6", // violet
   "#06b6d4", // cyan
   "#ec4899", // pink
-  "#84cc16", // lime
+  "#5FFAE6", // aqua-pulse-light (replacing lime)
   "#f97316", // orange
   "#6366f1", // indigo
   "#14b8a6", // teal
@@ -715,7 +715,7 @@ export const PriceChart = ({
                 </div>
                 <div
                   className={`text-xs font-semibold mt-0.5 ${
-                    priceChange >= 0 ? "text-green-400" : "text-red-400"
+                    priceChange >= 0 ? "text-aqua-pulse" : "text-red-400"
                   }`}
                 >
                   {priceChange >= 0 ? "+" : ""}
@@ -841,7 +841,7 @@ export const PriceChart = ({
                 yAxisId="price"
                 type="monotone"
                 dataKey="yesPrice"
-                stroke="#10b981"
+                stroke="#21F6D2"
                 strokeWidth={2}
                 dot={false}
                 name="YES"
@@ -849,7 +849,7 @@ export const PriceChart = ({
                 animationDuration={chartDataKey === 0 ? 300 : 0}
                 activeDot={{
                   r: 4,
-                  stroke: "#10b981",
+                  stroke: "#21F6D2",
                   strokeWidth: 2,
                   fill: "#ffffff",
                 }}
@@ -882,7 +882,7 @@ export const PriceChart = ({
         <div className="px-4 pb-4 border-t border-white/[0.08] pt-4">
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-[#10b981]" />
+              <div className="w-3 h-3 rounded-full bg-[#21F6D2]" />
               <div className="text-center">
                 <div className="text-xs text-white/60 font-medium uppercase tracking-wide">
                   YES

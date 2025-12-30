@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Key, TrendingUp, TrendingDown } from "lucide-react";
+import { X, Key } from "lucide-react";
 import { getBuyCost, getSellPayout, getKeyPrice } from "@/utils/bondingCurve";
+import { useUserStore } from "@/stores/userStore";
+import { formatUSDC } from "@/utils/format";
 
 interface KeyPurchaseModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface KeyPurchaseModalProps {
   currentPrice: number;
   keyOwnership: number;
   isTrader?: boolean; // Whether the current user is the trader themselves
+  requiredKeysToFollow?: number; // Minimum keys needed to follow
   onBuy: (quantity: number) => Promise<void>;
   onSell: (quantity: number) => Promise<void>;
 }
@@ -23,25 +26,15 @@ export const KeyPurchaseModal = ({
   currentPrice,
   keyOwnership,
   isTrader = false,
+  requiredKeysToFollow = 1,
   onBuy,
   onSell,
 }: KeyPurchaseModalProps) => {
+  const { user } = useUserStore();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
-  const [quantity, setQuantity] = useState<number>(0.000001);
+  const [quantity, setQuantity] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Reset quantity when mode changes
-  useEffect(() => {
-    if (mode === "sell") {
-      // If trader, they can only sell up to (supply - 1) to keep the founder key
-      const maxSellable = isTrader
-        ? Math.max(0, currentSupply - 1)
-        : keyOwnership;
-      setQuantity(Math.min(0.000001, maxSellable));
-    } else {
-      setQuantity(0.000001);
-    }
-  }, [mode, keyOwnership, isTrader, currentSupply]);
+  const [error, setError] = useState<string | null>(null);
 
   // Close on ESC key
   useEffect(() => {
@@ -67,60 +60,82 @@ export const KeyPurchaseModal = ({
   // Ensure supply is at least 1 (founder key)
   const effectiveSupply = Math.max(1, currentSupply);
 
-  // Calculate costs/payouts
-  const totalCost = mode === "buy" ? getBuyCost(effectiveSupply, quantity) : 0;
-  const totalPayout =
-    mode === "sell" ? getSellPayout(effectiveSupply, quantity) : 0;
-  const averagePrice =
-    mode === "buy"
-      ? quantity > 0
-        ? totalCost / quantity
-        : 0
-      : quantity > 0
-      ? totalPayout / quantity
-      : 0;
+  // Ensure keyOwnership is a number
+  const numericKeyOwnership =
+    typeof keyOwnership === "number"
+      ? keyOwnership
+      : parseFloat(String(keyOwnership)) || 0;
 
-  // Calculate price after transaction
-  const newSupply =
-    mode === "buy" ? effectiveSupply + quantity : effectiveSupply - quantity;
-  const priceAfter = getKeyPrice(newSupply);
-  const priceChange =
-    priceAfter - (currentPrice || getKeyPrice(effectiveSupply));
-  const priceChangePercent =
-    (currentPrice || getKeyPrice(effectiveSupply)) > 0
-      ? (priceChange / (currentPrice || getKeyPrice(effectiveSupply))) * 100
+  // Parse quantity to number for calculations
+  const quantityNum = parseFloat(quantity) || 0;
+
+  // Calculate costs/payouts
+  const totalCost =
+    mode === "buy" && quantityNum > 0
+      ? getBuyCost(effectiveSupply, quantityNum)
+      : 0;
+  const totalPayout =
+    mode === "sell" && quantityNum > 0
+      ? getSellPayout(effectiveSupply, quantityNum)
       : 0;
 
   const handleSubmit = async () => {
     if (isProcessing) return;
 
-    if (mode === "buy" && quantity <= 0.000001) return;
+    setError(null);
+
+    // Validate input
+    if (!quantity || quantity.trim() === "") {
+      setError("Please enter an amount");
+      return;
+    }
+
+    const quantityNum = parseFloat(quantity);
+
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
 
     if (mode === "sell") {
-      if (quantity <= 0.000001) return;
       // If trader, check they're not selling below 1 key
       if (isTrader) {
         const maxSellable = Math.max(0, effectiveSupply - 1);
-        if (quantity > maxSellable + 0.000001) {
-          // Small epsilon for decimal comparison
+        if (quantityNum > maxSellable + 0.000001) {
+          setError(`You can only sell up to ${maxSellable.toFixed(2)} keys`);
           return;
         }
       } else {
-        if (quantity > keyOwnership + 0.000001) return; // Small epsilon for decimal comparison
+        if (quantityNum > numericKeyOwnership + 0.000001) {
+          setError(`You only own ${numericKeyOwnership.toFixed(2)} keys`);
+          return;
+        }
+      }
+    }
+
+    if (mode === "buy" && user) {
+      const balance = (user.wallet?.balance_usdc || 0) / 1_000_000;
+      if (totalCost > balance) {
+        setError("Insufficient balance");
+        return;
       }
     }
 
     setIsProcessing(true);
     try {
       if (mode === "buy") {
-        await onBuy(quantity);
+        await onBuy(quantityNum);
       } else {
-        await onSell(quantity);
+        await onSell(quantityNum);
       }
       onClose();
-      setQuantity(0.000001);
-    } catch (error) {
+      setQuantity("");
+      setError(null);
+    } catch (error: any) {
       console.error("Transaction failed:", error);
+      setError(
+        error?.response?.data?.error || error?.message || "Transaction failed"
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -132,7 +147,7 @@ export const KeyPurchaseModal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-hidden"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -140,7 +155,7 @@ export const KeyPurchaseModal = ({
 
       {/* Modal Content */}
       <div
-        className="relative bg-graphite-deep rounded-2xl border border-white/10 p-6 max-w-md w-full shadow-2xl animate-scale-in"
+        className="relative bg-graphite-deep rounded-2xl border border-white/10 p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in min-w-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
@@ -153,225 +168,235 @@ export const KeyPurchaseModal = ({
         </button>
 
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Key className="w-5 h-5 text-neon-iris" />
-            <h2 className="text-xl font-bold text-white">
-              {traderName || "Trader"} Keys
+        <div className="mb-6 pr-8">
+          <div className="flex items-center gap-2 mb-1 min-w-0">
+            <Key className="w-5 h-5 text-neon-iris flex-shrink-0" />
+            <h2 className="text-xl font-bold text-white truncate">
+              {mode === "buy" ? "Buy Keys" : "Sell Keys"}
             </h2>
           </div>
-          <p className="text-sm text-gray-400">
-            Current Supply: {effectiveSupply.toFixed(6)}{" "}
-            {isTrader && "(1 unsellable founder key)"}
+          <p className="text-sm text-gray-400 truncate">
+            {traderName || "Trader"}
           </p>
         </div>
 
         {/* Buy/Sell Tabs */}
         <div className="flex gap-2 mb-6 bg-white/5 rounded-lg p-1">
           <button
-            onClick={() => setMode("buy")}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            onClick={() => {
+              setMode("buy");
+              setQuantity("");
+              setError(null);
+            }}
+            className={`flex-1 py-2.5 px-4 rounded-md text-sm font-semibold transition-all ${
               mode === "buy"
-                ? "bg-neon-iris text-white"
+                ? "bg-muted-green text-white shadow-lg shadow-muted-green/20"
                 : "text-gray-400 hover:text-white"
             }`}
           >
             Buy
           </button>
           <button
-            onClick={() => setMode("sell")}
-            disabled={!isTrader && keyOwnership === 0}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            onClick={() => {
+              setMode("sell");
+              setQuantity("");
+              setError(null);
+            }}
+            disabled={!isTrader && numericKeyOwnership === 0}
+            className={`flex-1 py-2.5 px-4 rounded-md text-sm font-semibold transition-all ${
               mode === "sell"
-                ? "bg-aqua-pulse text-white"
+                ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20"
                 : "text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             }`}
           >
-            Sell{" "}
-            {isTrader
-              ? `(${Math.max(0, effectiveSupply - 1)} sellable)`
-              : keyOwnership > 0 && `(${keyOwnership})`}
+            Sell
           </button>
         </div>
 
-        {/* Current Price */}
-        <div className="bg-white/5 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">Current Price</span>
-            <span className="text-lg font-bold text-white">
-              ${(currentPrice || getKeyPrice(effectiveSupply)).toFixed(4)}
-            </span>
-          </div>
-          {mode === "buy" && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Price After</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">
-                  ${priceAfter.toFixed(4)}
-                </span>
-                {priceChange !== 0 && (
-                  <span
-                    className={`text-xs flex items-center gap-1 ${
-                      priceChange > 0 ? "text-aqua-pulse" : "text-brand-danger"
-                    }`}
-                  >
-                    {priceChange > 0 ? (
-                      <TrendingUp className="w-3 h-3" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3" />
-                    )}
-                    {priceChangePercent > 0 ? "+" : ""}
-                    {priceChangePercent.toFixed(2)}%
-                  </span>
-                )}
-              </div>
+        {/* Key Info Card */}
+        <div className="bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-4 sm:p-5 mb-5 border border-white/10">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-sm text-gray-400 flex-shrink-0">
+                Price per Key
+              </span>
+              <span className="text-xl font-bold text-white tabular-nums truncate text-right">
+                ${(currentPrice || getKeyPrice(effectiveSupply)).toFixed(4)}
+              </span>
             </div>
-          )}
+            {user && (
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 min-w-0">
+                <span className="text-sm text-gray-400 flex-shrink-0">
+                  Your Balance
+                </span>
+                <span className="text-base font-semibold text-white tabular-nums truncate text-right">
+                  {formatUSDC(user.wallet?.balance_usdc || 0)} USDC
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 min-w-0">
+              <span className="text-sm text-gray-400 flex-shrink-0">
+                {isTrader
+                  ? mode === "sell"
+                    ? "Keys You Can Sell"
+                    : "Your Keys"
+                  : "Keys You Own"}
+              </span>
+              <span className="text-base font-semibold text-white tabular-nums truncate text-right">
+                {isTrader
+                  ? mode === "sell"
+                    ? Math.max(0, effectiveSupply - 1).toFixed(2)
+                    : effectiveSupply.toFixed(2)
+                  : numericKeyOwnership.toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Quantity Input */}
-        <div className="mb-4">
-          <label className="block text-sm text-gray-400 mb-2">
-            {mode === "buy" ? "Quantity to Buy" : "Quantity to Sell"}
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-gray-300 mb-3">
+            How many keys?
           </label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const newQuantity = Math.max(0.000001, quantity - 0.000001);
-                setQuantity(parseFloat(newQuantity.toFixed(6)));
-              }}
-              disabled={quantity <= 0.000001 || isProcessing}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              -
-            </button>
+          <div className="relative">
             <input
               type="number"
-              min={0.000001}
-              step={0.000001}
-              max={
-                mode === "sell"
-                  ? isTrader
-                    ? Math.max(0, effectiveSupply - 1)
-                    : keyOwnership
-                  : undefined
-              }
+              step="any"
+              min="0"
               value={quantity}
               onChange={(e) => {
-                const val = parseFloat(e.target.value) || 0.000001;
-                if (isNaN(val) || val < 0.000001) {
-                  setQuantity(0.000001);
-                  return;
-                }
-                // Round to 6 decimals
-                const rounded = parseFloat(val.toFixed(6));
-                if (mode === "sell") {
-                  if (isTrader) {
-                    const maxSellable = Math.max(0, effectiveSupply - 1);
-                    setQuantity(Math.min(rounded, maxSellable));
-                  } else {
-                    setQuantity(Math.min(rounded, keyOwnership));
-                  }
-                } else {
-                  setQuantity(rounded);
-                }
+                setQuantity(e.target.value);
+                setError(null);
               }}
-              className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-neon-iris"
+              placeholder="Enter amount"
+              className="w-full px-4 py-3 pr-16 bg-white/5 border border-white/10 rounded-lg text-white text-center placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-neon-iris/50 focus:border-neon-iris text-base sm:text-lg font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               disabled={isProcessing}
             />
-            <button
-              onClick={() => {
-                const newQuantity = quantity + 0.000001;
-                const rounded = parseFloat(newQuantity.toFixed(6));
-                if (mode === "sell") {
-                  if (isTrader) {
-                    const maxSellable = Math.max(0, effectiveSupply - 1);
-                    setQuantity(Math.min(rounded, maxSellable));
-                  } else {
-                    setQuantity(Math.min(rounded, keyOwnership));
-                  }
-                } else {
-                  setQuantity(rounded);
-                }
-              }}
-              disabled={
-                isProcessing ||
-                (mode === "sell" &&
-                  (isTrader
-                    ? quantity >= Math.max(0, effectiveSupply - 1)
-                    : quantity >= keyOwnership))
-              }
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              +
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col border border-white/[0.08] rounded-md overflow-hidden bg-white/[0.03] backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  const current = parseFloat(quantity) || 0;
+                  const newQuantity = current + 1;
+                  setQuantity(String(newQuantity));
+                  setError(null);
+                }}
+                disabled={isProcessing}
+                className="w-7 h-6 flex items-center justify-center bg-white/[0.05] hover:bg-neon-iris/20 hover:border-neon-iris/50 text-moon-grey-dark hover:text-neon-iris-light active:bg-neon-iris/30 transition-all duration-200 border-b border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/[0.05] disabled:hover:text-moon-grey-dark group"
+                aria-label="Increment"
+              >
+                <svg
+                  className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M5 15l7-7 7 7"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const current = parseFloat(quantity) || 0;
+                  const newQuantity = Math.max(0, current - 1);
+                  setQuantity(newQuantity > 0 ? String(newQuantity) : "");
+                  setError(null);
+                }}
+                disabled={isProcessing}
+                className="w-7 h-6 flex items-center justify-center bg-white/[0.05] hover:bg-neon-iris/20 hover:border-neon-iris/50 text-moon-grey-dark hover:text-neon-iris-light active:bg-neon-iris/30 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/[0.05] disabled:hover:text-moon-grey-dark group"
+                aria-label="Decrement"
+              >
+                <svg
+                  className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
-          {mode === "sell" && (
-            <p className="text-xs text-gray-500 mt-1 text-center">
-              {isTrader
-                ? `You can sell up to ${Math.max(
-                    0,
-                    effectiveSupply - 1
-                  ).toFixed(6)} key(s) (must keep 1 founder key)`
-                : keyOwnership > 0 &&
-                  `You own ${keyOwnership.toFixed(6)} key${
-                    keyOwnership !== 1 ? "s" : ""
-                  }`}
+          {error && (
+            <p className="text-sm text-rose-400 mt-2 text-center font-medium break-words">
+              {error}
+            </p>
+          )}
+          {!error && mode === "buy" && requiredKeysToFollow > 1 && (
+            <p className="text-xs text-gray-500 mt-2 text-center break-words">
+              Minimum {requiredKeysToFollow} keys needed to follow
             </p>
           )}
         </div>
 
-        {/* Cost/Payout Summary */}
-        <div className="bg-white/5 rounded-lg p-4 mb-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">Average Price</span>
-            <span className="text-sm font-semibold text-white">
-              ${averagePrice.toFixed(4)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <span className="text-base font-semibold text-white">
-              {mode === "buy" ? "Total Cost" : "Total Payout"}
+        {/* Total Summary */}
+        <div className="bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-4 sm:p-5 mb-5 border border-white/10">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <span className="text-base font-semibold text-white flex-shrink-0">
+              {mode === "buy" ? "You'll Pay" : "You'll Receive"}
             </span>
             <span
-              className={`text-lg font-bold ${
-                mode === "buy" ? "text-aqua-pulse" : "text-brand-danger"
+              className={`text-xl sm:text-2xl font-bold tabular-nums truncate text-right ${
+                quantityNum > 0
+                  ? mode === "buy"
+                    ? "text-aqua-pulse"
+                    : "text-white"
+                  : "text-gray-500"
               }`}
             >
-              {mode === "buy" ? "-" : "+"}$
-              {(mode === "buy" ? totalCost : totalPayout).toFixed(4)}
+              {quantityNum > 0 && mode === "sell" ? "+" : ""}$
+              {quantityNum > 0
+                ? (mode === "buy" ? totalCost : totalPayout).toFixed(2)
+                : "0.00"}
             </span>
           </div>
+          {mode === "buy" &&
+            user &&
+            quantityNum > 0 &&
+            totalCost > (user.wallet?.balance_usdc || 0) / 1_000_000 && (
+              <p className="text-xs text-rose-400 mt-2 text-center break-words">
+                Insufficient balance
+              </p>
+            )}
         </div>
 
         {/* Action Button */}
         <button
           onClick={handleSubmit}
-          disabled={
-            isProcessing ||
-            quantity <= 0.000001 ||
-            (mode === "sell" &&
-              (isTrader
-                ? quantity > Math.max(0, effectiveSupply - 1) + 0.000001
-                : quantity > keyOwnership + 0.000001))
-          }
-          className={`w-full py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+          disabled={isProcessing || !quantityNum || quantityNum <= 0}
+          className={`w-full py-3 sm:py-4 rounded-xl font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base shadow-lg min-w-0 ${
             mode === "buy"
-              ? "bg-neon-iris hover:bg-neon-iris/90"
-              : "bg-aqua-pulse hover:bg-aqua-pulse/90"
+              ? "bg-muted-green hover:bg-muted-green-light shadow-muted-green/30"
+              : "bg-rose-500 hover:bg-rose-400 shadow-rose-500/30"
           }`}
         >
           {isProcessing ? (
             <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Processing...
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
+              <span className="truncate">Processing...</span>
+            </>
+          ) : quantityNum > 0 ? (
+            <>
+              <Key className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">
+                {mode === "buy" ? "Buy" : "Sell"} {quantityNum.toFixed(2)} Key
+                {quantityNum !== 1 ? "s" : ""}
+              </span>
             </>
           ) : (
             <>
-              <Key className="w-4 h-4" />
-              {mode === "buy"
-                ? `Buy ${quantity.toFixed(6)} Key${quantity !== 1 ? "s" : ""}`
-                : `Sell ${quantity.toFixed(6)} Key${quantity !== 1 ? "s" : ""}`}
+              <Key className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">Enter Amount</span>
             </>
           )}
         </button>

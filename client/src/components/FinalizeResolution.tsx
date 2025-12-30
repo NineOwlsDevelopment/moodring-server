@@ -72,7 +72,7 @@ export const FinalizeResolution = ({
           setShowModal(true);
           await loadSubmissions();
         }}
-        className="px-4 py-2 text-sm font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-all border border-emerald-500/30"
+        className="px-4 py-2 text-sm font-medium text-aqua-pulse hover:text-aqua-pulse bg-aqua-pulse/10 hover:bg-aqua-pulse/20 rounded-lg transition-all border border-aqua-pulse/30"
       >
         <svg
           className="w-4 h-4 inline mr-1.5"
@@ -100,8 +100,8 @@ export const FinalizeResolution = ({
             className="relative overflow-hidden bg-graphite-deep rounded-2xl p-6 max-w-2xl w-full shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/50 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/30 to-transparent" />
 
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">
@@ -189,7 +189,7 @@ export const FinalizeResolution = ({
               <button
                 onClick={handleFinalize}
                 disabled={isFinalizing || submissions.length === 0}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-500/90 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 bg-aqua-pulse hover:bg-aqua-pulse/90 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFinalizing ? "Finalizing..." : "Finalize Resolution"}
               </button>

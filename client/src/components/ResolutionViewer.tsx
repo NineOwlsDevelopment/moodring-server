@@ -58,13 +58,13 @@ export const ResolutionViewer = ({ marketId }: ResolutionViewerProps) => {
   return (
     <div className="space-y-6">
       {/* Resolution Status */}
-      <div className="relative overflow-visible rounded-2xl bg-graphite-deep/60 border-2 border-emerald-500/30 p-4 sm:p-5">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+      <div className="relative overflow-visible rounded-2xl bg-graphite-deep/60 border-2 border-aqua-pulse/30 p-4 sm:p-5">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/50 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/30 to-transparent" />
 
         <div className="flex items-center gap-2 mb-4">
           <svg
-            className="w-5 h-5 text-emerald-400"
+            className="w-5 h-5 text-aqua-pulse"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -74,7 +74,7 @@ export const ResolutionViewer = ({ marketId }: ResolutionViewerProps) => {
               clipRule="evenodd"
             />
           </svg>
-          <h2 className="text-sm font-semibold text-emerald-300 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-aqua-pulse uppercase tracking-wide">
             Market Resolution
           </h2>
         </div>
@@ -111,12 +111,12 @@ export const ResolutionViewer = ({ marketId }: ResolutionViewerProps) => {
               </div>
 
               {/* Canonical Hash */}
-              <div className="mt-4 pt-4 border-t border-emerald-500/20">
+              <div className="mt-4 pt-4 border-t border-aqua-pulse/20">
                 <span className="text-moon-grey-dark text-xs block mb-2">
                   Canonical Hash (Verifiable):
                 </span>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-dark-900/50 rounded-lg text-xs font-mono text-emerald-300 break-all">
+                  <code className="flex-1 px-3 py-2 bg-dark-900/50 rounded-lg text-xs font-mono text-aqua-pulse break-all">
                     {resolution.canonical_hash}
                   </code>
                   <button

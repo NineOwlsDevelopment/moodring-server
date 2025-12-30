@@ -89,7 +89,7 @@ export const AdminSuspiciousTrades = () => {
       case "flagged":
         return "text-red-400 bg-red-500/20 border-red-500/30";
       case "cleared":
-        return "text-green-400 bg-green-500/20 border-green-500/30";
+        return "text-aqua-pulse bg-aqua-pulse/20 border-aqua-pulse/30";
       case "reviewed":
         return "text-blue-400 bg-blue-500/20 border-blue-500/30";
       default:
@@ -166,7 +166,7 @@ export const AdminSuspiciousTrades = () => {
                             ? "text-red-400 bg-red-500/20"
                             : trade.risk_score >= 5
                             ? "text-yellow-400 bg-yellow-500/20"
-                            : "text-green-400 bg-green-500/20"
+                            : "text-aqua-pulse bg-aqua-pulse/20"
                         }`}
                       >
                         {trade.risk_score.toFixed(1)}

@@ -233,8 +233,8 @@ export const ResolveOption = ({
                     disabled={isResolving}
                     className={`w-full text-left px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
                       winningSide === 1
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                        : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20"
+                        ? "bg-aqua-pulse text-white shadow-lg shadow-aqua-pulse/25"
+                        : "bg-aqua-pulse/15 text-aqua-pulse hover:bg-aqua-pulse/25 border border-aqua-pulse/20"
                     }`}
                   >
                     <div className="flex items-center gap-2">

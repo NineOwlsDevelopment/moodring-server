@@ -19,6 +19,7 @@ import {
   GradientProbabilityRing,
   GradientProbabilityRingRef,
 } from "@/components/brand";
+import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 
 export const Home = () => {
   const { markets, setMarkets } = useMarketStore();
@@ -355,53 +356,41 @@ export const Home = () => {
             >
               <Link
                 to="/markets"
-                className="btn btn-primary btn-lg group relative overflow-hidden px-8 py-4 text-base font-semibold tracking-wide hover:scale-105 active:scale-100 transition-transform"
+                className="px-8 py-4 text-base font-semibold tracking-wide bg-neon-iris text-white rounded-xl hover:bg-neon-iris-light transition-all inline-flex items-center gap-2.5"
               >
-                <span className="relative z-10 flex items-center gap-2.5">
-                  {user ? "Browse Markets" : "Start Trading"}
-                  <motion.svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    whileHover={{ x: 4 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 8l4 4m0 0l-4 4m4-4H3"
-                    />
-                  </motion.svg>
-                </span>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-neon-iris-light to-aqua-pulse opacity-0 group-hover:opacity-100"
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                />
+                {user ? "Browse Markets" : "Start Trading"}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
+                </svg>
               </Link>
               <Link
                 to="/leaderboard"
-                className="btn btn-secondary btn-lg group px-8 py-4 text-base font-semibold tracking-wide border-white/10 hover:border-neon-iris/40 hover:scale-105 active:scale-100 transition-all duration-300"
+                className="px-8 py-4 text-base font-semibold tracking-wide bg-graphite-deep text-white border border-white/10 rounded-xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2.5"
               >
-                <span className="flex items-center gap-2.5">
-                  View Leaderboard
-                  <motion.svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    whileHover={{ x: 4 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </motion.svg>
-                </span>
+                View Leaderboard
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
               </Link>
             </motion.div>
           </div>
@@ -427,7 +416,7 @@ export const Home = () => {
       <GradientDivider animated className="max-w-4xl mx-auto opacity-60" />
 
       {/* ===== BIG DISPLAY TEXT SECTION ===== */}
-      <section className="relative py-24 lg:py-32 bg-ink-black overflow-hidden">
+      <section className="hidden md:block relative py-12 lg:py-16 bg-ink-black overflow-hidden">
         <motion.div
           className="section-container relative"
           initial={{ opacity: 0 }}
@@ -445,22 +434,13 @@ export const Home = () => {
             >
               MOODRING
             </motion.h2>
-            <motion.p
-              className="text-lg sm:text-xl lg:text-2xl xl:text-3xl text-white/50 font-light mt-6 lg:mt-8 max-w-2xl mx-auto tracking-wide"
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            >
-              Trade the truth.
-            </motion.p>
           </div>
         </motion.div>
       </section>
 
       {/* ===== STATS SECTION ===== */}
       {/* Stats align to ring arc - radial positioning */}
-      <section className="relative py-32 lg:py-40 bg-graphite-deep overflow-hidden">
+      <section className="relative py-12 lg:py-16 bg-ink-black overflow-hidden">
         {/* Background decoration - sync with ring rotation */}
         <motion.div
           className="absolute inset-0 bg-gradient-to-b from-transparent via-neon-iris/[0.03] to-transparent"
@@ -469,43 +449,8 @@ export const Home = () => {
             transformOrigin: "center center",
           }}
         />
-        <motion.div
-          className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent"
-          style={{
-            backgroundPosition: `${(gradientAngle * 57.2958) % 360}% 0%`,
-          }}
-        />
 
         <div className="section-container relative">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-center mb-20"
-          >
-            <motion.h2
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 tracking-tight"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            >
-              Platform{" "}
-              <motion.span
-                className="bg-gradient-to-r from-neon-iris to-aqua-pulse bg-clip-text text-transparent bg-[length:200%_100%]"
-                style={{
-                  backgroundPosition: `${(gradientAngle * 57.2958) % 360}% 0%`,
-                }}
-              >
-                Performance
-              </motion.span>
-            </motion.h2>
-            <p className="text-lg sm:text-xl text-moon-grey/80 font-light tracking-wide max-w-2xl mx-auto">
-              Live metrics powering the world's most advanced prediction markets
-            </p>
-          </motion.div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             <AnimatedStatCard
               value={stats ? formatUSDCRoundedUp(stats.total_volume) : "$--"}
@@ -537,9 +482,12 @@ export const Home = () => {
         </div>
       </section>
 
+      {/* ===== INTERACTIVE TUTORIAL ===== */}
+      <InteractiveTutorial />
+
       {/* ===== TRENDING MARKETS GRID ===== */}
       {/* Markets section - background gradients sync with ring */}
-      <section className="section-padding bg-ink-black relative overflow-hidden py-32 lg:py-40">
+      <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
         {/* Background effects - rotate with ring */}
         <motion.div
           className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
@@ -575,11 +523,11 @@ export const Home = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-between items-end mb-16 lg:mb-20"
+            className="flex justify-between items-end mb-10 lg:mb-12"
           >
             <div>
               <motion.h2
-                className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-4 lg:mb-6 tracking-tight"
+                className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-3 lg:mb-4 tracking-tight"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
@@ -646,13 +594,16 @@ export const Home = () => {
           )}
 
           <motion.div
-            className="mt-12 text-center sm:hidden"
+            className="mt-8 text-center sm:hidden"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.5 }}
           >
-            <Link to="/markets" className="btn btn-primary btn-lg">
+            <Link
+              to="/markets"
+              className="px-8 py-4 text-lg font-semibold bg-neon-iris text-white rounded-2xl hover:bg-neon-iris-light transition-all"
+            >
               View All Markets
             </Link>
           </motion.div>
@@ -661,7 +612,7 @@ export const Home = () => {
 
       {/* ===== HOW IT WORKS ===== */}
       {/* Section aligns to ring arc - radial layout */}
-      <section className="section-padding bg-graphite-deep relative overflow-hidden py-32 lg:py-40">
+      <section className="section-padding bg-graphite-deep relative overflow-hidden py-20 lg:py-28">
         {/* Enhanced background decoration - sync with ring */}
         <motion.div
           className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.04] blur-3xl"
@@ -705,10 +656,10 @@ export const Home = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-center mb-16 lg:mb-20"
+            className="text-center mb-10 lg:mb-12"
           >
             <motion.h2
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-4 lg:mb-6 tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-3 lg:mb-4 tracking-tight"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -730,7 +681,7 @@ export const Home = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-12 lg:mt-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mt-8 lg:mt-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -793,7 +744,7 @@ export const Home = () => {
 
       {/* ===== LMSR DEEP DIVE ===== */}
       {/* LMSR section - gradients sync with ring */}
-      <section className="section-padding bg-ink-black relative overflow-hidden py-32 lg:py-40">
+      <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
         {/* Background effects - rotate with ring */}
         <motion.div
           className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
@@ -811,7 +762,7 @@ export const Home = () => {
         />
 
         <div className="section-container relative">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Animation side - use simpler version for better performance */}
             <motion.div
               className="order-2 lg:order-1"
@@ -849,7 +800,7 @@ export const Home = () => {
                 Technology
               </motion.div>
               <motion.h2
-                className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-6 tracking-tight"
+                className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -873,7 +824,7 @@ export const Home = () => {
                 Liquidity
               </motion.h2>
               <motion.p
-                className="text-base sm:text-lg text-moon-grey/80 mb-10 lg:mb-12 leading-relaxed tracking-wide"
+                className="text-base sm:text-lg text-moon-grey/80 mb-6 lg:mb-8 leading-relaxed tracking-wide"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -944,7 +895,7 @@ export const Home = () => {
 
       {/* ===== FEATURES GRID ===== */}
       {/* Features section - radial layout synced with ring */}
-      <section className="section-padding bg-graphite-deep relative overflow-hidden py-32 lg:py-40">
+      <section className="section-padding bg-graphite-deep relative overflow-hidden py-20 lg:py-28">
         {/* Background decoration - sync with ring */}
         <motion.div
           className="absolute inset-0 bg-grid opacity-[0.02]"
@@ -980,10 +931,10 @@ export const Home = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-center mb-16 lg:mb-20"
+            className="text-center mb-10 lg:mb-12"
           >
             <motion.h2
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-4 lg:mb-6 tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-3 lg:mb-4 tracking-tight"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -1005,7 +956,7 @@ export const Home = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8 mt-12 lg:mt-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6 mt-8 lg:mt-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -1169,7 +1120,7 @@ export const Home = () => {
 
         <div className="relative section-container text-center z-10">
           <motion.h2
-            className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black text-white mb-8 lg:mb-10 leading-[0.95] tracking-tight"
+            className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black text-white mb-6 lg:mb-8 leading-[0.95] tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -1182,7 +1133,7 @@ export const Home = () => {
             </span>
           </motion.h2>
           <motion.p
-            className="text-base sm:text-lg lg:text-xl xl:text-2xl text-white/80 mb-12 lg:mb-16 max-w-2xl mx-auto leading-relaxed font-light tracking-wide"
+            className="text-base sm:text-lg lg:text-xl xl:text-2xl text-white/80 mb-8 lg:mb-10 max-w-2xl mx-auto leading-relaxed font-light tracking-wide"
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -1201,45 +1152,41 @@ export const Home = () => {
           >
             <Link
               to="/markets"
-              className="btn bg-white text-neon-iris hover:bg-moon-grey-light btn-lg font-semibold shadow-2xl group relative overflow-hidden transition-all hover:scale-105 active:scale-100"
+              className="px-8 py-4 text-lg font-semibold bg-white text-neon-iris hover:bg-moon-grey-light rounded-2xl transition-all inline-flex items-center gap-2"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                Explore Markets
-                <svg
-                  className="w-5 h-5 transition-transform group-hover:translate-x-1"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </span>
+              Explore Markets
+              <svg
+                className="w-5 h-5 transition-transform group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                />
+              </svg>
             </Link>
             <Link
               to="/create"
-              className="btn btn-outline-gradient btn-lg font-semibold group hover:scale-105 active:scale-100 transition-all"
+              className="px-8 py-4 text-lg font-semibold bg-graphite-deep text-white border border-white/10 rounded-2xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2"
             >
-              <span className="flex items-center gap-2">
-                Create Market
-                <svg
-                  className="w-5 h-5 transition-transform group-hover:rotate-90"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-              </span>
+              Create Market
+              <svg
+                className="w-5 h-5 transition-transform group-hover:rotate-90"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
             </Link>
           </motion.div>
         </div>

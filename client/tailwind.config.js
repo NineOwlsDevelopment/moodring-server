@@ -25,6 +25,12 @@ export default {
           "pulse-light": "#5FFAE6",
           "pulse-dark": "#18C4A8",
         },
+        // Muted green for yes options (softer than bright neon green)
+        muted: {
+          green: "#059669", // emerald-600 - muted green
+          "green-light": "#10b981", // emerald-500 - slightly lighter
+          "green-dark": "#047857", // emerald-700 - darker variant
+        },
         moon: {
           grey: "#C7C9D1",
           "grey-light": "#E2E4EA",

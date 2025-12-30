@@ -187,7 +187,7 @@ export const AdminMarkets = () => {
                               {option.text || option.label || "Option"}
                             </span>
                             {option.is_resolved ? (
-                              <span className="px-2 py-0.5 bg-green-500/20 text-green-300 border border-green-500/30 rounded text-xs">
+                              <span className="px-2 py-0.5 bg-aqua-pulse/20 text-aqua-pulse border border-aqua-pulse/30 rounded text-xs">
                                 Resolved
                               </span>
                             ) : (

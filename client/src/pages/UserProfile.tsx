@@ -658,7 +658,12 @@ const ProfilePostCard = ({
                   : "now"}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">@{profile.username}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              @
+              {profile.username.length > 10
+                ? profile.username.substring(0, 10) + "..."
+                : profile.username}
+            </p>
           </div>
           <button className="p-2 rounded-xl hover:bg-white/5 text-moon-grey-dark hover:text-white transition-all min-w-[40px] min-h-[40px] flex items-center justify-center">
             <MoreVertical className="w-5 h-5" />
@@ -785,25 +790,31 @@ const ProfileTabs = ({
   ];
 
   return (
-    <div className="flex border-b border-white/10 gap-1">
+    <div className="flex border-b border-white/10 gap-1 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`px-4 py-3 text-sm font-medium transition-all relative ${
+          className={`px-4 sm:px-6 py-3.5 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-2 ${
             activeTab === tab.id
               ? "text-white"
               : "text-moon-grey hover:text-white"
           }`}
         >
-          {tab.label}
+          <span>{tab.label}</span>
           {tab.count !== undefined && (
-            <span className="ml-1.5 text-xs text-moon-grey-dark">
-              ({tab.count})
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.id
+                  ? "bg-neon-iris/20 text-neon-iris"
+                  : "bg-white/5 text-moon-grey-dark"
+              }`}
+            >
+              {tab.count}
             </span>
           )}
           {activeTab === tab.id && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-iris" />
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-iris rounded-t-full" />
           )}
         </button>
       ))}
@@ -969,7 +980,7 @@ const MarketFeedCard = ({
                       key={`${option.id}-${side}-${idx}`}
                       className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-graphite-light transition-colors border ${
                         isYes
-                          ? "bg-aqua-pulse/10 border-aqua-pulse/20"
+                          ? "bg-muted-green/10 border-muted-green/20"
                           : isNo
                           ? "bg-brand-danger/10 border-brand-danger/20"
                           : "bg-graphite-light border-white/10"
@@ -989,7 +1000,7 @@ const MarketFeedCard = ({
                         <div
                           className={`w-4 h-4 rounded flex-shrink-0 ${
                             isYes
-                              ? "bg-emerald-500/20"
+                              ? "bg-muted-green/20"
                               : isNo
                               ? "bg-rose-500/20"
                               : "bg-white/10"
@@ -999,7 +1010,7 @@ const MarketFeedCard = ({
                       <span
                         className={`text-[13px] flex-1 truncate font-medium ${
                           isYes
-                            ? "text-aqua-pulse"
+                            ? "text-muted-green"
                             : isNo
                             ? "text-brand-danger"
                             : "text-white"
@@ -1092,7 +1103,7 @@ const TradeCard = ({ trade }: { trade: Trade }) => {
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                 isYes
-                  ? "bg-emerald-500/20 text-emerald-400"
+                  ? "bg-muted-green/20 text-muted-green"
                   : "bg-rose-500/20 text-rose-400"
               }`}
             >
@@ -1198,7 +1209,7 @@ export const UserProfile = () => {
     if (profile?.id) {
       loadKeyInfo();
     }
-  }, [profile?.id]);
+  }, [profile?.id, profile?.keys_supply, isOwnProfile]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -1268,11 +1279,16 @@ export const UserProfile = () => {
       const [priceData, ownershipData] = await Promise.all([
         getKeyPrice(profile.id),
         isOwnProfile
-          ? Promise.resolve({ quantity: 0 })
+          ? Promise.resolve({ quantity: profile.keys_supply || 0 })
           : getKeyOwnership(profile.id),
       ]);
       setKeyPrice(priceData.price_in_usdc);
-      setKeyOwnership(ownershipData.quantity);
+      // Ensure quantity is a number
+      const ownershipQuantity =
+        typeof ownershipData.quantity === "number"
+          ? ownershipData.quantity
+          : parseFloat(String(ownershipData.quantity)) || 0;
+      setKeyOwnership(ownershipQuantity);
     } catch (error) {
       console.error("Failed to load key info:", error);
     } finally {
@@ -1572,11 +1588,12 @@ export const UserProfile = () => {
   return (
     <div className="min-h-screen pb-20 md:pb-8 bg-ink-black">
       {/* Cover area - minimal and professional */}
-      <div className="h-32 md:h-40 bg-graphite-deep border-b border-white/5 relative">
+      <div className="h-32 sm:h-36 md:h-40 bg-gradient-to-b from-graphite-deep to-ink-black border-b border-white/5 relative">
         {/* Back button */}
         <button
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 p-2 rounded-lg bg-graphite-deep/80 backdrop-blur-sm text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[40px] min-h-[40px] flex items-center justify-center"
+          className="absolute top-4 left-4 sm:top-5 sm:left-5 p-2.5 rounded-xl bg-graphite-deep/90 backdrop-blur-md text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center shadow-lg"
+          aria-label="Go back"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -1585,18 +1602,19 @@ export const UserProfile = () => {
         {isOwnProfile && (
           <Link
             to="/settings"
-            className="absolute top-4 right-4 p-2 rounded-lg bg-graphite-deep/80 backdrop-blur-sm text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[40px] min-h-[40px] flex items-center justify-center"
+            className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2.5 rounded-xl bg-graphite-deep/90 backdrop-blur-md text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center shadow-lg"
+            aria-label="Settings"
           >
             <Settings className="w-5 h-5" />
           </Link>
         )}
       </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Header */}
-        <div className="flex flex-col sm:flex-row gap-6 -mt-12 mb-8">
+        <div className="flex flex-col sm:flex-row gap-6 lg:gap-8 -mt-12 mb-6 sm:mb-8">
           {/* Avatar */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 self-start">
             <ProfileAvatar
               name={profile.display_name || profile.username}
               imageUrl={profile.avatar_url}
@@ -1605,22 +1623,28 @@ export const UserProfile = () => {
           </div>
 
           {/* Profile info */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* Name and verification */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white break-words leading-tight">
                   {profile.display_name || profile.username}
                 </h1>
                 {/* Verification badge */}
                 {profile.total_trades > 100 && (
                   <span title="Verified trader" className="flex-shrink-0">
-                    <Award className="w-5 h-5 text-neon-iris" />
+                    <Award className="w-5 h-5 sm:w-6 sm:h-6 text-neon-iris" />
                   </span>
                 )}
               </div>
-              <p className="text-moon-grey text-sm mb-1">@{profile.username}</p>
+              <p className="text-moon-grey text-sm sm:text-base">
+                @
+                {profile.username.length > 10
+                  ? profile.username.substring(0, 10) + "..."
+                  : profile.username}
+              </p>
               {profile.created_at && (
-                <p className="text-moon-grey text-sm mb-3">
+                <p className="text-moon-grey text-xs sm:text-sm">
                   Joined{" "}
                   {(() => {
                     const timestamp = Number(profile.created_at);
@@ -1635,158 +1659,173 @@ export const UserProfile = () => {
                   })()}
                 </p>
               )}
-              {profile.bio && (
-                <p className="text-moon-grey-light text-sm leading-relaxed mb-4 break-words">
-                  {profile.bio}
-                </p>
-              )}
-              {/* Stats */}
-              <div className="flex items-center gap-6 text-sm mb-3">
-                <button className="hover:text-white transition-colors">
-                  <span className="font-semibold text-white tabular-nums">
-                    {profile.following_count}
-                  </span>
-                  <span className="text-moon-grey ml-1.5">Following</span>
-                </button>
-                <button className="hover:text-white transition-colors">
-                  <span className="font-semibold text-white tabular-nums">
-                    {profile.followers_count}
-                  </span>
-                  <span className="text-moon-grey ml-1.5">Followers</span>
-                </button>
-              </div>
-              {/* Action buttons */}
-              <div className="flex gap-2 flex-col sm:flex-row">
-                {!isOwnProfile && currentUser && (
-                  <>
-                    <button
-                      onClick={() => setShowKeyModal(true)}
-                      className="px-4 py-2 rounded-lg font-medium text-sm transition-all border bg-neon-iris text-white border-neon-iris hover:bg-neon-iris-light flex items-center gap-2"
-                    >
-                      <Key className="w-4 h-4" />
-                      {keyPrice !== null
-                        ? `$${keyPrice.toFixed(4)}`
-                        : "View Keys"}
-                    </button>
-                    <button
-                      onClick={handleFollow}
-                      disabled={
-                        isFollowLoading ||
-                        (keyOwnership <
-                          (profile?.required_keys_to_follow || 1) &&
-                          !isFollowing)
-                      }
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
-                        isFollowing
-                          ? "bg-graphite-deep text-white border-white/10 hover:bg-graphite-light"
-                          : keyOwnership <
-                            (profile?.required_keys_to_follow || 1)
-                          ? "bg-white/10 text-gray-400 border-white/5 cursor-not-allowed"
-                          : "bg-aqua-pulse text-white border-aqua-pulse hover:bg-aqua-pulse/90"
-                      }`}
-                      title={
-                        keyOwnership <
-                          (profile?.required_keys_to_follow || 1) &&
-                        !isFollowing
-                          ? `Purchase at least ${
-                              profile?.required_keys_to_follow || 1
-                            } key(s) to follow`
-                          : ""
-                      }
-                    >
-                      {isFollowLoading
-                        ? "..."
-                        : isFollowing
-                        ? "Following"
-                        : keyOwnership < (profile?.required_keys_to_follow || 1)
-                        ? `Buy ${profile?.required_keys_to_follow || 1} Key${
-                            (profile?.required_keys_to_follow || 1) > 1
-                              ? "s"
-                              : ""
-                          } to Follow`
-                        : "Follow"}
-                    </button>
-                    {!isFollowing &&
-                      keyOwnership <
-                        (profile?.required_keys_to_follow || 1) && (
-                        <div className="text-xs text-gray-400 mt-1 sm:mt-0 sm:ml-2 flex items-center gap-1">
-                          <Key className="w-3 h-3" />
-                          <span>
-                            {keyOwnership} /{" "}
-                            {profile?.required_keys_to_follow || 1} keys
-                            required
-                          </span>
-                        </div>
-                      )}
-                  </>
-                )}
+            </div>
 
-                {isOwnProfile && (
-                  <Link
-                    to="/settings"
-                    className="px-4 py-2 rounded-lg bg-graphite-deep text-white font-medium text-sm hover:bg-graphite-light border border-white/10 transition-all"
+            {/* Bio */}
+            {profile.bio && (
+              <p className="text-moon-grey-light text-sm sm:text-base leading-relaxed break-words max-w-2xl">
+                {profile.bio}
+              </p>
+            )}
+
+            {/* Stats */}
+            <div className="flex items-center gap-4 sm:gap-6 text-sm flex-wrap">
+              <button className="hover:text-white transition-colors group">
+                <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
+                  {profile.followers_count.toLocaleString()}
+                </span>
+                <span className="text-moon-grey ml-1.5">Followers</span>
+              </button>
+              <button className="hover:text-white transition-colors group">
+                <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
+                  {(profile.keys_supply || 0).toLocaleString()}
+                </span>
+                <span className="text-moon-grey ml-1.5">Keys</span>
+              </button>
+              {currentUser && keyOwnership > 0 && (
+                <button className="hover:text-white transition-colors group">
+                  <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
+                    {keyOwnership.toFixed(2)}
+                  </span>
+                  <span className="text-moon-grey ml-1.5">Owned</span>
+                </button>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+              {!isOwnProfile && currentUser && (
+                <>
+                  <button
+                    onClick={() => setShowKeyModal(true)}
+                    className="px-4 py-2.5 rounded-lg font-medium text-sm transition-all border bg-muted-green text-white border-muted-green hover:bg-muted-green-light hover:border-muted-green-light flex items-center gap-2 shadow-lg shadow-muted-green/20"
                   >
-                    Edit Profile
-                  </Link>
-                )}
-              </div>
+                    <Key className="w-4 h-4" />
+                    {keyPrice !== null
+                      ? `$${keyPrice.toFixed(4)}`
+                      : "View Keys"}
+                  </button>
+                  <button
+                    onClick={handleFollow}
+                    disabled={
+                      isFollowLoading ||
+                      (keyOwnership < (profile?.required_keys_to_follow || 1) &&
+                        !isFollowing)
+                    }
+                    className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all border flex items-center gap-2 ${
+                      isFollowing
+                        ? "bg-graphite-deep text-white border-white/10 hover:bg-graphite-light"
+                        : keyOwnership < (profile?.required_keys_to_follow || 1)
+                        ? "bg-white/5 text-gray-400 border-white/5 cursor-not-allowed"
+                        : "bg-muted-green text-white border-muted-green hover:bg-muted-green-light shadow-lg shadow-muted-green/20"
+                    }`}
+                    title={
+                      keyOwnership < (profile?.required_keys_to_follow || 1) &&
+                      !isFollowing
+                        ? `Purchase at least ${
+                            profile?.required_keys_to_follow || 1
+                          } key(s) to follow`
+                        : ""
+                    }
+                  >
+                    {isFollowLoading ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : isFollowing ? (
+                      "Following"
+                    ) : keyOwnership <
+                      (profile?.required_keys_to_follow || 1) ? (
+                      `Buy ${profile?.required_keys_to_follow || 1} Key${
+                        (profile?.required_keys_to_follow || 1) > 1 ? "s" : ""
+                      } to Follow`
+                    ) : (
+                      "Follow"
+                    )}
+                  </button>
+                  {!isFollowing &&
+                    keyOwnership < (profile?.required_keys_to_follow || 1) && (
+                      <div className="text-xs text-gray-400 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/5">
+                        <Key className="w-3 h-3" />
+                        <span>
+                          {keyOwnership.toFixed(2)} /{" "}
+                          {profile?.required_keys_to_follow || 1} required
+                        </span>
+                      </div>
+                    )}
+                </>
+              )}
+
+              {isOwnProfile && (
+                <Link
+                  to="/settings"
+                  className="px-4 py-2.5 rounded-lg bg-graphite-deep text-white font-medium text-sm hover:bg-graphite-light border border-white/10 transition-all flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Edit Profile
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
         {/* Trading stats - Professional data display */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-graphite-deep border border-white/5 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-neon-iris/10">
-                <BarChart3 className="w-4 h-4 text-neon-iris" />
-              </div>
-              <div>
-                <div className="text-xs text-moon-grey-dark uppercase tracking-wider">
-                  Total Trades
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-lg bg-neon-iris/10 group-hover:bg-neon-iris/20 transition-colors">
+                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-neon-iris" />
+                  </div>
+                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
+                    Total Trades
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-white tabular-nums">
-                  {profile.total_trades}
+                <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
+                  {profile.total_trades.toLocaleString()}
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-graphite-deep border border-white/5 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-aqua-pulse/10">
-                <BarChart3 className="w-4 h-4 text-aqua-pulse" />
-              </div>
-              <div>
-                <div className="text-xs text-moon-grey-dark uppercase tracking-wider">
-                  Total Volume
+          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-lg bg-aqua-pulse/10 group-hover:bg-aqua-pulse/20 transition-colors">
+                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-aqua-pulse" />
+                  </div>
+                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
+                    Total Volume
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-white tabular-nums">
+                <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
                   ${(profile.total_trades * 100).toLocaleString()}
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-graphite-deep border border-white/5 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className={`p-2 rounded-lg ${
-                  profile.total_pnl >= 0
-                    ? "bg-aqua-pulse/10"
-                    : "bg-brand-danger/10"
-                }`}
-              >
-                {profile.total_pnl >= 0 ? (
-                  <TrendingUp className="w-4 h-4 text-aqua-pulse" />
-                ) : (
-                  <TrendingDown className="w-4 h-4 text-brand-danger" />
-                )}
-              </div>
-              <div>
-                <div className="text-xs text-moon-grey-dark uppercase tracking-wider">
-                  Total P&L
+          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className={`p-2.5 rounded-lg transition-colors ${
+                      profile.total_pnl >= 0
+                        ? "bg-aqua-pulse/10 group-hover:bg-aqua-pulse/20"
+                        : "bg-brand-danger/10 group-hover:bg-brand-danger/20"
+                    }`}
+                  >
+                    {profile.total_pnl >= 0 ? (
+                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-aqua-pulse" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-brand-danger" />
+                    )}
+                  </div>
+                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
+                    Total P&L
+                  </div>
                 </div>
                 <div
-                  className={`text-2xl font-bold tabular-nums ${
+                  className={`text-2xl sm:text-3xl font-bold tabular-nums ${
                     profile.total_pnl >= 0
                       ? "text-aqua-pulse"
                       : "text-brand-danger"
@@ -1809,12 +1848,12 @@ export const UserProfile = () => {
         />
 
         {/* Tab content */}
-        <div className="py-4">
+        <div className="py-6 sm:py-8">
           {activeTab === "posts" && (
             <>
               {/* Create Post Form (only for own profile) */}
               {isOwnProfile && (
-                <div className="mb-6 bg-graphite-deep border border-white/5 rounded-lg p-5">
+                <div className="mb-6 bg-graphite-deep border border-white/5 rounded-xl p-5 sm:p-6">
                   <textarea
                     value={newPostContent}
                     onChange={(e) => setNewPostContent(e.target.value)}
@@ -1999,47 +2038,52 @@ export const UserProfile = () => {
               {!isOwnProfile &&
               (profile?.required_keys_to_follow || 1) > 0 &&
               keyOwnership < (profile?.required_keys_to_follow || 1) ? (
-                <div className="border-t border-white/10 py-16">
-                  <div className="flex flex-col items-center justify-center text-center px-4">
-                    <div className="w-16 h-16 rounded-full bg-neon-iris/20 flex items-center justify-center mb-4">
-                      <Lock className="w-8 h-8 text-neon-iris" />
+                <div className="border-t border-white/10 py-16 sm:py-20">
+                  <div className="flex flex-col items-center justify-center text-center px-4 max-w-md mx-auto">
+                    <div className="w-20 h-20 rounded-2xl bg-neon-iris/10 border border-neon-iris/20 flex items-center justify-center mb-6">
+                      <Lock className="w-10 h-10 text-neon-iris" />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
+                    <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">
                       Keys Required
                     </h3>
-                    <p className="text-gray-400 mb-6 max-w-md">
+                    <p className="text-gray-400 mb-8 text-sm sm:text-base leading-relaxed">
                       You need at least {profile?.required_keys_to_follow || 1}{" "}
                       key(s) to view this trader's trades. You currently have{" "}
-                      {keyOwnership} key(s).
+                      <span className="text-white font-medium">
+                        {keyOwnership.toFixed(2)}
+                      </span>{" "}
+                      key(s).
                     </p>
                     {keyPrice !== null && (
-                      <div className="bg-white/5 rounded-lg p-6 w-full max-w-md border border-white/10">
-                        <div className="flex items-center justify-between mb-4">
+                      <div className="bg-graphite-deep rounded-xl p-6 sm:p-8 w-full max-w-md border border-white/10 shadow-xl">
+                        <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/5">
                           <div>
-                            <p className="text-sm text-gray-400">
+                            <p className="text-xs text-moon-grey-dark uppercase tracking-wider mb-1">
                               Current Price
                             </p>
-                            <p className="text-2xl font-bold text-white">
+                            <p className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
                               ${keyPrice.toFixed(4)}
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-gray-400">Supply</p>
-                            <p className="text-lg font-semibold text-white">
+                            <p className="text-xs text-moon-grey-dark uppercase tracking-wider mb-1">
+                              Supply
+                            </p>
+                            <p className="text-xl font-semibold text-white tabular-nums">
                               {profile.keys_supply || 0}
                             </p>
                           </div>
                         </div>
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex gap-2 mb-6">
                           <button
                             onClick={() =>
                               setKeyPurchaseQuantity(
                                 Math.max(1, keyPurchaseQuantity - 1)
                               )
                             }
-                            className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors font-medium min-w-[48px]"
                           >
-                            -
+                            −
                           </button>
                           <input
                             type="number"
@@ -2050,13 +2094,13 @@ export const UserProfile = () => {
                                 Math.max(1, parseInt(e.target.value) || 1)
                               )
                             }
-                            className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-neon-iris"
+                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-neon-iris/50 focus:border-neon-iris font-medium"
                           />
                           <button
                             onClick={() =>
                               setKeyPurchaseQuantity(keyPurchaseQuantity + 1)
                             }
-                            className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors font-medium min-w-[48px]"
                           >
                             +
                           </button>
@@ -2064,7 +2108,7 @@ export const UserProfile = () => {
                         <button
                           onClick={handleBuyKeys}
                           disabled={isBuyingKeys || isLoadingKeys}
-                          className="w-full py-3 bg-neon-iris hover:bg-neon-iris/90 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          className="w-full py-3.5 bg-neon-iris hover:bg-neon-iris-light text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-neon-iris/20"
                         >
                           {isBuyingKeys ? (
                             <>
@@ -2079,10 +2123,14 @@ export const UserProfile = () => {
                             </>
                           )}
                         </button>
-                        <div className="mt-4 text-center space-y-1">
+                        <div className="mt-5 pt-5 border-t border-white/5 text-center space-y-1.5">
                           {keyOwnership > 0 && (
                             <p className="text-sm text-gray-400">
-                              You own {keyOwnership} key
+                              You own{" "}
+                              <span className="text-white font-medium">
+                                {keyOwnership.toFixed(2)}
+                              </span>{" "}
+                              key
                               {keyOwnership !== 1 ? "s" : ""}
                             </p>
                           )}
@@ -2164,6 +2212,7 @@ export const UserProfile = () => {
           currentPrice={keyPrice || 0}
           keyOwnership={keyOwnership}
           isTrader={isOwnProfile}
+          requiredKeysToFollow={profile.required_keys_to_follow || 1}
           onBuy={async (quantity: number) => {
             const result = await buyKeys({
               trader_id: profile.id,

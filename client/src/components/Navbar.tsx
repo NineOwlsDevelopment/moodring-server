@@ -361,9 +361,10 @@ export const Navbar = () => {
             ) : (
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="btn btn-primary text-sm sm:text-base"
+                className="relative px-6 py-2.5 rounded-xl font-semibold text-sm sm:text-base bg-neon-iris text-white hover:bg-neon-iris-light border border-neon-iris/50 hover:border-neon-iris hover:shadow-lg hover:shadow-neon-iris/40 active:scale-[0.97] transition-all duration-200 overflow-hidden group"
               >
-                Login
+                <span className="relative z-10">Login</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/0 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               </button>
             )}
 

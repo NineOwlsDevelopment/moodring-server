@@ -15,7 +15,7 @@ export const GradientAccent = ({
       : color === "rose"
       ? "via-rose-500"
       : color === "emerald"
-      ? "via-emerald-500"
+      ? "via-aqua-pulse"
       : "via-aqua-pulse";
 
   return (

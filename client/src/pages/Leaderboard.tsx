@@ -181,7 +181,7 @@ export const Leaderboard = () => {
                         className={`text-sm font-bold ${
                           metric === "profit"
                             ? metricValue >= 0
-                              ? "text-emerald-400"
+                              ? "text-aqua-pulse"
                               : "text-danger-400"
                             : "text-neon-iris"
                         }`}
@@ -325,7 +325,7 @@ export const Leaderboard = () => {
                           className={`text-sm font-bold ${
                             metric === "profit"
                               ? metricValue >= 0
-                                ? "text-emerald-400"
+                                ? "text-aqua-pulse"
                                 : "text-danger-400"
                               : "text-neon-iris"
                           }`}

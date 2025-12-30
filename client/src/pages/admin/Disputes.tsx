@@ -77,7 +77,7 @@ export const AdminDisputes = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "resolved":
-        return "text-green-400 bg-green-500/20 border-green-500/30";
+        return "text-aqua-pulse bg-aqua-pulse/20 border-aqua-pulse/30";
       case "dismissed":
         return "text-gray-400 bg-gray-500/20 border-gray-500/30";
       case "reviewed":

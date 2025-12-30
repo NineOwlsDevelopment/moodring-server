@@ -11,13 +11,19 @@ import {
   LiquidityPosition,
   PnLSummary,
 } from "@/api/api";
+import { formatUSDC, formatProbability, formatShares } from "@/utils/format";
 import {
-  formatUSDC,
-  formatProbability,
-  formatShares,
-} from "@/utils/format";
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  PieChart,
+  DollarSign,
+} from "lucide-react";
 
-type Tab = "positions" | "liquidity" | "history";
+type Tab = "positions" | "liquidity";
 type PositionFilter = "open" | "closed" | "all";
 
 export const Portfolio = () => {
@@ -66,87 +72,136 @@ export const Portfolio = () => {
       label: "Liquidity",
       count: liquidityPositions.length,
     },
-    { id: "history" as const, label: "Trade History" },
   ];
 
   if (!user) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <div className="text-6xl mb-4">💼</div>
-        <h1 className="text-3xl font-bold text-white mb-4">Portfolio</h1>
-        <p className="text-gray-400">
-          Connect your wallet to view your portfolio
-        </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-graphite-light border border-white/10 mb-6">
+            <Wallet className="w-8 h-8 text-moon-grey" />
+          </div>
+          <h1 className="text-3xl font-semibold text-white mb-3">Portfolio</h1>
+          <p className="text-moon-grey">
+            Connect your wallet to view your portfolio
+          </p>
+        </div>
       </div>
     );
   }
 
+  const totalPnl = portfolio?.total_pnl || 0;
+  const totalPnlPercent = portfolio?.total_pnl_percent || 0;
+  const isPositive = totalPnl >= 0;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-4xl font-bold text-white mb-8">Portfolio</h1>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-white mb-2">Portfolio</h1>
+        <p className="text-moon-grey text-sm">
+          Comprehensive view of your trading positions and performance
+        </p>
+      </div>
 
       {/* Portfolio Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="card bg-gradient-to-br from-dark-900 to-dark-800">
-          <div className="text-sm text-gray-400 mb-1">Total Value</div>
-          <div className="text-3xl font-bold text-white">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Total Value */}
+        <div className="bg-graphite-deep border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider">
+              Total Value
+            </div>
+            <DollarSign className="w-4 h-4 text-moon-grey-dark" />
+          </div>
+          <div className="text-2xl font-semibold text-white mb-1 tabular-nums">
             {formatUSDC(portfolio?.total_value || 0)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-moon-grey-dark">
             Cash + Positions + Liquidity
           </div>
         </div>
 
-        <div className="card">
-          <div className="text-sm text-gray-400 mb-1">Cash Balance</div>
-          <div className="text-3xl font-bold text-white">
+        {/* Cash Balance */}
+        <div className="bg-graphite-deep border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider">
+              Cash Balance
+            </div>
+            <Wallet className="w-4 h-4 text-moon-grey-dark" />
+          </div>
+          <div className="text-2xl font-semibold text-white mb-1 tabular-nums">
             {formatUSDC(user?.wallet?.balance_usdc || 0)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">Available to trade</div>
+          <div className="text-xs text-moon-grey-dark">Available to trade</div>
         </div>
 
-        <div className="card">
-          <div className="text-sm text-gray-400 mb-1">Positions Value</div>
-          <div className="text-3xl font-bold text-white">
+        {/* Positions Value */}
+        <div className="bg-graphite-deep border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider">
+              Positions Value
+            </div>
+            <BarChart3 className="w-4 h-4 text-moon-grey-dark" />
+          </div>
+          <div className="text-2xl font-semibold text-white mb-1 tabular-nums">
             {formatUSDC(portfolio?.positions_value || 0)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {positions.length} active positions
+          <div className="text-xs text-moon-grey-dark">
+            {positions.length}{" "}
+            {positions.length === 1 ? "position" : "positions"}
           </div>
         </div>
 
-        <div className="card">
-          <div className="text-sm text-gray-400 mb-1">Total P&L</div>
+        {/* Total P&L */}
+        <div className="bg-graphite-deep border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider">
+              Total P&L
+            </div>
+            {isPositive ? (
+              <TrendingUp className="w-4 h-4 text-aqua-pulse" />
+            ) : (
+              <TrendingDown className="w-4 h-4 text-danger-400" />
+            )}
+          </div>
           <div
-            className={`text-3xl font-bold ${
-              (portfolio?.total_pnl || 0) >= 0
-                ? "text-success-400"
-                : "text-danger-400"
+            className={`text-2xl font-semibold mb-1 tabular-nums ${
+              isPositive ? "text-aqua-pulse" : "text-danger-400"
             }`}
           >
-            {(portfolio?.total_pnl || 0) >= 0 ? "+" : ""}
-            {formatUSDC(portfolio?.total_pnl || 0)}
+            {isPositive ? "+" : ""}
+            {formatUSDC(totalPnl)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {(portfolio?.total_pnl_percent || 0) >= 0 ? "+" : ""}
-            {(portfolio?.total_pnl_percent || 0).toFixed(1)}% all time
+          <div
+            className={`text-xs font-medium ${
+              isPositive ? "text-aqua-pulse" : "text-danger-400"
+            }`}
+          >
+            {isPositive ? "+" : ""}
+            {totalPnlPercent.toFixed(2)}% all time
           </div>
         </div>
       </div>
 
       {/* P&L Summary */}
       {pnlSummary && (
-        <div className="card mb-8">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Performance Summary
-          </h2>
+        <div className="bg-graphite-deep border border-white/10 rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-2 mb-5">
+            <PieChart className="w-5 h-5 text-moon-grey" />
+            <h2 className="text-lg font-semibold text-white">
+              Performance Summary
+            </h2>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <div className="text-sm text-gray-400 mb-1">Realized P&L</div>
+              <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2">
+                Realized P&L
+              </div>
               <div
-                className={`text-xl font-bold ${
+                className={`text-xl font-semibold tabular-nums ${
                   pnlSummary.realized_pnl >= 0
-                    ? "text-success-400"
+                    ? "text-aqua-pulse"
                     : "text-danger-400"
                 }`}
               >
@@ -155,11 +210,13 @@ export const Portfolio = () => {
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-400 mb-1">Unrealized P&L</div>
+              <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2">
+                Unrealized P&L
+              </div>
               <div
-                className={`text-xl font-bold ${
+                className={`text-xl font-semibold tabular-nums ${
                   pnlSummary.unrealized_pnl >= 0
-                    ? "text-success-400"
+                    ? "text-aqua-pulse"
                     : "text-danger-400"
                 }`}
               >
@@ -168,33 +225,41 @@ export const Portfolio = () => {
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-400 mb-1">Best Trade</div>
+              <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2">
+                Best Trade
+              </div>
               {pnlSummary.best_trade ? (
                 <>
-                  <div className="text-xl font-bold text-success-400">
+                  <div className="text-xl font-semibold text-aqua-pulse tabular-nums">
                     +{formatUSDC(pnlSummary.best_trade.pnl)}
                   </div>
-                  <div className="text-xs text-gray-500 truncate">
+                  <div className="text-xs text-moon-grey-dark truncate mt-1">
                     {pnlSummary.best_trade.market}
                   </div>
                 </>
               ) : (
-                <div className="text-xl font-bold text-gray-500">-</div>
+                <div className="text-xl font-semibold text-moon-grey-dark">
+                  —
+                </div>
               )}
             </div>
             <div>
-              <div className="text-sm text-gray-400 mb-1">Worst Trade</div>
+              <div className="text-xs font-medium text-moon-grey-dark uppercase tracking-wider mb-2">
+                Worst Trade
+              </div>
               {pnlSummary.worst_trade ? (
                 <>
-                  <div className="text-xl font-bold text-danger-400">
+                  <div className="text-xl font-semibold text-danger-400 tabular-nums">
                     {formatUSDC(pnlSummary.worst_trade.pnl)}
                   </div>
-                  <div className="text-xs text-gray-500 truncate">
+                  <div className="text-xs text-moon-grey-dark truncate mt-1">
                     {pnlSummary.worst_trade.market}
                   </div>
                 </>
               ) : (
-                <div className="text-xl font-bold text-gray-500">-</div>
+                <div className="text-xl font-semibold text-moon-grey-dark">
+                  —
+                </div>
               )}
             </div>
           </div>
@@ -202,25 +267,33 @@ export const Portfolio = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-dark-700 mb-6">
+      <div className="flex items-center gap-1 mb-6 border-b border-white/10">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 font-medium text-sm transition-colors relative ${
+            className={`px-5 py-3 font-medium text-sm transition-all relative ${
               activeTab === tab.id
-                ? "text-primary-400"
-                : "text-gray-400 hover:text-white"
+                ? "text-white"
+                : "text-moon-grey hover:text-white"
             }`}
           >
-            {tab.label}
-            {tab.count !== undefined && (
-              <span className="ml-2 px-2 py-0.5 bg-dark-700 rounded-full text-xs">
-                {tab.count}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <span>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    activeTab === tab.id
+                      ? "bg-neon-iris/20 text-neon-iris"
+                      : "bg-graphite-light text-moon-grey-dark"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </div>
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-iris" />
             )}
           </button>
         ))}
@@ -228,200 +301,261 @@ export const Portfolio = () => {
 
       {/* Tab Content */}
       {activeTab === "positions" && (
-        <div className="card">
-          {/* Position Filters */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-white">Your Positions</h2>
-            <div className="flex gap-2">
-              {(["open", "closed", "all"] as PositionFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setPositionFilter(filter)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    positionFilter === filter
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-800 text-gray-400 hover:text-white"
-                  }`}
-                >
-                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                </button>
-              ))}
+        <div className="bg-graphite-deep border border-white/10 rounded-xl">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">
+                Trading Positions
+              </h2>
+              <div className="flex gap-2">
+                {(["open", "closed", "all"] as PositionFilter[]).map(
+                  (filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setPositionFilter(filter)}
+                      className={`px-4 py-2 rounded-lg text-xs font-medium transition-all uppercase tracking-wider ${
+                        positionFilter === filter
+                          ? "bg-neon-iris text-white"
+                          : "bg-graphite-light text-moon-grey hover:text-white hover:bg-graphite-hover"
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-24 bg-dark-800 rounded-lg animate-pulse"
-                />
-              ))}
-            </div>
-          ) : positions.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">📊</div>
-              <p className="text-gray-400 mb-4">
-                {positionFilter === "open"
-                  ? "You don't have any open positions"
-                  : positionFilter === "closed"
-                  ? "No closed positions yet"
-                  : "No positions yet. Start trading!"}
-              </p>
-              <Link to="/markets" className="btn btn-primary">
-                Browse Markets
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {positions.map((position) => (
+          <div className="p-6">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-graphite-light rounded-lg animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : positions.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-graphite-light border border-white/10 mb-4">
+                  <BarChart3 className="w-8 h-8 text-moon-grey-dark" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {positionFilter === "open"
+                    ? "No Open Positions"
+                    : positionFilter === "closed"
+                    ? "No Closed Positions"
+                    : "No Positions"}
+                </h3>
+                <p className="text-moon-grey mb-6 max-w-sm mx-auto">
+                  {positionFilter === "open"
+                    ? "You don't have any active trading positions at the moment."
+                    : positionFilter === "closed"
+                    ? "You haven't closed any positions yet."
+                    : "Start trading to build your portfolio."}
+                </p>
                 <Link
-                  key={position.id}
-                  to={`/market/${position.market_id}`}
-                  className="block  rounded-lg p-4 bg-dark-800 hover:bg-dark-700 transition-colors"
+                  to="/markets"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-neon-iris text-white font-medium rounded-lg hover:bg-neon-iris-light transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white mb-1 truncate">
-                        {position.market_question}
-                      </h3>
-                      {position.option_label && (
-                        <p className="text-sm text-primary-400 mb-2">
-                          {position.option_label}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <span
-                          className={`font-medium ${
-                            position.side === "yes"
-                              ? "text-success-400"
-                              : "text-danger-400"
-                          }`}
-                        >
-                          {position.side.toUpperCase()}
-                        </span>
-                        <span className="text-gray-400">
-                          {formatShares(position.shares)} shares @{" "}
-                          {formatProbability(position.avg_price)}
-                        </span>
-                        {position.is_resolved && (
-                          <span className="px-2 py-0.5 bg-success-500/20 text-success-300 rounded-full text-xs ">
-                            Resolved
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-semibold text-white">
-                        {formatUSDC(position.shares * position.current_price)}
-                      </div>
-                      <div
-                        className={`text-sm font-medium ${
-                          position.pnl >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
-                      >
-                        {position.pnl >= 0 ? "+" : ""}
-                        {formatUSDC(position.pnl)} (
-                        {position.pnl_percent >= 0 ? "+" : ""}
-                        {position.pnl_percent.toFixed(1)}%)
-                      </div>
-                    </div>
-                  </div>
+                  Browse Markets
+                  <ArrowUpRight className="w-4 h-4" />
                 </Link>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {positions.map((position) => {
+                  const isPositivePnl = position.pnl >= 0;
+                  return (
+                    <Link
+                      key={position.id}
+                      to={`/market/${position.market_id}`}
+                      className="block bg-graphite-light border border-white/10 rounded-lg p-5 hover:border-white/20 hover:bg-graphite-hover transition-all group"
+                    >
+                      <div className="flex items-start justify-between gap-6">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3">
+                            <h3 className="font-semibold text-white group-hover:text-neon-iris transition-colors truncate">
+                              {position.market_question}
+                            </h3>
+                            {position.is_resolved && (
+                              <span className="px-2 py-1 bg-aqua-pulse/10 text-aqua-pulse rounded text-xs font-medium flex-shrink-0">
+                                Resolved
+                              </span>
+                            )}
+                          </div>
+                          {position.option_label && (
+                            <p className="text-sm text-neon-iris mb-3">
+                              {position.option_label}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2.5 py-1 rounded font-medium text-xs uppercase tracking-wider ${
+                                  position.side === "yes"
+                                    ? "bg-aqua-pulse/10 text-aqua-pulse"
+                                    : "bg-danger-400/10 text-danger-400"
+                                }`}
+                              >
+                                {position.side}
+                              </span>
+                            </div>
+                            <div className="text-moon-grey">
+                              <span className="font-medium text-white">
+                                {formatShares(position.shares)}
+                              </span>{" "}
+                              shares @{" "}
+                              <span className="font-medium text-white">
+                                {formatProbability(position.avg_price)}
+                              </span>
+                            </div>
+                            <div className="text-moon-grey">
+                              Current:{" "}
+                              <span className="font-medium text-white">
+                                {formatProbability(position.current_price)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-lg font-semibold text-white mb-1 tabular-nums">
+                            {formatUSDC(
+                              position.shares * position.current_price
+                            )}
+                          </div>
+                          <div
+                            className={`text-sm font-semibold tabular-nums flex items-center justify-end gap-1 ${
+                              isPositivePnl
+                                ? "text-aqua-pulse"
+                                : "text-danger-400"
+                            }`}
+                          >
+                            {isPositivePnl ? (
+                              <ArrowUpRight className="w-4 h-4" />
+                            ) : (
+                              <ArrowDownRight className="w-4 h-4" />
+                            )}
+                            {isPositivePnl ? "+" : ""}
+                            {formatUSDC(position.pnl)}
+                          </div>
+                          <div
+                            className={`text-xs font-medium mt-1 ${
+                              isPositivePnl
+                                ? "text-aqua-pulse"
+                                : "text-danger-400"
+                            }`}
+                          >
+                            {isPositivePnl ? "+" : ""}
+                            {position.pnl_percent.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {activeTab === "liquidity" && (
-        <div className="card">
-          <h2 className="text-xl font-semibold text-white mb-6">
-            Liquidity Positions
-          </h2>
+        <div className="bg-graphite-deep border border-white/10 rounded-xl">
+          <div className="p-6 border-b border-white/10">
+            <h2 className="text-lg font-semibold text-white">
+              Liquidity Positions
+            </h2>
+          </div>
 
-          {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-24 bg-dark-800 rounded-lg animate-pulse"
-                />
-              ))}
-            </div>
-          ) : liquidityPositions.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">💧</div>
-              <p className="text-gray-400 mb-4">
-                You haven't provided liquidity to any markets yet
-              </p>
-              <Link to="/markets" className="btn btn-primary">
-                Explore Markets
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {liquidityPositions.map((position) => (
+          <div className="p-6">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-graphite-light rounded-lg animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : liquidityPositions.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-graphite-light border border-white/10 mb-4">
+                  <PieChart className="w-8 h-8 text-moon-grey-dark" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  No Liquidity Positions
+                </h3>
+                <p className="text-moon-grey mb-6 max-w-sm mx-auto">
+                  You haven't provided liquidity to any markets yet. Earn fees
+                  by adding liquidity to active markets.
+                </p>
                 <Link
-                  key={position.id}
-                  to={`/market/${position.market_id}`}
-                  className="block  rounded-lg p-4 bg-dark-800 hover:bg-dark-700 transition-colors"
+                  to="/markets"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-neon-iris text-white font-medium rounded-lg hover:bg-neon-iris-light transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white mb-1 truncate">
-                        {position.market_question}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                        <span>
-                          Provided: {formatUSDC(position.liquidity_provided)}
-                        </span>
-                        <span>
-                          Fees earned:{" "}
-                          <span className="text-success-400">
-                            +{formatUSDC(position.fees_earned)}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-semibold text-white">
-                        {formatUSDC(position.current_value)}
-                      </div>
-                      <div
-                        className={`text-sm font-medium ${
-                          position.pnl >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
-                      >
-                        {position.pnl >= 0 ? "+" : ""}
-                        {formatUSDC(position.pnl)}
-                      </div>
-                    </div>
-                  </div>
+                  Explore Markets
+                  <ArrowUpRight className="w-4 h-4" />
                 </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === "history" && (
-        <div className="card">
-          <h2 className="text-xl font-semibold text-white mb-6">
-            Trade History
-          </h2>
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4">📜</div>
-            <p className="text-gray-400 mb-4">
-              View your complete trade history
-            </p>
-            <Link to="/activity" className="btn btn-primary">
-              View Activity
-            </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {liquidityPositions.map((position) => {
+                  const isPositivePnl = position.pnl >= 0;
+                  return (
+                    <Link
+                      key={position.id}
+                      to={`/market/${position.market_id}`}
+                      className="block bg-graphite-light border border-white/10 rounded-lg p-5 hover:border-white/20 hover:bg-graphite-hover transition-all group"
+                    >
+                      <div className="flex items-start justify-between gap-6">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-white mb-3 group-hover:text-neon-iris transition-colors truncate">
+                            {position.market_question}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-6 text-sm">
+                            <div className="text-moon-grey">
+                              Provided:{" "}
+                              <span className="font-medium text-white">
+                                {formatUSDC(position.liquidity_provided)}
+                              </span>
+                            </div>
+                            <div className="text-moon-grey">
+                              Fees earned:{" "}
+                              <span className="font-medium text-aqua-pulse">
+                                +{formatUSDC(position.fees_earned)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-lg font-semibold text-white mb-1 tabular-nums">
+                            {formatUSDC(position.current_value)}
+                          </div>
+                          <div
+                            className={`text-sm font-semibold tabular-nums flex items-center justify-end gap-1 ${
+                              isPositivePnl
+                                ? "text-aqua-pulse"
+                                : "text-danger-400"
+                            }`}
+                          >
+                            {isPositivePnl ? (
+                              <ArrowUpRight className="w-4 h-4" />
+                            ) : (
+                              <ArrowDownRight className="w-4 h-4" />
+                            )}
+                            {isPositivePnl ? "+" : ""}
+                            {formatUSDC(position.pnl)}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

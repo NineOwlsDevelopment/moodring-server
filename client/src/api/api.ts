@@ -379,7 +379,21 @@ export const fetchPortfolio = async (): Promise<PortfolioSummary> => {
 export const fetchPositions = async (params?: {
   status?: "open" | "closed" | "all";
 }): Promise<{ positions: Position[] }> => {
-  const response = await api.get("/user/portfolio/positions", { params });
+  // Map frontend filter values to backend expected values
+  const backendParams = params
+    ? {
+        ...params,
+        status:
+          params.status === "open"
+            ? "active"
+            : params.status === "closed"
+            ? "resolved"
+            : undefined,
+      }
+    : undefined;
+  const response = await api.get("/user/portfolio/positions", {
+    params: backendParams,
+  });
   return response.data;
 };
 

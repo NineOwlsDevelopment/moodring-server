@@ -106,7 +106,7 @@ const OptionRow = ({
           <div
             className={`h-full transition-all ${
               parseFloat(yc) >= 50
-                ? "bg-emerald-500/[0.08]"
+                ? "bg-muted-green/[0.08]"
                 : parseFloat(yc) >= 25
                 ? "bg-amber-500/[0.08]"
                 : "bg-rose-500/[0.08]"
@@ -143,7 +143,7 @@ const OptionRow = ({
           {!resolved && (
             <div className="mt-1 flex items-center gap-1.5">
               <span className="text-[10px] text-moon-grey-dark tabular-nums">
-                <span className="text-emerald-400/70">
+                <span className="text-muted-green/70">
                   {formatShares(option.yes_quantity || 0)}
                 </span>
                 {" / "}
@@ -159,7 +159,7 @@ const OptionRow = ({
         <span
           className={`relative text-sm sm:text-base font-bold tabular-nums mr-2 flex-shrink-0 ${
             parseFloat(yc) >= 50
-              ? "text-emerald-400"
+              ? "text-muted-green"
               : parseFloat(yc) >= 25
               ? "text-amber-400"
               : "text-rose-400"
@@ -178,8 +178,8 @@ const OptionRow = ({
               }}
               className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
                 sel && selectedSide === "yes"
-                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                  : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                  ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
+                  : "bg-muted-green/15 text-muted-green hover:bg-muted-green/25"
               }`}
             >
               Yes {yc}¢
@@ -223,7 +223,7 @@ const OptionRow = ({
               </div>
             )}
             {disputePeriodEnded && (
-              <span className="relative px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 text-[11px] font-semibold flex items-center gap-1 ml-auto">
+              <span className="relative px-2 py-1 rounded-lg bg-neon-iris/15 text-neon-iris text-[11px] font-semibold flex items-center gap-1 ml-auto">
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -311,23 +311,23 @@ const BinaryOptionRow = ({
           onClick={() => !resolved && onSelectOption(option?.id || "", "yes")}
           className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
             resolved
-              ? winner === 1
-                ? "ring-2 ring-emerald-500/50"
+                ? winner === 1
+                ? "ring-2 ring-muted-green/50"
                 : "opacity-40"
               : selectedSide === "yes"
-              ? "ring-2 ring-emerald-500/50"
-              : "hover:bg-emerald-500/10"
+              ? "ring-2 ring-muted-green/50"
+              : "hover:bg-muted-green/10"
           }`}
         >
-          <div className="absolute inset-0 bg-emerald-500/10" />
+          <div className="absolute inset-0 bg-muted-green/10" />
           <div className="relative">
-            <div className="text-emerald-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
+            <div className="text-muted-green text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
               Yes {resolved && winner === 1 && "✓"}
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-emerald-400 tabular-nums">
+            <div className="text-2xl sm:text-3xl font-bold text-muted-green tabular-nums">
               {resolved && winner === 1 ? "$1" : `${yc}¢`}
             </div>
-            <div className="text-emerald-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
+            <div className="text-muted-green/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
               {formatShares(option?.yes_quantity || 0)} shares
             </div>
           </div>
@@ -388,8 +388,8 @@ const BinaryOptionRow = ({
 
           {/* Dispute period ended - show final indicator */}
           {disputePeriodEnded && (
-            <div className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-              <div className="flex items-center gap-2 text-xs text-emerald-300">
+            <div className="px-3 py-2 bg-neon-iris/10 border border-neon-iris/30 rounded-lg">
+              <div className="flex items-center gap-2 text-xs text-neon-iris">
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -535,8 +535,8 @@ const ResolveButton = ({
                     disabled={isResolving}
                     className={`py-3 rounded-xl font-semibold text-sm transition-all ${
                       winningSide === 1
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                        : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                        ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
+                        : "bg-muted-green/15 text-muted-green hover:bg-muted-green/25"
                     }`}
                   >
                     YES Wins
@@ -1055,7 +1055,7 @@ export const MarketDetail = () => {
                         <span
                           className={`text-xs font-bold tabular-nums ${
                             highestLikelihoodPrice >= 0.5
-                              ? "text-emerald-400"
+                              ? "text-muted-green"
                               : "text-rose-400"
                           }`}
                         >
@@ -1169,7 +1169,7 @@ export const MarketDetail = () => {
                       </span>
                     )}
                     {market.is_resolved && (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neon-iris/15 text-neon-iris border border-neon-iris/20">
                         ✓ Resolved
                       </span>
                     )}
@@ -1200,7 +1200,7 @@ export const MarketDetail = () => {
                     {allOptionsResolved && hasResolvedOption ? (
                       /* Show winning option when market is fully resolved */
                       isMultipleChoice ? (
-                        <div className="flex items-center gap-2 sm:gap-3 bg-emerald-500/10 rounded-2xl p-2 pr-3 sm:pr-4 border border-emerald-500/20 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 sm:gap-3 bg-neon-iris/10 rounded-2xl p-2 pr-3 sm:pr-4 border border-neon-iris/20 w-full sm:w-auto">
                           {winningOptions[0]?.option_image_url ? (
                             <img
                               src={winningOptions[0].option_image_url}
@@ -1208,8 +1208,8 @@ export const MarketDetail = () => {
                               className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl object-cover flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm sm:text-base lg:text-lg font-bold text-emerald-400">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl bg-neon-iris/20 flex items-center justify-center flex-shrink-0">
+                              <span className="text-sm sm:text-base lg:text-lg font-bold text-neon-iris">
                                 {winningOptions[0]?.option_label
                                   ?.charAt(0)
                                   .toUpperCase()}
@@ -1217,10 +1217,10 @@ export const MarketDetail = () => {
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums leading-none text-emerald-400">
+                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums leading-none text-neon-iris">
                               Winner
                             </div>
-                            <div className="text-[10px] sm:text-[11px] text-emerald-400/70 mt-0.5 truncate">
+                            <div className="text-[10px] sm:text-[11px] text-neon-iris/70 mt-0.5 truncate">
                               {winningOptions[0]?.option_label || ""}
                             </div>
                           </div>
@@ -1228,10 +1228,14 @@ export const MarketDetail = () => {
                       ) : (
                         /* Binary Market - Show winning side */
                         <div className="text-left sm:text-right w-full sm:w-auto">
-                          <div className="text-3xl sm:text-4xl lg:text-5xl font-bold tabular-nums leading-none text-emerald-400">
+                          <div className={`text-3xl sm:text-4xl lg:text-5xl font-bold tabular-nums leading-none ${
+                            primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"
+                          }`}>
                             {primaryOption?.winning_side === 1 ? "YES" : "NO"}
                           </div>
-                          <div className="text-[10px] sm:text-xs text-emerald-400/70 mt-1">
+                          <div className={`text-[10px] sm:text-xs mt-1 ${
+                            primaryOption?.winning_side === 1 ? "text-muted-green/70" : "text-rose-400/70"
+                          }`}>
                             Winner
                           </div>
                         </div>
@@ -1246,7 +1250,7 @@ export const MarketDetail = () => {
                             className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl object-cover flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br from-neon-iris to-aqua-pulse flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-br from-neon-iris to-neon-iris flex items-center justify-center flex-shrink-0">
                             <span className="text-sm sm:text-base lg:text-lg font-bold text-white">
                               {selectedOptionData.option_label
                                 ?.charAt(0)
@@ -1258,7 +1262,7 @@ export const MarketDetail = () => {
                           <div
                             className={`text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums leading-none ${
                               primaryYesPrice >= 0.5
-                                ? "text-emerald-400"
+                                ? "text-neon-iris"
                                 : "text-rose-400"
                             }`}
                           >
@@ -1282,7 +1286,7 @@ export const MarketDetail = () => {
                         <div
                           className={`text-3xl sm:text-4xl lg:text-5xl font-bold tabular-nums leading-none ${
                             primaryYesPrice >= 0.5
-                              ? "text-emerald-400"
+                              ? "text-neon-iris"
                               : "text-rose-400"
                           }`}
                         >
@@ -1330,7 +1334,7 @@ export const MarketDetail = () => {
                   <div className="w-px h-4 bg-white/10 hidden sm:block" />
                   <div className="flex items-center gap-1.5">
                     {market.is_resolved ? (
-                      <span className="text-emerald-400 font-medium">
+                      <span className="text-neon-iris font-medium">
                         Ended
                       </span>
                     ) : (
@@ -1557,7 +1561,7 @@ export const MarketDetail = () => {
                         <div
                           className={
                             market.is_resolved
-                              ? "text-emerald-400 font-semibold"
+                              ? "text-neon-iris font-semibold"
                               : "text-neon-iris font-semibold"
                           }
                         >
@@ -1647,8 +1651,8 @@ export const MarketDetail = () => {
                               type === "trade"
                                 ? side === "yes"
                                   ? {
-                                      bg: "bg-emerald-500/15",
-                                      text: "text-emerald-400",
+                                      bg: "bg-muted-green/15",
+                                      text: "text-muted-green",
                                       icon: "↑",
                                     }
                                   : {
@@ -1803,13 +1807,13 @@ export const MarketDetail = () => {
                 allOptionsResolved &&
                 id &&
                 !hasLpShares && (
-                  <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-emerald-500/5 border border-emerald-500/30">
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent" />
+                  <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-neon-iris/20 via-neon-iris/10 to-neon-iris/5 border border-neon-iris/30">
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <svg
-                          className="w-5 h-5 text-emerald-400"
+                          className="w-5 h-5 text-neon-iris"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1827,13 +1831,13 @@ export const MarketDetail = () => {
                       </div>
                       <div className="space-y-2">
                         {hasResolvedOption ? (
-                          <div className="text-sm text-emerald-400/80">
+                          <div className="text-sm text-neon-iris/80">
                             {isMultipleChoice ? (
                               <div>
                                 <div className="font-medium text-white mb-1">
                                   Winning Option:
                                 </div>
-                                <div className="text-emerald-400">
+                                <div className="text-neon-iris">
                                   {winningOptions[0]
                                     ? winningOptions[0].option_label
                                     : "N/A"}
@@ -1844,7 +1848,7 @@ export const MarketDetail = () => {
                                 <div className="font-medium text-white mb-1">
                                   Winner:
                                 </div>
-                                <div className="text-emerald-400">
+                                <div className={primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"}>
                                   {primaryOption?.winning_side === 1
                                     ? "YES"
                                     : "NO"}
@@ -1853,7 +1857,7 @@ export const MarketDetail = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="text-sm text-emerald-400/80">
+                          <div className="text-sm text-neon-iris/80">
                             All options have been resolved.
                           </div>
                         )}
@@ -1922,11 +1926,11 @@ export const MarketDetail = () => {
       {/* Mobile Market Resolved - Show when market is fully resolved and user doesn't have LP or has already claimed */}
       {market.is_resolved && allOptionsResolved && id && !hasLpShares && (
         <div className="lg:hidden fixed bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40">
-          <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 p-3 sm:p-4 mb-2">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+          <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-neon-iris/20 via-neon-iris/10 to-neon-iris/5 border border-neon-iris/30 p-3 sm:p-4 mb-2">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 flex-shrink-0"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-neon-iris flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1944,13 +1948,13 @@ export const MarketDetail = () => {
             </div>
             <div className="space-y-1.5 sm:space-y-2">
               {hasResolvedOption ? (
-                <div className="text-xs sm:text-sm text-emerald-400/80">
+                <div className="text-xs sm:text-sm text-neon-iris/80">
                   {isMultipleChoice ? (
                     <div>
                       <div className="font-medium text-white mb-1 text-xs sm:text-sm">
                         Winning Option:
                       </div>
-                      <div className="text-emerald-400 break-words line-clamp-2 text-xs sm:text-sm">
+                      <div className="text-neon-iris break-words line-clamp-2 text-xs sm:text-sm">
                         {winningOptions[0]
                           ? winningOptions[0].option_label
                           : "N/A"}
@@ -1961,14 +1965,16 @@ export const MarketDetail = () => {
                       <div className="font-medium text-white mb-1 text-xs sm:text-sm">
                         Winner:
                       </div>
-                      <div className="text-emerald-400 text-xs sm:text-sm">
+                      <div className={`text-xs sm:text-sm ${
+                        primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"
+                      }`}>
                         {primaryOption?.winning_side === 1 ? "YES" : "NO"}
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-xs sm:text-sm text-emerald-400/80">
+                <div className="text-xs sm:text-sm text-neon-iris/80">
                   All options have been resolved.
                 </div>
               )}
@@ -2000,7 +2006,7 @@ export const MarketDetail = () => {
                     <div
                       className={`text-lg font-bold tabular-nums ${
                         primaryYesPrice >= 0.5
-                          ? "text-emerald-400"
+                          ? "text-neon-iris"
                           : "text-rose-400"
                       }`}
                     >
@@ -2011,7 +2017,7 @@ export const MarketDetail = () => {
                       className={`text-lg font-bold tabular-nums ${
                         primaryYesPrice >= 0.5
                           ? "text-rose-400"
-                          : "text-emerald-400"
+                          : "text-neon-iris"
                       }`}
                     >
                       {((1 - primaryYesPrice) * 100).toFixed(1)}%
@@ -2028,8 +2034,8 @@ export const MarketDetail = () => {
                     }}
                     className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
                       selectedSide === "yes"
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                        : "bg-emerald-500/15 text-emerald-400"
+                        ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
+                        : "bg-muted-green/15 text-muted-green"
                     }`}
                   >
                     YES {(primaryYesPrice * 100).toFixed(1)}¢
@@ -2104,8 +2110,8 @@ export const MarketDetail = () => {
                   onClick={() => setSelectedSide("yes")}
                   className={`py-3.5 rounded-xl font-semibold transition-all ${
                     selectedSide === "yes"
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                      : "bg-emerald-500/15 text-emerald-400"
+                      ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
+                      : "bg-muted-green/15 text-muted-green"
                   }`}
                 >
                   YES {(primaryYesPrice * 100).toFixed(1)}¢

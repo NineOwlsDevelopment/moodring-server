@@ -98,8 +98,12 @@ const WalletSync: FC<{ children: ReactNode }> = ({ children }) => {
       // Store wallet name for future reference
       if (wallet?.adapter?.name) {
         const walletName = wallet.adapter.name;
-        localStorage.setItem("walletName", walletName);
-        setWalletName(walletName);
+        try {
+          localStorage.setItem("walletName", walletName);
+          setWalletName(walletName);
+        } catch (error) {
+          console.error("Failed to store wallet name:", error);
+        }
       }
 
       console.log("✅ Wallet authentication successful:", data);
@@ -163,9 +167,19 @@ const WalletSync: FC<{ children: ReactNode }> = ({ children }) => {
     setConnecting(connecting);
 
     // Sync wallet name from localStorage on mount
-    const storedWalletName = localStorage.getItem("walletName");
-    if (storedWalletName && wallet?.adapter?.name === storedWalletName) {
-      setWalletName(storedWalletName);
+    try {
+      const storedWalletName = localStorage.getItem("walletName");
+      if (storedWalletName && wallet?.adapter?.name === storedWalletName) {
+        setWalletName(storedWalletName);
+      }
+    } catch (error) {
+      console.error("Failed to read wallet name from localStorage:", error);
+      // Clear potentially corrupted data
+      try {
+        localStorage.removeItem("walletName");
+      } catch (clearError) {
+        // Ignore clear errors
+      }
     }
   }, [
     publicKey,
@@ -200,8 +214,12 @@ const WalletSync: FC<{ children: ReactNode }> = ({ children }) => {
       // Store wallet info
       if (wallet?.adapter?.name) {
         const walletName = wallet.adapter.name;
-        localStorage.setItem("walletName", walletName);
-        setWalletName(walletName);
+        try {
+          localStorage.setItem("walletName", walletName);
+          setWalletName(walletName);
+        } catch (error) {
+          console.error("Failed to store wallet name:", error);
+        }
       }
     }
 
