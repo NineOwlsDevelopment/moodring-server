@@ -939,13 +939,65 @@ export const MarketDetail = () => {
       : "https://moodring.io";
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
   const marketUrl = `${baseUrl}/market/${id}`;
-  const marketImage = market.image_url || `${baseUrl}/icon.png`;
+  // Always use market's image_url if it exists and is not empty, otherwise fallback to icon
+  const marketImage =
+    market.image_url && market.image_url.trim() !== ""
+      ? market.image_url
+      : `${baseUrl}/icon.png`;
+
+  // Build options text for description
+  let optionsText = "";
+  if (market.options && market.options.length > 0) {
+    const optionPrices: Array<{ label: string; price: number }> = [];
+
+    // Calculate prices for all options first
+    for (const option of market.options) {
+      try {
+        const yesPrice =
+          (option as any).yes_price ??
+          calculateYesPrice(
+            option.yes_quantity || 0,
+            option.no_quantity || 0,
+            market.liquidity_parameter,
+            market.is_resolved
+          );
+
+        if (market.is_binary) {
+          // Binary market: show Yes and No
+          optionPrices.push({ label: "Yes", price: yesPrice });
+          optionPrices.push({ label: "No", price: 1 - yesPrice });
+          break; // Only need first option for binary
+        } else {
+          // Multiple choice: show option label
+          optionPrices.push({ label: option.option_label, price: yesPrice });
+        }
+      } catch (e) {
+        // Skip if calculation fails
+      }
+    }
+
+    // Sort by price (highest first) and take top 2-3
+    optionPrices.sort((a, b) => b.price - a.price);
+    const topOptions = market.is_binary
+      ? optionPrices
+      : optionPrices.slice(0, 3);
+
+    // Format options text
+    if (topOptions.length > 0) {
+      optionsText =
+        " • " +
+        topOptions
+          .map((op) => `${op.label}: ${(op.price * 100).toFixed(1)}%`)
+          .join(" | ");
+    }
+  }
+
+  // Build description with options
   const marketDescription = market.market_description
-    ? market.market_description.substring(0, 200) +
-      (market.market_description.length > 200 ? "..." : "")
-    : `Trade on ${market.question} - ${
-        primaryYesPrice ? `${(primaryYesPrice * 100).toFixed(1)}%` : "50%"
-      } YES on Moodring`;
+    ? market.market_description.substring(0, 150) +
+      (market.market_description.length > 150 ? "..." : "") +
+      optionsText
+    : `Trade on ${market.question}${optionsText}`;
   const marketTitle = `${market.question} | Moodring`;
 
   return (

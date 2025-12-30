@@ -2859,25 +2859,75 @@ export const getMarketOEmbed = async (req: GetMarketRequest, res: Response) => {
     const options = await OptionModel.findByMarketId(id);
     const baseUrl = process.env.CLIENT_URL || "https://moodring.io";
     const marketUrl = `${baseUrl}/market/${id}`;
-    const marketImage = market.image_url || `${baseUrl}/icon.png`;
-    
-    // Calculate primary option price
-    const primaryOption = options[0];
-    let yesPrice = 0.5;
-    if (primaryOption && market.liquidity_parameter && Number(market.liquidity_parameter) > 0) {
-      try {
-        const liquidityParam = new BN(market.liquidity_parameter);
-        const yesQty = new BN(Math.floor(Number(primaryOption.yes_quantity)));
-        const noQty = new BN(Math.floor(Number(primaryOption.no_quantity)));
-        yesPrice = calculate_yes_price(yesQty, noQty, liquidityParam) / PRECISION.toNumber();
-      } catch (e) {
-        // Use default
+    // Always use market's image_url if it exists and is not empty, otherwise fallback to icon
+    const marketImage =
+      market.image_url && market.image_url.trim() !== ""
+        ? market.image_url
+        : `${baseUrl}/icon.png`;
+
+    // Calculate prices for options and build options string
+    let optionsText = "";
+    if (options && options.length > 0) {
+      const liquidityParam = market.liquidity_parameter
+        ? new BN(market.liquidity_parameter)
+        : null;
+      const optionPrices: Array<{ label: string; price: number }> = [];
+
+      // Calculate prices for all options first
+      for (const option of options) {
+        try {
+          if (liquidityParam && Number(liquidityParam) > 0) {
+            const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
+            const noQty = new BN(Math.floor(Number(option.no_quantity)));
+            const yesPrice =
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
+              PRECISION.toNumber();
+
+            if (market.is_binary) {
+              // Binary market: show Yes and No
+              optionPrices.push({ label: "Yes", price: yesPrice });
+              optionPrices.push({ label: "No", price: 1 - yesPrice });
+              break; // Only need first option for binary
+            } else {
+              // Multiple choice: show option label
+              optionPrices.push({
+                label: option.option_label,
+                price: yesPrice,
+              });
+            }
+          }
+        } catch (e) {
+          // Skip if calculation fails
+        }
+      }
+
+      // Sort by price (highest first) and take top 2-3
+      optionPrices.sort((a, b) => b.price - a.price);
+      const topOptions = market.is_binary
+        ? optionPrices
+        : optionPrices.slice(0, 3);
+
+      // Format options text
+      if (topOptions.length > 0) {
+        optionsText =
+          " • " +
+          topOptions
+            .map((op) => `${op.label}: ${(op.price * 100).toFixed(1)}%`)
+            .join(" | ");
       }
     }
 
-    const description = market.market_description
-      ? market.market_description.substring(0, 200) + (market.market_description.length > 200 ? "..." : "")
-      : `Trade on ${market.question} - ${(yesPrice * 100).toFixed(1)}% YES on Moodring`;
+    // Build description with options
+    let description = "";
+    if (market.market_description) {
+      const desc = market.market_description.substring(0, 150);
+      description =
+        desc +
+        (market.market_description.length > 150 ? "..." : "") +
+        optionsText;
+    } else {
+      description = `Trade on ${market.question}${optionsText}`;
+    }
 
     // oEmbed response format
     res.json({
@@ -2921,25 +2971,75 @@ export const getMarketMeta = async (req: GetMarketRequest, res: Response) => {
     const options = await OptionModel.findByMarketId(id);
     const baseUrl = process.env.CLIENT_URL || "https://moodring.io";
     const marketUrl = `${baseUrl}/market/${id}`;
-    const marketImage = market.image_url || `${baseUrl}/icon.png`;
-    
-    // Calculate primary option price
-    const primaryOption = options[0];
-    let yesPrice = 0.5;
-    if (primaryOption && market.liquidity_parameter && Number(market.liquidity_parameter) > 0) {
-      try {
-        const liquidityParam = new BN(market.liquidity_parameter);
-        const yesQty = new BN(Math.floor(Number(primaryOption.yes_quantity)));
-        const noQty = new BN(Math.floor(Number(primaryOption.no_quantity)));
-        yesPrice = calculate_yes_price(yesQty, noQty, liquidityParam) / PRECISION.toNumber();
-      } catch (e) {
-        // Use default
+    // Always use market's image_url if it exists and is not empty, otherwise fallback to icon
+    const marketImage =
+      market.image_url && market.image_url.trim() !== ""
+        ? market.image_url
+        : `${baseUrl}/icon.png`;
+
+    // Calculate prices for options and build options string
+    let optionsText = "";
+    if (options && options.length > 0) {
+      const liquidityParam = market.liquidity_parameter
+        ? new BN(market.liquidity_parameter)
+        : null;
+      const optionPrices: Array<{ label: string; price: number }> = [];
+
+      // Calculate prices for all options first
+      for (const option of options) {
+        try {
+          if (liquidityParam && Number(liquidityParam) > 0) {
+            const yesQty = new BN(Math.floor(Number(option.yes_quantity)));
+            const noQty = new BN(Math.floor(Number(option.no_quantity)));
+            const yesPrice =
+              calculate_yes_price(yesQty, noQty, liquidityParam) /
+              PRECISION.toNumber();
+
+            if (market.is_binary) {
+              // Binary market: show Yes and No
+              optionPrices.push({ label: "Yes", price: yesPrice });
+              optionPrices.push({ label: "No", price: 1 - yesPrice });
+              break; // Only need first option for binary
+            } else {
+              // Multiple choice: show option label
+              optionPrices.push({
+                label: option.option_label,
+                price: yesPrice,
+              });
+            }
+          }
+        } catch (e) {
+          // Skip if calculation fails
+        }
+      }
+
+      // Sort by price (highest first) and take top 2-3
+      optionPrices.sort((a, b) => b.price - a.price);
+      const topOptions = market.is_binary
+        ? optionPrices
+        : optionPrices.slice(0, 3);
+
+      // Format options text
+      if (topOptions.length > 0) {
+        optionsText =
+          " • " +
+          topOptions
+            .map((op) => `${op.label}: ${(op.price * 100).toFixed(1)}%`)
+            .join(" | ");
       }
     }
 
-    const description = market.market_description
-      ? market.market_description.substring(0, 200) + (market.market_description.length > 200 ? "..." : "")
-      : `Trade on ${market.question} - ${(yesPrice * 100).toFixed(1)}% YES on Moodring`;
+    // Build description with options
+    let description = "";
+    if (market.market_description) {
+      const desc = market.market_description.substring(0, 150);
+      description =
+        desc +
+        (market.market_description.length > 150 ? "..." : "") +
+        optionsText;
+    } else {
+      description = `Trade on ${market.question}${optionsText}`;
+    }
 
     const title = `${market.question} | Moodring`;
 
@@ -2957,7 +3057,10 @@ export const getMarketMeta = async (req: GetMarketRequest, res: Response) => {
   <meta property="og:type" content="website">
   <meta property="og:url" content="${marketUrl}">
   <meta property="og:title" content="${title.replace(/"/g, "&quot;")}">
-  <meta property="og:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta property="og:description" content="${description.replace(
+    /"/g,
+    "&quot;"
+  )}">
   <meta property="og:image" content="${marketImage}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -2967,7 +3070,10 @@ export const getMarketMeta = async (req: GetMarketRequest, res: Response) => {
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="${marketUrl}">
   <meta name="twitter:title" content="${title.replace(/"/g, "&quot;")}">
-  <meta name="twitter:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta name="twitter:description" content="${description.replace(
+    /"/g,
+    "&quot;"
+  )}">
   <meta name="twitter:image" content="${marketImage}">
   
   <meta http-equiv="refresh" content="0;url=${marketUrl}">
