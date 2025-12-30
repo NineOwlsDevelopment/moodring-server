@@ -12,4 +12,5 @@ export { LMSRAnimation, LMSRAnimationSimple } from './LMSRAnimation';
 export { ProbabilityField } from './ProbabilityField';
 export { GradientProbabilityRing } from './GradientProbabilityRing';
 export type { GradientProbabilityRingRef } from './GradientProbabilityRing';
+export { CreationDemo } from './CreationDemo';
 

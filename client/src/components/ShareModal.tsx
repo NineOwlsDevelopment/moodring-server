@@ -73,7 +73,7 @@ export const ShareModal = ({
     }
   };
 
-  const embedCode = `<iframe src="${marketUrl}" width="800" height="600" frameborder="0" allowfullscreen></iframe>`;
+  const embedCode = `<iframe src="${marketUrl}" width="400" height="600" frameborder="0" allowfullscreen></iframe>`;
 
   const shareToTwitter = () => {
     const text = encodeURIComponent(marketTitle);

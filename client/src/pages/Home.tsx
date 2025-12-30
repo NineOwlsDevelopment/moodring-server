@@ -1,6 +1,6 @@
-import { useEffect, useState, memo, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, memo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, useScroll, useTransform, useMotionValue } from "framer-motion";
+import { motion } from "framer-motion";
 import { useMarketStore } from "@/stores/marketStore";
 import { MarketCard } from "@/components/MarketCard";
 import { useUserStore } from "@/stores/userStore";
@@ -16,8 +16,7 @@ import {
   StepCard,
   FeatureCard,
   LMSRAnimationSimple,
-  GradientProbabilityRing,
-  GradientProbabilityRingRef,
+  CreationDemo,
 } from "@/components/brand";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 
@@ -27,9 +26,8 @@ export const Home = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const ringRef = useRef<GradientProbabilityRingRef>(null);
-  const [gradientAngle, setGradientAngle] = useState(0);
-  const rotationUpdateTimeoutRef = useRef<number | null>(null);
+  // Static gradient angle for background effects (no longer synced with ring)
+  const gradientAngle = 0.5;
 
   // Redirect logged-in users to markets page
   useEffect(() => {
@@ -69,103 +67,21 @@ export const Home = () => {
     loadAllData();
   }, [loadAllData]);
 
-  // Cleanup rotation update timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (rotationUpdateTimeoutRef.current !== null) {
-        cancelAnimationFrame(rotationUpdateTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const trendingMarkets = markets.slice(0, 12);
-  const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.5], [0, -100]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
-
-  // Ring rotation sync handler - throttled to reduce re-renders
-  const handleRingRotationUpdate = useCallback(
-    (_rotation: number, angle: number) => {
-      // Throttle updates to ~30fps instead of 60fps to reduce re-renders
-      if (rotationUpdateTimeoutRef.current === null) {
-        rotationUpdateTimeoutRef.current = window.requestAnimationFrame(() => {
-          setGradientAngle(angle);
-          rotationUpdateTimeoutRef.current = null;
-        });
-      }
-    },
-    []
-  );
-
-  // Parallax effects for background elements - sync with ring rotation
-  const orb1Y = useTransform(scrollYProgress, [0, 1], [0, -200]);
-  const orb2Y = useTransform(scrollYProgress, [0, 1], [0, -150]);
-  const orb3Y = useTransform(scrollYProgress, [0, 1], [0, -100]);
-  const gridY = useTransform(scrollYProgress, [0, 1], [0, -50]);
-
-  // Background gradient rotation sync with ring - memoized to prevent unnecessary recalculations
-  const backgroundRotationDegrees = useMemo(
-    () => gradientAngle * 57.2958,
-    [gradientAngle]
-  );
-  const backgroundRotation = useMotionValue(0);
-  useEffect(() => {
-    backgroundRotation.set(backgroundRotationDegrees);
-  }, [backgroundRotationDegrees, backgroundRotation]);
 
   return (
     <div className="overflow-hidden">
       {/* ===== HERO SECTION ===== */}
-      <section
-        className="relative min-h-screen flex flex-col overflow-hidden"
-        style={{
-          contain: "layout style paint",
-          transform: "translateZ(0)", // Force GPU acceleration
-        }}
-      >
-        {/* Background layers */}
-        <div className="absolute inset-0 bg-ink-black" />
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-ink-black">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-mesh opacity-50" />
 
-        {/* Enhanced mesh gradient background */}
-        <div className="absolute inset-0 bg-mesh" />
-
-        {/* Gradient Probability Ring - Design system primitive */}
-        <GradientProbabilityRing
-          ref={ringRef}
-          className="z-0"
-          onRotationUpdate={handleRingRotationUpdate}
-        />
-
-        {/* Animated grid pattern overlay with parallax */}
+        {/* Subtle gradient orbs */}
         <motion.div
-          className="absolute inset-0 bg-grid opacity-40"
-          style={{
-            y: gridY,
-            willChange: "transform",
-          }}
+          className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-radial-iris opacity-10 blur-3xl"
           animate={{
-            backgroundPosition: ["0% 0%", "100% 100%"],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "linear",
-          }}
-        />
-
-        {/* Enhanced gradient orbs - rotate in harmony with ring */}
-        <motion.div
-          className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-gradient-radial-iris opacity-25 blur-3xl"
-          style={{
-            y: orb1Y,
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-            willChange: "transform, opacity",
-          }}
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.2, 0.3, 0.2],
+            scale: [1, 1.1, 1],
+            opacity: [0.1, 0.15, 0.1],
           }}
           transition={{
             duration: 8,
@@ -174,16 +90,10 @@ export const Home = () => {
           }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-gradient-radial-aqua opacity-20 blur-3xl"
-          style={{
-            y: orb2Y,
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-            willChange: "transform, opacity",
-          }}
+          className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-radial-aqua opacity-10 blur-3xl"
           animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.15, 0.25, 0.15],
+            scale: [1, 1.1, 1],
+            opacity: [0.1, 0.15, 0.1],
           }}
           transition={{
             duration: 10,
@@ -192,216 +102,139 @@ export const Home = () => {
             delay: 1,
           }}
         />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial-iris opacity-10 blur-3xl"
-          style={{
-            y: orb3Y,
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-            willChange: "transform",
-          }}
-          animate={{
-            scale: [1, 1.3, 1],
-            x: ["-50%", "-45%", "-50%"],
-            y: ["-50%", "-55%", "-50%"],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-        />
 
-        {/* Floating particles */}
-        {Array.from({ length: 6 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 rounded-full bg-neon-iris/40"
-            style={{
-              left: `${15 + i * 15}%`,
-              top: `${20 + (i % 3) * 30}%`,
-              willChange: "transform, opacity",
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.3, 0.6, 0.3],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: 3 + i * 0.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 0.3,
-            }}
-          />
-        ))}
+        {/* Grid overlay */}
+        <div className="absolute inset-0 bg-grid opacity-20" />
 
-        {/* Hero content */}
-        <motion.div
-          style={{
-            y: heroY,
-            opacity: heroOpacity,
-            willChange: "transform, opacity",
-          }}
-          className="relative flex-1 flex flex-col justify-center section-container py-20 lg:py-32 z-10"
-        >
-          <div className="max-w-6xl">
+        {/* Main content container */}
+        <div className="relative w-full section-container py-20 lg:py-32 z-10">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left side - Text content */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             >
-              <HeroBadge>Live on Solana</HeroBadge>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <HeroBadge>Live on Solana</HeroBadge>
+              </motion.div>
+
+              <motion.h1
+                className="mt-8 lg:mt-12 text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-tight tracking-tight"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.8,
+                  delay: 0.2,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                <span className="block text-white">Create</span>
+                <span className="block bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris bg-clip-text text-transparent">
+                  Prediction Markets
+                </span>
+                <span className="block text-white/60 text-2xl sm:text-3xl md:text-4xl lg:text-5xl mt-4 font-light">
+                  No Code Required
+                </span>
+              </motion.h1>
+
+              <motion.p
+                className="mt-6 lg:mt-8 text-base sm:text-lg lg:text-xl text-moon-grey/80 leading-relaxed max-w-xl"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.8,
+                  delay: 0.4,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                Anyone can create a prediction market on Moodring. No coding, no
+                complexity—just ask a question, set the options, and launch in
+                seconds. Turn any event into a market.
+              </motion.p>
+
+              <motion.div
+                className="flex flex-col sm:flex-row gap-4 mt-8 lg:mt-10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.8,
+                  delay: 0.6,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                <Link
+                  to={user ? "/create" : "/login"}
+                  className="px-6 py-3.5 text-base font-semibold bg-neon-iris text-white rounded-xl hover:bg-neon-iris-light transition-all inline-flex items-center justify-center gap-2 shadow-lg shadow-neon-iris/30 hover:shadow-neon-iris/50"
+                >
+                  {user ? "Create Market" : "Get Started Free"}
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                </Link>
+                <Link
+                  to="/markets"
+                  className="px-6 py-3.5 text-base font-semibold bg-graphite-deep text-white border border-white/10 rounded-xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center justify-center gap-2"
+                >
+                  Browse Markets
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </Link>
+              </motion.div>
             </motion.div>
 
-            {/* Massive Hero Title */}
+            {/* Right side - Creation Demo */}
             <motion.div
-              className="mt-16 lg:mt-20"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
+              className="relative"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 0.8,
-                delay: 0.1,
+                delay: 0.3,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              style={{ willChange: "transform, opacity" }}
             >
-              <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[10rem] font-black leading-[0.92] tracking-[-0.02em]">
-                <motion.span
-                  className="block text-white mb-1"
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.2,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  style={{ willChange: "transform, opacity" }}
-                >
-                  CREATE
-                </motion.span>
-                <motion.span
-                  className="block bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris bg-clip-text text-transparent bg-[length:200%_100%]"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.35,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  style={{
-                    backgroundPosition: `${
-                      backgroundRotationDegrees % 360
-                    }% 0%`,
-                    willChange: "transform, opacity, background-position",
-                  }}
-                >
-                  PREDICTION MARKETS
-                </motion.span>
-                <motion.span
-                  className="block text-white/70 text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl mt-6 font-light tracking-wide"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: 0.5,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  style={{ willChange: "transform, opacity" }}
-                >
-                  No Code, No Problem
-                </motion.span>
-              </h1>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.7,
-                delay: 0.65,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="mt-10 lg:mt-14 max-w-2xl"
-              style={{ willChange: "transform, opacity" }}
-            >
-              <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-moon-grey/90 leading-relaxed font-light tracking-wide">
-                Anyone can create a prediction market on Moodring. No coding, no
-                complexity—just{" "}
-                <span className="text-white font-medium">ask a question</span>,{" "}
-                <span className="text-white font-medium">set the options</span>,
-                and{" "}
-                <span className="text-white font-medium">
-                  launch in seconds
-                </span>
-                . Turn any event into a market.
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="flex flex-col sm:flex-row gap-4 lg:gap-5 mt-12 lg:mt-14"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.7,
-                delay: 0.8,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              style={{ willChange: "transform, opacity" }}
-            >
-              <Link
-                to={user ? "/create" : "/login"}
-                className="px-8 py-4 text-base font-semibold tracking-wide bg-neon-iris text-white rounded-xl hover:bg-neon-iris-light transition-all inline-flex items-center gap-2.5 shadow-lg shadow-neon-iris/30 hover:shadow-neon-iris/50"
-              >
-                {user ? "Create Your First Market" : "Get Started Free"}
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-              </Link>
-              <Link
-                to="/markets"
-                className="px-8 py-4 text-base font-semibold tracking-wide bg-graphite-deep text-white border border-white/10 rounded-xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2.5"
-              >
-                Browse Markets
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </Link>
+              <div className="relative">
+                <CreationDemo />
+              </div>
             </motion.div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Scroll indicator */}
         <motion.div
           className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10"
-          style={{ willChange: "transform" }}
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
           <div className="w-5 h-8 border border-white/20 rounded-full flex items-start justify-center p-1.5 backdrop-blur-sm bg-white/5">
             <motion.div
-              className="w-1.5 h-1.5 bg-white/60 rounded-full shadow-lg shadow-white/20"
+              className="w-1.5 h-1.5 bg-white/60 rounded-full"
               animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             />
@@ -437,14 +270,8 @@ export const Home = () => {
       {/* ===== STATS SECTION ===== */}
       {/* Stats align to ring arc - radial positioning */}
       <section className="relative py-12 lg:py-16 bg-ink-black overflow-hidden">
-        {/* Background decoration - sync with ring rotation */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-b from-transparent via-neon-iris/[0.03] to-transparent"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
+        {/* Background decoration */}
+        <motion.div className="absolute inset-0 bg-gradient-to-b from-transparent via-neon-iris/[0.03] to-transparent" />
 
         <div className="section-container relative">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
@@ -481,20 +308,8 @@ export const Home = () => {
       {/* ===== WHY IT'S SO EASY ===== */}
       <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
         {/* Background effects */}
-        <motion.div
-          className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
+        <motion.div className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl" />
+        <motion.div className="absolute bottom-1/4 right-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl" />
 
         <div className="section-container relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -753,21 +568,9 @@ export const Home = () => {
       {/* ===== TRENDING MARKETS GRID ===== */}
       {/* Markets section - background gradients sync with ring */}
       <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
-        {/* Background effects - rotate with ring */}
-        <motion.div
-          className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
+        {/* Background effects */}
+        <motion.div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl" />
+        <motion.div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl" />
 
         {/* Large background text */}
         <motion.div
@@ -837,7 +640,7 @@ export const Home = () => {
 
           {!isLoading && trendingMarkets.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-              {trendingMarkets.slice(0, 6).map((market) => (
+              {trendingMarkets.slice(0, 3).map((market) => (
                 <div key={market.id}>
                   <MarketCard market={market} />
                 </div>
@@ -845,7 +648,7 @@ export const Home = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
                   className="card animate-pulse h-64 rounded-2xl overflow-hidden"
@@ -878,29 +681,10 @@ export const Home = () => {
       {/* ===== CREATE IN 3 SIMPLE STEPS ===== */}
       {/* Section aligns to ring arc - radial layout */}
       <section className="section-padding bg-graphite-deep relative overflow-hidden py-20 lg:py-28">
-        {/* Enhanced background decoration - sync with ring */}
-        <motion.div
-          className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.04] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.04] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
-        <motion.div
-          className="absolute inset-0 bg-grid opacity-[0.02]"
-          style={{
-            backgroundPosition: `${(gradientAngle * 57.2958) % 360}px ${
-              (gradientAngle * 57.2958) % 360
-            }px`,
-          }}
-        />
+        {/* Enhanced background decoration */}
+        <motion.div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.04] blur-3xl" />
+        <motion.div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.04] blur-3xl" />
+        <motion.div className="absolute inset-0 bg-grid opacity-[0.02]" />
 
         {/* Large background text */}
         <motion.div
@@ -1039,21 +823,9 @@ export const Home = () => {
       {/* ===== LMSR DEEP DIVE ===== */}
       {/* LMSR section - gradients sync with ring */}
       <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
-        {/* Background effects - rotate with ring */}
-        <motion.div
-          className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
-        />
+        {/* Background effects */}
+        <motion.div className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl" />
+        <motion.div className="absolute bottom-1/4 right-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl" />
 
         <div className="section-container relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
@@ -1190,15 +962,8 @@ export const Home = () => {
       {/* ===== FEATURES GRID ===== */}
       {/* Features section - radial layout synced with ring */}
       <section className="section-padding bg-graphite-deep relative overflow-hidden py-20 lg:py-28">
-        {/* Background decoration - sync with ring */}
-        <motion.div
-          className="absolute inset-0 bg-grid opacity-[0.02]"
-          style={{
-            backgroundPosition: `${(gradientAngle * 57.2958) % 360}px ${
-              (gradientAngle * 57.2958) % 360
-            }px`,
-          }}
-        />
+        {/* Background decoration */}
+        <motion.div className="absolute inset-0 bg-grid opacity-[0.02]" />
         <motion.div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-neon-iris/20 to-transparent"
           style={{
@@ -1302,57 +1067,6 @@ export const Home = () => {
                 index={2}
               />
             </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.6,
-                delay: 0.4,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-            >
-              <FeatureCard
-                icon="🌐"
-                title="Any Topic, Any Event"
-                description="Create markets on sports, politics, crypto, entertainment, or anything else. If it can be predicted, you can market it."
-                index={3}
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.6,
-                delay: 0.5,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-            >
-              <FeatureCard
-                icon="🔒"
-                title="Secure & Transparent"
-                description="All markets run on Solana blockchain with transparent resolution. Your markets are immutable and trustless."
-                index={4}
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.6,
-                delay: 0.6,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-            >
-              <FeatureCard
-                icon="📈"
-                title="Earn from Trading"
-                description="As a market creator, you can earn from trading fees and liquidity provision. Turn your predictions into income."
-                index={5}
-              />
-            </motion.div>
           </div>
         </div>
       </section>
@@ -1392,13 +1106,9 @@ export const Home = () => {
           }}
         />
 
-        {/* Floating orbs - subtle rotation sync with ring */}
+        {/* Floating orbs */}
         <motion.div
           className="absolute top-1/4 left-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
           animate={{
             scale: [1, 1.3, 1],
             x: [0, 50, 0],
@@ -1412,10 +1122,6 @@ export const Home = () => {
         />
         <motion.div
           className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl"
-          style={{
-            rotate: backgroundRotation,
-            transformOrigin: "center center",
-          }}
           animate={{
             scale: [1, 1.2, 1],
             x: [0, -40, 0],

@@ -36,6 +36,8 @@ import route_analytics from "./routes/route_analytics";
 import route_resolution from "./routes/route_resolution";
 import route_post from "./routes/route_post";
 import route_key from "./routes/route_key";
+import { getMarketMeta } from "./controllers/controller_market";
+import { GetMarketRequest } from "./types/requests";
 
 // ============================================================================
 // Internal Services & Middleware
@@ -334,11 +336,60 @@ if (process.env.NODE_ENV === "production") {
 
   // Catch-all handler: send back React's index.html file for SPA routing
   // This must be LAST, after all API routes and static file serving
-  app.get("*", (req, res, next) => {
+  app.get("*", async (req, res, next) => {
     // Don't serve index.html for API routes
     if (req.path.startsWith("/api")) {
       return next();
     }
+
+    // Check if this is a market route and if the user agent is a social media crawler
+    const marketRouteMatch = req.path.match(/^\/market\/([a-f0-9-]{36})$/i);
+    if (marketRouteMatch) {
+      const userAgent = req.get("user-agent") || "";
+      // List of social media crawler user agents
+      const socialCrawlers = [
+        "facebookexternalhit",
+        "Facebot",
+        "Twitterbot",
+        "LinkedInBot",
+        "WhatsApp",
+        "Discordbot",
+        "TelegramBot",
+        "Slackbot",
+        "Applebot",
+        "Googlebot",
+        "bingbot",
+        "Slurp",
+        "DuckDuckBot",
+        "Baiduspider",
+        "YandexBot",
+        "Sogou",
+        "Exabot",
+        "ia_archiver",
+      ];
+
+      const isSocialCrawler = socialCrawlers.some((crawler) =>
+        userAgent.toLowerCase().includes(crawler.toLowerCase())
+      );
+
+      if (isSocialCrawler) {
+        // Extract market ID and serve meta HTML
+        const marketId = marketRouteMatch[1];
+        // Create a mock request object for getMarketMeta
+        const mockReq = {
+          params: { id: marketId },
+        } as GetMarketRequest;
+        try {
+          await getMarketMeta(mockReq, res);
+          return; // getMarketMeta handles the response
+        } catch (error) {
+          console.error("Error serving market meta:", error);
+          // Fall through to serve regular index.html on error
+        }
+      }
+    }
+
+    // Default: serve React app
     res.sendFile(path.resolve(__dirname, "../../client/dist", "index.html"));
   });
 }

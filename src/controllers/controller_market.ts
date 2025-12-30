@@ -2941,8 +2941,8 @@ export const getMarketOEmbed = async (req: GetMarketRequest, res: Response) => {
       thumbnail_height: 630,
       provider_name: "Moodring",
       provider_url: baseUrl,
-      html: `<iframe src="${marketUrl}" width="800" height="600" frameborder="0" allowfullscreen></iframe>`,
-      width: 800,
+      html: `<iframe src="${marketUrl}" width="400" height="600" frameborder="0" allowfullscreen></iframe>`,
+      width: 400,
       height: 600,
     });
   } catch (error: any) {
