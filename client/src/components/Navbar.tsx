@@ -493,7 +493,7 @@ export const Navbar = () => {
                           <>
                             {/* Divider */}
                             <div className="my-2 border-t border-white/[0.08]" />
-                            
+
                             <Link
                               to="/my-markets"
                               onClick={closeMobileMenu}

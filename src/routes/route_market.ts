@@ -26,6 +26,8 @@ import {
   getWatchlist,
   getWatchlistStatus,
   getMarketCreationFee,
+  getMarketOEmbed,
+  getMarketMeta,
 } from "../controllers/controller_market";
 import { getCategories } from "../controllers/controller_admin";
 
@@ -111,6 +113,8 @@ router.get(
   typedHandler(getFairValue)
 );
 router.get("/:id", validateUUID("id"), typedHandler(getMarket));
+router.get("/:id/oembed", validateUUID("id"), typedHandler(getMarketOEmbed));
+router.get("/:id/meta", validateUUID("id"), typedHandler(getMarketMeta));
 router.post("/estimate-buy", typedHandler(estimateBuyCost));
 router.post("/estimate-sell", typedHandler(estimateSellPayout));
 

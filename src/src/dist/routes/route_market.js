@@ -35,6 +35,8 @@ router.get("/featured", (0, routeHandler_1.typedHandler)(controller_market_1.get
 router.get("/trending", (0, routeHandler_1.typedHandler)(controller_market_1.getTrendingMarkets));
 router.get("/option/:option/fair-value", (0, validate_1.validateUUID)("option"), (0, routeHandler_1.typedHandler)(controller_market_1.getFairValue));
 router.get("/:id", (0, validate_1.validateUUID)("id"), (0, routeHandler_1.typedHandler)(controller_market_1.getMarket));
+router.get("/:id/oembed", (0, validate_1.validateUUID)("id"), (0, routeHandler_1.typedHandler)(controller_market_1.getMarketOEmbed));
+router.get("/:id/meta", (0, validate_1.validateUUID)("id"), (0, routeHandler_1.typedHandler)(controller_market_1.getMarketMeta));
 router.post("/estimate-buy", (0, routeHandler_1.typedHandler)(controller_market_1.estimateBuyCost));
 router.post("/estimate-sell", (0, routeHandler_1.typedHandler)(controller_market_1.estimateSellPayout));
 exports.default = router;

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Market, MarketOption } from "@/types/market";
 import { TradeForm } from "@/components/TradeForm";
 import { CommentSection } from "@/components/CommentSection";
@@ -13,6 +14,7 @@ import { ResolveOption } from "@/components/ResolveOption";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SocialProof } from "@/components/SocialProof";
 import { TrendingBadge, getTrendingStatus } from "@/components/TrendingBadge";
+import { ShareModal } from "@/components/ShareModal";
 import {
   formatUSDC,
   formatDate,
@@ -311,7 +313,7 @@ const BinaryOptionRow = ({
           onClick={() => !resolved && onSelectOption(option?.id || "", "yes")}
           className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
             resolved
-                ? winner === 1
+              ? winner === 1
                 ? "ring-2 ring-muted-green/50"
                 : "opacity-40"
               : selectedSide === "yes"
@@ -620,6 +622,7 @@ export const MarketDetail = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [heroWidth, setHeroWidth] = useState<number | null>(null);
   const [heroLeft, setHeroLeft] = useState<number | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const tradeFormRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -929,8 +932,56 @@ export const MarketDetail = () => {
     { id: "about", label: "About" },
   ];
 
+  // Get base URL for embeds
+  const baseUrl =
+    typeof window !== "undefined"
+      ? `${window.location.protocol}//${window.location.host}`
+      : "https://moodring.io";
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+  const marketUrl = `${baseUrl}/market/${id}`;
+  const marketImage = market.image_url || `${baseUrl}/icon.png`;
+  const marketDescription = market.market_description
+    ? market.market_description.substring(0, 200) +
+      (market.market_description.length > 200 ? "..." : "")
+    : `Trade on ${market.question} - ${
+        primaryYesPrice ? `${(primaryYesPrice * 100).toFixed(1)}%` : "50%"
+      } YES on Moodring`;
+  const marketTitle = `${market.question} | Moodring`;
+
   return (
     <div className="min-h-screen bg-ink-black">
+      <Helmet>
+        {/* Primary Meta Tags */}
+        <title>{marketTitle}</title>
+        <meta name="title" content={marketTitle} />
+        <meta name="description" content={marketDescription} />
+        <link rel="canonical" href={marketUrl} />
+
+        {/* oEmbed Discovery */}
+        <link
+          rel="alternate"
+          type="application/json+oembed"
+          href={`${apiUrl}/market/${id}/oembed`}
+          title={marketTitle}
+        />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={marketUrl} />
+        <meta property="og:title" content={marketTitle} />
+        <meta property="og:description" content={marketDescription} />
+        <meta property="og:image" content={marketImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Moodring" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={marketUrl} />
+        <meta name="twitter:title" content={marketTitle} />
+        <meta name="twitter:description" content={marketDescription} />
+        <meta name="twitter:image" content={marketImage} />
+      </Helmet>
       <div
         className="mx-auto max-w-6xl px-4 py-10 pb-24 lg:pb-10"
         data-market-detail-container
@@ -1064,6 +1115,26 @@ export const MarketDetail = () => {
                       </div>
                     )}
                   </div>
+                  {/* Share Button in Sticky Header - Far Right */}
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.1] transition-colors text-moon-grey hover:text-white ml-auto"
+                    title="Share market"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1186,6 +1257,27 @@ export const MarketDetail = () => {
                           <TrendingBadge type={trendingStatus} size="sm" />
                         ) : null;
                       })()}
+                    {/* Share Button */}
+                    <button
+                      onClick={() => setShowShareModal(true)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.1] transition-colors text-moon-grey hover:text-white"
+                      title="Share market"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                        />
+                      </svg>
+                      <span className="text-[11px] font-medium">Share</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1228,14 +1320,22 @@ export const MarketDetail = () => {
                       ) : (
                         /* Binary Market - Show winning side */
                         <div className="text-left sm:text-right w-full sm:w-auto">
-                          <div className={`text-3xl sm:text-4xl lg:text-5xl font-bold tabular-nums leading-none ${
-                            primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"
-                          }`}>
+                          <div
+                            className={`text-3xl sm:text-4xl lg:text-5xl font-bold tabular-nums leading-none ${
+                              primaryOption?.winning_side === 1
+                                ? "text-muted-green"
+                                : "text-rose-400"
+                            }`}
+                          >
                             {primaryOption?.winning_side === 1 ? "YES" : "NO"}
                           </div>
-                          <div className={`text-[10px] sm:text-xs mt-1 ${
-                            primaryOption?.winning_side === 1 ? "text-muted-green/70" : "text-rose-400/70"
-                          }`}>
+                          <div
+                            className={`text-[10px] sm:text-xs mt-1 ${
+                              primaryOption?.winning_side === 1
+                                ? "text-muted-green/70"
+                                : "text-rose-400/70"
+                            }`}
+                          >
                             Winner
                           </div>
                         </div>
@@ -1334,9 +1434,7 @@ export const MarketDetail = () => {
                   <div className="w-px h-4 bg-white/10 hidden sm:block" />
                   <div className="flex items-center gap-1.5">
                     {market.is_resolved ? (
-                      <span className="text-neon-iris font-medium">
-                        Ended
-                      </span>
+                      <span className="text-neon-iris font-medium">Ended</span>
                     ) : (
                       <>
                         <span className="text-moon-grey-dark">Ends</span>
@@ -1848,7 +1946,13 @@ export const MarketDetail = () => {
                                 <div className="font-medium text-white mb-1">
                                   Winner:
                                 </div>
-                                <div className={primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"}>
+                                <div
+                                  className={
+                                    primaryOption?.winning_side === 1
+                                      ? "text-muted-green"
+                                      : "text-rose-400"
+                                  }
+                                >
                                   {primaryOption?.winning_side === 1
                                     ? "YES"
                                     : "NO"}
@@ -1965,9 +2069,13 @@ export const MarketDetail = () => {
                       <div className="font-medium text-white mb-1 text-xs sm:text-sm">
                         Winner:
                       </div>
-                      <div className={`text-xs sm:text-sm ${
-                        primaryOption?.winning_side === 1 ? "text-muted-green" : "text-rose-400"
-                      }`}>
+                      <div
+                        className={`text-xs sm:text-sm ${
+                          primaryOption?.winning_side === 1
+                            ? "text-muted-green"
+                            : "text-rose-400"
+                        }`}
+                      >
                         {primaryOption?.winning_side === 1 ? "YES" : "NO"}
                       </div>
                     </div>
@@ -2145,6 +2253,15 @@ export const MarketDetail = () => {
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        marketUrl={marketUrl}
+        marketTitle={marketTitle}
+        marketDescription={marketDescription}
+      />
     </div>
   );
 };

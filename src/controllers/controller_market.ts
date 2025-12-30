@@ -2838,3 +2838,150 @@ export const getWatchlistStatus = async (
     return sendError(res, 500, error.message || "Internal server error");
   }
 };
+
+/**
+ * @route GET /api/market/:id/oembed
+ * @desc Get oEmbed data for a market (for Discord and other platforms)
+ * @access Public
+ */
+export const getMarketOEmbed = async (req: GetMarketRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return sendError(res, 400, "Market ID is required");
+    }
+
+    const market = await MarketModel.findById(id);
+    if (!market) {
+      return sendNotFound(res, "Market");
+    }
+
+    const options = await OptionModel.findByMarketId(id);
+    const baseUrl = process.env.CLIENT_URL || "https://moodring.io";
+    const marketUrl = `${baseUrl}/market/${id}`;
+    const marketImage = market.image_url || `${baseUrl}/icon.png`;
+    
+    // Calculate primary option price
+    const primaryOption = options[0];
+    let yesPrice = 0.5;
+    if (primaryOption && market.liquidity_parameter && Number(market.liquidity_parameter) > 0) {
+      try {
+        const liquidityParam = new BN(market.liquidity_parameter);
+        const yesQty = new BN(Math.floor(Number(primaryOption.yes_quantity)));
+        const noQty = new BN(Math.floor(Number(primaryOption.no_quantity)));
+        yesPrice = calculate_yes_price(yesQty, noQty, liquidityParam) / PRECISION.toNumber();
+      } catch (e) {
+        // Use default
+      }
+    }
+
+    const description = market.market_description
+      ? market.market_description.substring(0, 200) + (market.market_description.length > 200 ? "..." : "")
+      : `Trade on ${market.question} - ${(yesPrice * 100).toFixed(1)}% YES on Moodring`;
+
+    // oEmbed response format
+    res.json({
+      type: "rich",
+      version: "1.0",
+      title: market.question,
+      description: description,
+      url: marketUrl,
+      thumbnail_url: marketImage,
+      thumbnail_width: 1200,
+      thumbnail_height: 630,
+      provider_name: "Moodring",
+      provider_url: baseUrl,
+      html: `<iframe src="${marketUrl}" width="800" height="600" frameborder="0" allowfullscreen></iframe>`,
+      width: 800,
+      height: 600,
+    });
+  } catch (error: any) {
+    console.error("Get market oEmbed error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};
+
+/**
+ * @route GET /api/market/:id/meta
+ * @desc Get HTML with meta tags for Discord scraping
+ * @access Public
+ */
+export const getMarketMeta = async (req: GetMarketRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return sendError(res, 400, "Market ID is required");
+    }
+
+    const market = await MarketModel.findById(id);
+    if (!market) {
+      return sendNotFound(res, "Market");
+    }
+
+    const options = await OptionModel.findByMarketId(id);
+    const baseUrl = process.env.CLIENT_URL || "https://moodring.io";
+    const marketUrl = `${baseUrl}/market/${id}`;
+    const marketImage = market.image_url || `${baseUrl}/icon.png`;
+    
+    // Calculate primary option price
+    const primaryOption = options[0];
+    let yesPrice = 0.5;
+    if (primaryOption && market.liquidity_parameter && Number(market.liquidity_parameter) > 0) {
+      try {
+        const liquidityParam = new BN(market.liquidity_parameter);
+        const yesQty = new BN(Math.floor(Number(primaryOption.yes_quantity)));
+        const noQty = new BN(Math.floor(Number(primaryOption.no_quantity)));
+        yesPrice = calculate_yes_price(yesQty, noQty, liquidityParam) / PRECISION.toNumber();
+      } catch (e) {
+        // Use default
+      }
+    }
+
+    const description = market.market_description
+      ? market.market_description.substring(0, 200) + (market.market_description.length > 200 ? "..." : "")
+      : `Trade on ${market.question} - ${(yesPrice * 100).toFixed(1)}% YES on Moodring`;
+
+    const title = `${market.question} | Moodring`;
+
+    // Return HTML with meta tags for Discord to scrape
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <meta name="description" content="${description.replace(/"/g, "&quot;")}">
+  <link rel="canonical" href="${marketUrl}">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${marketUrl}">
+  <meta property="og:title" content="${title.replace(/"/g, "&quot;")}">
+  <meta property="og:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta property="og:image" content="${marketImage}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="Moodring">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="${marketUrl}">
+  <meta name="twitter:title" content="${title.replace(/"/g, "&quot;")}">
+  <meta name="twitter:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta name="twitter:image" content="${marketImage}">
+  
+  <meta http-equiv="refresh" content="0;url=${marketUrl}">
+</head>
+<body>
+  <script>window.location.href="${marketUrl}";</script>
+  <p>Redirecting to <a href="${marketUrl}">${marketUrl}</a></p>
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (error: any) {
+    console.error("Get market meta error:", error);
+    return sendError(res, 500, error.message || "Internal server error");
+  }
+};

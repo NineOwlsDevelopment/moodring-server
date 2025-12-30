@@ -279,7 +279,7 @@ export const Home = () => {
                   }}
                   style={{ willChange: "transform, opacity" }}
                 >
-                  PREDICT
+                  CREATE
                 </motion.span>
                 <motion.span
                   className="block bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris bg-clip-text text-transparent bg-[length:200%_100%]"
@@ -297,7 +297,7 @@ export const Home = () => {
                     willChange: "transform, opacity, background-position",
                   }}
                 >
-                  THE FUTURE
+                  PREDICTION MARKETS
                 </motion.span>
                 <motion.span
                   className="block text-white/70 text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl mt-6 font-light tracking-wide"
@@ -310,7 +310,7 @@ export const Home = () => {
                   }}
                   style={{ willChange: "transform, opacity" }}
                 >
-                  Own The Outcome
+                  No Code, No Problem
                 </motion.span>
               </h1>
             </motion.div>
@@ -327,19 +327,15 @@ export const Home = () => {
               style={{ willChange: "transform, opacity" }}
             >
               <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-moon-grey/90 leading-relaxed font-light tracking-wide">
-                The premier Solana prediction market platform. Trade on
-                real-world events with{" "}
+                Anyone can create a prediction market on Moodring. No coding, no
+                complexity—just{" "}
+                <span className="text-white font-medium">ask a question</span>,{" "}
+                <span className="text-white font-medium">set the options</span>,
+                and{" "}
                 <span className="text-white font-medium">
-                  institutional grade liquidity
+                  launch in seconds
                 </span>
-                ,{" "}
-                <span className="text-white font-medium">
-                  instant execution
-                </span>
-                , and{" "}
-                <span className="text-white font-medium">
-                  transparent outcomes.{" "}
-                </span>
+                . Turn any event into a market.
               </p>
             </motion.div>
 
@@ -355,10 +351,29 @@ export const Home = () => {
               style={{ willChange: "transform, opacity" }}
             >
               <Link
-                to="/markets"
-                className="px-8 py-4 text-base font-semibold tracking-wide bg-neon-iris text-white rounded-xl hover:bg-neon-iris-light transition-all inline-flex items-center gap-2.5"
+                to={user ? "/create" : "/login"}
+                className="px-8 py-4 text-base font-semibold tracking-wide bg-neon-iris text-white rounded-xl hover:bg-neon-iris-light transition-all inline-flex items-center gap-2.5 shadow-lg shadow-neon-iris/30 hover:shadow-neon-iris/50"
               >
-                {user ? "Browse Markets" : "Start Trading"}
+                {user ? "Create Your First Market" : "Get Started Free"}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </Link>
+              <Link
+                to="/markets"
+                className="px-8 py-4 text-base font-semibold tracking-wide bg-graphite-deep text-white border border-white/10 rounded-xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2.5"
+              >
+                Browse Markets
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -370,25 +385,6 @@ export const Home = () => {
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </Link>
-              <Link
-                to="/leaderboard"
-                className="px-8 py-4 text-base font-semibold tracking-wide bg-graphite-deep text-white border border-white/10 rounded-xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2.5"
-              >
-                View Leaderboard
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                   />
                 </svg>
               </Link>
@@ -478,6 +474,275 @@ export const Home = () => {
               icon="⚡"
               delay={0.3}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* ===== WHY IT'S SO EASY ===== */}
+      <section className="section-padding bg-ink-black relative overflow-hidden py-20 lg:py-28">
+        {/* Background effects */}
+        <motion.div
+          className="absolute top-1/4 left-0 w-96 h-96 bg-gradient-radial-iris opacity-[0.03] blur-3xl"
+          style={{
+            rotate: backgroundRotation,
+            transformOrigin: "center center",
+          }}
+        />
+        <motion.div
+          className="absolute bottom-1/4 right-0 w-96 h-96 bg-gradient-radial-aqua opacity-[0.03] blur-3xl"
+          style={{
+            rotate: backgroundRotation,
+            transformOrigin: "center center",
+          }}
+        />
+
+        <div className="section-container relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left side - Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <motion.div
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-neon-iris/10 border border-neon-iris/20 rounded-full text-neon-iris text-sm font-medium mb-6"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-iris opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-iris" />
+                </span>
+                No Technical Skills Required
+              </motion.div>
+              <motion.h2
+                className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-6 tracking-tight"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{
+                  duration: 1,
+                  delay: 0.1,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                Anyone Can{" "}
+                <motion.span
+                  className="bg-gradient-to-r from-neon-iris to-aqua-pulse bg-clip-text text-transparent bg-[length:200%_100%]"
+                  style={{
+                    backgroundPosition: `${
+                      (gradientAngle * 57.2958) % 360
+                    }% 0%`,
+                  }}
+                >
+                  Create Markets
+                </motion.span>
+              </motion.h2>
+              <motion.p
+                className="text-base sm:text-lg text-moon-grey/80 mb-8 leading-relaxed tracking-wide"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{
+                  duration: 1,
+                  delay: 0.2,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                Traditional prediction markets require coding, smart contract
+                deployment, and deep blockchain knowledge. Moodring removes all
+                that complexity. Just fill out a simple form, and your market
+                launches instantly on Solana.
+              </motion.p>
+
+              <div className="space-y-4 mt-8">
+                <motion.div
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.3,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-aqua-pulse/20 flex items-center justify-center mt-0.5">
+                    <svg
+                      className="w-4 h-4 text-aqua-pulse"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">
+                      No Coding Required
+                    </h4>
+                    <p className="text-moon-grey/70 text-sm">
+                      Our intuitive form handles everything. No need to write
+                      smart contracts or understand blockchain.
+                    </p>
+                  </div>
+                </motion.div>
+                <motion.div
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.4,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-aqua-pulse/20 flex items-center justify-center mt-0.5">
+                    <svg
+                      className="w-4 h-4 text-aqua-pulse"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">
+                      Instant Launch
+                    </h4>
+                    <p className="text-moon-grey/70 text-sm">
+                      Your market goes live in seconds. No waiting for approvals
+                      or complex deployment processes.
+                    </p>
+                  </div>
+                </motion.div>
+                <motion.div
+                  className="flex items-start gap-4"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.5,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-aqua-pulse/20 flex items-center justify-center mt-0.5">
+                    <svg
+                      className="w-4 h-4 text-aqua-pulse"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-white mb-1">
+                      Automatic Liquidity
+                    </h4>
+                    <p className="text-moon-grey/70 text-sm">
+                      LMSR provides continuous liquidity for every market.
+                      Traders can buy and sell instantly, no market makers
+                      needed.
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Right side - Visual Example */}
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="relative bg-graphite-deep rounded-3xl border border-white/10 p-8 lg:p-10 shadow-2xl">
+                {/* Glow effect */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-radial-iris opacity-10 blur-3xl -z-10" />
+
+                {/* Example market creation form preview */}
+                <div className="space-y-6">
+                  <div>
+                    <div className="text-xs text-moon-grey/50 uppercase tracking-wider mb-2">
+                      Step 1: Ask Your Question
+                    </div>
+                    <div className="bg-graphite-light rounded-xl p-4 border border-white/5">
+                      <div className="text-white font-medium">
+                        Will Bitcoin reach $100k by 2025?
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-moon-grey/50 uppercase tracking-wider mb-2">
+                      Step 2: Set Options
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gradient-to-br from-neon-iris/20 to-neon-iris/10 rounded-xl p-4 border border-neon-iris/30">
+                        <div className="text-white font-medium text-sm">
+                          YES
+                        </div>
+                      </div>
+                      <div className="bg-graphite-light rounded-xl p-4 border border-white/5">
+                        <div className="text-white font-medium text-sm">NO</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-moon-grey/50 uppercase tracking-wider mb-2">
+                      Step 3: Launch
+                    </div>
+                    <motion.div
+                      className="bg-gradient-brand rounded-xl p-4 text-center cursor-pointer"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="text-white font-semibold">
+                        Create Market →
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Floating success indicator */}
+                <motion.div
+                  className="absolute -top-4 -right-4 bg-aqua-pulse text-ink-black rounded-full w-16 h-16 flex items-center justify-center font-bold text-xl shadow-lg shadow-aqua-pulse/30"
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  ✓
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -610,7 +875,7 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS ===== */}
+      {/* ===== CREATE IN 3 SIMPLE STEPS ===== */}
       {/* Section aligns to ring arc - radial layout */}
       <section className="section-padding bg-graphite-deep relative overflow-hidden py-20 lg:py-28">
         {/* Enhanced background decoration - sync with ring */}
@@ -646,7 +911,7 @@ export const Home = () => {
           transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
         >
           <h2 className="text-[20rem] font-black text-white/[0.02] leading-none tracking-[-0.04em] whitespace-nowrap">
-            PREDICT
+            CREATE
           </h2>
         </motion.div>
 
@@ -665,19 +930,19 @@ export const Home = () => {
               viewport={{ once: true }}
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             >
-              How It{" "}
+              Create Markets in{" "}
               <motion.span
                 className="bg-gradient-to-r from-neon-iris to-aqua-pulse bg-clip-text text-transparent bg-[length:200%_100%]"
                 style={{
                   backgroundPosition: `${(gradientAngle * 57.2958) % 360}% 0%`,
                 }}
               >
-                Works
+                3 Simple Steps
               </motion.span>
             </motion.h2>
             <p className="text-base sm:text-lg lg:text-xl text-moon-grey/80 font-light max-w-2xl mx-auto tracking-wide">
-              From market creation to payout—here's how prediction markets
-              operate
+              No coding required. No complex setup. Just ask a question and
+              launch your market in seconds.
             </p>
           </motion.div>
 
@@ -694,8 +959,8 @@ export const Home = () => {
             >
               <StepCard
                 step={1}
-                title="Create Markets"
-                description="Launch your own prediction market on any event. Set the question, add liquidity, and watch it go live on Solana in seconds."
+                title="Ask Your Question"
+                description="Type your prediction question—anything from sports to politics to crypto. Add a description and choose when it expires."
                 index={0}
               />
             </motion.div>
@@ -711,8 +976,8 @@ export const Home = () => {
             >
               <StepCard
                 step={2}
-                title="Trade Positions"
-                description="Buy YES or NO shares to express your view. Our LMSR algorithm provides continuous liquidity and mathematically optimal pricing."
+                title="Set Options & Image"
+                description="Choose YES/NO or add custom options. Upload a cover image to make your market stand out. That's it—no technical knowledge needed."
                 index={1}
               />
             </motion.div>
@@ -728,12 +993,41 @@ export const Home = () => {
             >
               <StepCard
                 step={3}
-                title="Settle & Profit"
-                description="When events resolve, verified outcomes trigger instant payouts. Winners collect their earnings immediately—no delays, no intermediaries."
+                title="Launch & Trade"
+                description="Add initial liquidity and your market goes live instantly on Solana. Traders can start buying shares immediately—no waiting, no approval process."
                 index={2}
               />
             </motion.div>
           </div>
+
+          {/* CTA Button */}
+          <motion.div
+            className="mt-12 lg:mt-16 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Link
+              to={user ? "/create" : "/login"}
+              className="inline-flex items-center gap-3 px-10 py-5 text-lg font-semibold bg-gradient-brand text-white rounded-2xl hover:shadow-lg hover:shadow-neon-iris/30 transition-all"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              {user ? "Create Your Market Now" : "Get Started Free"}
+            </Link>
+          </motion.div>
 
           {/* Connecting line on desktop */}
           <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent -z-10" />
@@ -940,7 +1234,7 @@ export const Home = () => {
               viewport={{ once: true }}
               transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             >
-              Why{" "}
+              Why Create on{" "}
               <motion.span
                 className="bg-gradient-to-r from-neon-iris to-aqua-pulse bg-clip-text text-transparent bg-[length:200%_100%]"
                 style={{
@@ -951,8 +1245,8 @@ export const Home = () => {
               </motion.span>
             </motion.h2>
             <p className="text-base sm:text-lg lg:text-xl text-moon-grey/80 font-light max-w-2xl mx-auto tracking-wide">
-              The platform where serious traders meet cutting-edge
-              infrastructure
+              The easiest way to launch prediction markets. Built for creators,
+              not just traders.
             </p>
           </motion.div>
 
@@ -969,8 +1263,8 @@ export const Home = () => {
             >
               <FeatureCard
                 icon="⚡"
-                title="Sub-Second Execution"
-                description="Solana's high-performance blockchain delivers instant trades and near-zero fees. Experience the speed of on-chain prediction markets."
+                title="Instant Launch"
+                description="Your market goes live in seconds on Solana. No waiting for approvals, no complex deployment—just create and launch."
                 index={0}
               />
             </motion.div>
@@ -985,9 +1279,9 @@ export const Home = () => {
               }}
             >
               <FeatureCard
-                icon="🔒"
-                title="Enterprise Security"
-                description="Trade seamlessly with our custodial infrastructure. Your assets are protected by institutional-grade security protocols."
+                icon="🎯"
+                title="Zero Technical Skills"
+                description="No coding, no smart contracts, no blockchain knowledge required. Our simple form handles everything—you just fill it out."
                 index={1}
               />
             </motion.div>
@@ -1002,9 +1296,9 @@ export const Home = () => {
               }}
             >
               <FeatureCard
-                icon="📊"
-                title="Institutional Liquidity"
-                description="LMSR algorithms provide continuous liquidity with tight spreads. Trade any size, anytime, with optimal execution."
+                icon="💧"
+                title="Built-In Liquidity"
+                description="LMSR provides automatic liquidity for every market. No need to find market makers—traders can buy and sell instantly."
                 index={2}
               />
             </motion.div>
@@ -1019,9 +1313,9 @@ export const Home = () => {
               }}
             >
               <FeatureCard
-                icon="🎙️"
-                title="Live Trading Rooms"
-                description="Join real-time audio discussions with fellow traders. Share insights, debate outcomes, and build your network."
+                icon="🌐"
+                title="Any Topic, Any Event"
+                description="Create markets on sports, politics, crypto, entertainment, or anything else. If it can be predicted, you can market it."
                 index={3}
               />
             </motion.div>
@@ -1036,10 +1330,27 @@ export const Home = () => {
               }}
             >
               <FeatureCard
-                icon="🏆"
-                title="Competitive Rankings"
-                description="Track your performance against the best traders. Climb leaderboards and establish your reputation in the prediction market community."
+                icon="🔒"
+                title="Secure & Transparent"
+                description="All markets run on Solana blockchain with transparent resolution. Your markets are immutable and trustless."
                 index={4}
+              />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{
+                duration: 0.6,
+                delay: 0.6,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              <FeatureCard
+                icon="📈"
+                title="Earn from Trading"
+                description="As a market creator, you can earn from trading fees and liquidity provision. Turn your predictions into income."
+                index={5}
               />
             </motion.div>
           </div>
@@ -1126,10 +1437,10 @@ export const Home = () => {
             viewport={{ once: true }}
             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           >
-            Ready to Trade
+            Ready to Create
             <br />
             <span className="bg-gradient-to-r from-white via-white/95 to-white bg-clip-text text-transparent">
-              the Future?
+              Your First Market?
             </span>
           </motion.h2>
           <motion.p
@@ -1139,9 +1450,9 @@ export const Home = () => {
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
-            Join a growing community of traders who are turning predictions into
-            profits. Experience the next generation of on-chain prediction
-            markets—built for speed, security, and scale.
+            Join thousands of creators launching prediction markets on Moodring.
+            Turn any question into a market in seconds—no technical skills
+            required.
           </motion.p>
           <motion.div
             className="flex flex-col sm:flex-row gap-4 justify-center"
@@ -1151,29 +1462,10 @@ export const Home = () => {
             transition={{ duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             <Link
-              to="/markets"
-              className="px-8 py-4 text-lg font-semibold bg-white text-neon-iris hover:bg-moon-grey-light rounded-2xl transition-all inline-flex items-center gap-2"
+              to={user ? "/create" : "/login"}
+              className="px-8 py-4 text-lg font-semibold bg-white text-neon-iris hover:bg-moon-grey-light rounded-2xl transition-all inline-flex items-center gap-2 shadow-lg"
             >
-              Explore Markets
-              <svg
-                className="w-5 h-5 transition-transform group-hover:translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
-            </Link>
-            <Link
-              to="/create"
-              className="px-8 py-4 text-lg font-semibold bg-graphite-deep text-white border border-white/10 rounded-2xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2"
-            >
-              Create Market
+              Create Your Market
               <svg
                 className="w-5 h-5 transition-transform group-hover:rotate-90"
                 fill="none"
@@ -1185,6 +1477,25 @@ export const Home = () => {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </Link>
+            <Link
+              to="/markets"
+              className="px-8 py-4 text-lg font-semibold bg-graphite-deep text-white border border-white/10 rounded-2xl hover:bg-graphite-hover hover:border-white/20 transition-all inline-flex items-center gap-2"
+            >
+              Browse Markets
+              <svg
+                className="w-5 h-5 transition-transform group-hover:translate-x-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
                 />
               </svg>
             </Link>
