@@ -16,6 +16,10 @@ import {
   Trade,
   createPost,
   fetchMarkets,
+  buyKeys,
+  sellKeys,
+  getKeyPrice,
+  getKeyOwnership,
 } from "@/api/api";
 import { Market, MarketOption } from "@/types/market";
 import { formatDistanceToNow } from "@/utils/format";
@@ -23,6 +27,7 @@ import { toast } from "sonner";
 import { useUserStore } from "@/stores/userStore";
 import api from "@/config/axios";
 import { ImageModal } from "@/components/ImageModal";
+import { KeyPurchaseModal } from "@/components/KeyPurchaseModal";
 import {
   ArrowLeft,
   Settings,
@@ -42,6 +47,8 @@ import {
   X,
   FileText,
   TrendingDown,
+  Key,
+  Lock,
 } from "lucide-react";
 
 interface UserProfileData {
@@ -58,6 +65,8 @@ interface UserProfileData {
   total_pnl: number;
   win_rate: number;
   is_following?: boolean;
+  keys_supply?: number;
+  required_keys_to_follow?: number;
 }
 
 type ProfileTab = "posts" | "markets" | "trades";
@@ -1145,6 +1154,21 @@ export const UserProfile = () => {
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [keyPrice, setKeyPrice] = useState<number | null>(null);
+  const [keyOwnership, setKeyOwnership] = useState<number>(0);
+  const [isLoadingKeys, setIsLoadingKeys] = useState(false);
+  const [keyPurchaseQuantity, setKeyPurchaseQuantity] = useState(1);
+  const [isBuyingKeys, setIsBuyingKeys] = useState(false);
+  const [showKeyModal, setShowKeyModal] = useState(false);
+
+  // Update purchase quantity when profile loads to match required keys
+  useEffect(() => {
+    if (profile?.required_keys_to_follow) {
+      const required = profile.required_keys_to_follow;
+      const needed = Math.max(1, required - keyOwnership);
+      setKeyPurchaseQuantity(needed);
+    }
+  }, [profile?.required_keys_to_follow, keyOwnership]);
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(
     new Set()
   );
@@ -1172,15 +1196,36 @@ export const UserProfile = () => {
 
   useEffect(() => {
     if (profile?.id) {
+      loadKeyInfo();
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (profile?.id) {
       loadPosts();
     }
   }, [profile?.id]);
 
   useEffect(() => {
-    if (identifier && activeTab === "trades" && (isFollowing || isOwnProfile)) {
-      loadTrades();
+    if (identifier && activeTab === "trades") {
+      // Check if user has access (own profile, has enough keys, or no key requirement)
+      const hasAccess =
+        isOwnProfile ||
+        profile?.required_keys_to_follow === 0 ||
+        (profile?.required_keys_to_follow &&
+          keyOwnership >= profile.required_keys_to_follow);
+
+      if (hasAccess) {
+        loadTrades();
+      }
     }
-  }, [identifier, activeTab, isFollowing, isOwnProfile]);
+  }, [
+    identifier,
+    activeTab,
+    isOwnProfile,
+    profile?.required_keys_to_follow,
+    keyOwnership,
+  ]);
 
   useEffect(() => {
     if (identifier && activeTab === "markets" && profile?.id) {
@@ -1216,6 +1261,25 @@ export const UserProfile = () => {
     }
   };
 
+  const loadKeyInfo = async () => {
+    if (!profile?.id) return;
+    setIsLoadingKeys(true);
+    try {
+      const [priceData, ownershipData] = await Promise.all([
+        getKeyPrice(profile.id),
+        isOwnProfile
+          ? Promise.resolve({ quantity: 0 })
+          : getKeyOwnership(profile.id),
+      ]);
+      setKeyPrice(priceData.price_in_usdc);
+      setKeyOwnership(ownershipData.quantity);
+    } catch (error) {
+      console.error("Failed to load key info:", error);
+    } finally {
+      setIsLoadingKeys(false);
+    }
+  };
+
   const loadTrades = async () => {
     if (!identifier) return;
     setIsLoadingTrades(true);
@@ -1230,12 +1294,57 @@ export const UserProfile = () => {
     } catch (error: any) {
       console.error("Failed to load trades:", error);
       if (error.response?.status === 403) {
-        toast.error("You must follow this user to view their trades");
+        const errorData = error.response?.data;
+        if (errorData?.required_keys !== undefined) {
+          toast.error(
+            `You need at least ${
+              errorData.required_keys
+            } key(s) to view trades. You have ${errorData.owned_keys || 0}.`
+          );
+        } else {
+          toast.error("You must have access to view this user's trades");
+        }
       } else {
         toast.error("Failed to load trades");
       }
     } finally {
       setIsLoadingTrades(false);
+    }
+  };
+
+  const handleBuyKeys = async () => {
+    if (!profile?.id || isBuyingKeys) return;
+    setIsBuyingKeys(true);
+    try {
+      const result = await buyKeys({
+        trader_id: profile.id,
+        quantity: keyPurchaseQuantity,
+      });
+      toast.success(`Successfully purchased ${result.quantity} key(s)`);
+      await loadKeyInfo();
+      // Reload trades if we now have access
+      if (
+        profile.required_keys_to_follow &&
+        result.quantity + keyOwnership >= profile.required_keys_to_follow
+      ) {
+        await loadTrades();
+      }
+      // Auto-follow if user just bought their first key
+      if (keyOwnership === 0 && result.quantity >= 1 && !isFollowing) {
+        try {
+          await followUser(profile.id);
+          setIsFollowing(true);
+          await checkFollowStatus();
+        } catch (error) {
+          // Silently fail - user can manually follow if needed
+          console.error("Auto-follow failed:", error);
+        }
+      }
+    } catch (error: any) {
+      console.error("Failed to buy keys:", error);
+      toast.error(error.response?.data?.message || "Failed to buy keys");
+    } finally {
+      setIsBuyingKeys(false);
     }
   };
 
@@ -1271,6 +1380,21 @@ export const UserProfile = () => {
 
   const handleFollow = async () => {
     if (!identifier || isFollowLoading) return;
+
+    const requiredKeys = profile?.required_keys_to_follow || 1;
+
+    // Check if user has keys before allowing follow
+    if (!isFollowing && keyOwnership < requiredKeys) {
+      toast.error(
+        `You must purchase at least ${requiredKeys} key(s) to follow this user. You currently have ${keyOwnership}.`
+      );
+      // Switch to trades tab to show key purchase UI if not already there
+      if (activeTab !== "trades") {
+        setActiveTab("trades");
+      }
+      return;
+    }
+
     setIsFollowLoading(true);
     try {
       // Use the user ID from the profile if available, otherwise use identifier
@@ -1291,7 +1415,29 @@ export const UserProfile = () => {
         toast.success("Following! 🎉");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Action failed");
+      if (error.response?.status === 403) {
+        const errorData = error.response?.data;
+        if (errorData?.required_keys !== undefined) {
+          toast.error(
+            `You need to purchase at least ${
+              errorData.required_keys
+            } key(s) to follow this user. You currently have ${
+              errorData.owned_keys || 0
+            } key(s).`
+          );
+          // Switch to trades tab to show key purchase UI if not already there
+          if (activeTab !== "trades") {
+            setActiveTab("trades");
+          }
+        } else {
+          toast.error(
+            error.response?.data?.message ||
+              "You must purchase keys to follow this user"
+          );
+        }
+      } else {
+        toast.error(error.response?.data?.error || "Action failed");
+      }
     } finally {
       setIsFollowLoading(false);
     }
@@ -1510,23 +1656,69 @@ export const UserProfile = () => {
                 </button>
               </div>
               {/* Action buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-col sm:flex-row">
                 {!isOwnProfile && currentUser && (
-                  <button
-                    onClick={handleFollow}
-                    disabled={isFollowLoading}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
-                      isFollowing
-                        ? "bg-graphite-deep text-white border-white/10 hover:bg-graphite-light"
-                        : "bg-neon-iris text-white border-neon-iris hover:bg-neon-iris-light"
-                    }`}
-                  >
-                    {isFollowLoading
-                      ? "..."
-                      : isFollowing
-                      ? "Following"
-                      : "Follow"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setShowKeyModal(true)}
+                      className="px-4 py-2 rounded-lg font-medium text-sm transition-all border bg-neon-iris text-white border-neon-iris hover:bg-neon-iris-light flex items-center gap-2"
+                    >
+                      <Key className="w-4 h-4" />
+                      {keyPrice !== null
+                        ? `$${keyPrice.toFixed(4)}`
+                        : "View Keys"}
+                    </button>
+                    <button
+                      onClick={handleFollow}
+                      disabled={
+                        isFollowLoading ||
+                        (keyOwnership <
+                          (profile?.required_keys_to_follow || 1) &&
+                          !isFollowing)
+                      }
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition-all border ${
+                        isFollowing
+                          ? "bg-graphite-deep text-white border-white/10 hover:bg-graphite-light"
+                          : keyOwnership <
+                            (profile?.required_keys_to_follow || 1)
+                          ? "bg-white/10 text-gray-400 border-white/5 cursor-not-allowed"
+                          : "bg-aqua-pulse text-white border-aqua-pulse hover:bg-aqua-pulse/90"
+                      }`}
+                      title={
+                        keyOwnership <
+                          (profile?.required_keys_to_follow || 1) &&
+                        !isFollowing
+                          ? `Purchase at least ${
+                              profile?.required_keys_to_follow || 1
+                            } key(s) to follow`
+                          : ""
+                      }
+                    >
+                      {isFollowLoading
+                        ? "..."
+                        : isFollowing
+                        ? "Following"
+                        : keyOwnership < (profile?.required_keys_to_follow || 1)
+                        ? `Buy ${profile?.required_keys_to_follow || 1} Key${
+                            (profile?.required_keys_to_follow || 1) > 1
+                              ? "s"
+                              : ""
+                          } to Follow`
+                        : "Follow"}
+                    </button>
+                    {!isFollowing &&
+                      keyOwnership <
+                        (profile?.required_keys_to_follow || 1) && (
+                        <div className="text-xs text-gray-400 mt-1 sm:mt-0 sm:ml-2 flex items-center gap-1">
+                          <Key className="w-3 h-3" />
+                          <span>
+                            {keyOwnership} /{" "}
+                            {profile?.required_keys_to_follow || 1} keys
+                            required
+                          </span>
+                        </div>
+                      )}
+                  </>
                 )}
 
                 {isOwnProfile && (
@@ -1804,7 +1996,109 @@ export const UserProfile = () => {
 
           {activeTab === "trades" && (
             <>
-              {isLoadingTrades ? (
+              {!isOwnProfile &&
+              (profile?.required_keys_to_follow || 1) > 0 &&
+              keyOwnership < (profile?.required_keys_to_follow || 1) ? (
+                <div className="border-t border-white/10 py-16">
+                  <div className="flex flex-col items-center justify-center text-center px-4">
+                    <div className="w-16 h-16 rounded-full bg-neon-iris/20 flex items-center justify-center mb-4">
+                      <Lock className="w-8 h-8 text-neon-iris" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      Keys Required
+                    </h3>
+                    <p className="text-gray-400 mb-6 max-w-md">
+                      You need at least {profile?.required_keys_to_follow || 1}{" "}
+                      key(s) to view this trader's trades. You currently have{" "}
+                      {keyOwnership} key(s).
+                    </p>
+                    {keyPrice !== null && (
+                      <div className="bg-white/5 rounded-lg p-6 w-full max-w-md border border-white/10">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-sm text-gray-400">
+                              Current Price
+                            </p>
+                            <p className="text-2xl font-bold text-white">
+                              ${keyPrice.toFixed(4)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-400">Supply</p>
+                            <p className="text-lg font-semibold text-white">
+                              {profile.keys_supply || 0}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mb-4">
+                          <button
+                            onClick={() =>
+                              setKeyPurchaseQuantity(
+                                Math.max(1, keyPurchaseQuantity - 1)
+                              )
+                            }
+                            className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={keyPurchaseQuantity}
+                            onChange={(e) =>
+                              setKeyPurchaseQuantity(
+                                Math.max(1, parseInt(e.target.value) || 1)
+                              )
+                            }
+                            className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-neon-iris"
+                          />
+                          <button
+                            onClick={() =>
+                              setKeyPurchaseQuantity(keyPurchaseQuantity + 1)
+                            }
+                            className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          onClick={handleBuyKeys}
+                          disabled={isBuyingKeys || isLoadingKeys}
+                          className="w-full py-3 bg-neon-iris hover:bg-neon-iris/90 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isBuyingKeys ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Purchasing...
+                            </>
+                          ) : (
+                            <>
+                              <Key className="w-4 h-4" />
+                              Buy {keyPurchaseQuantity} Key
+                              {keyPurchaseQuantity !== 1 ? "s" : ""}
+                            </>
+                          )}
+                        </button>
+                        <div className="mt-4 text-center space-y-1">
+                          {keyOwnership > 0 && (
+                            <p className="text-sm text-gray-400">
+                              You own {keyOwnership} key
+                              {keyOwnership !== 1 ? "s" : ""}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            {profile?.required_keys_to_follow || 1} key
+                            {(profile?.required_keys_to_follow || 1) > 1
+                              ? "s"
+                              : ""}{" "}
+                            required to follow
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : isLoadingTrades ? (
                 <div className="border-t border-white/10">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
@@ -1859,6 +2153,45 @@ export const UserProfile = () => {
         imageUrl={selectedImage || ""}
         alt="Image"
       />
+
+      {/* Key Purchase Modal */}
+      {profile && (
+        <KeyPurchaseModal
+          isOpen={showKeyModal}
+          onClose={() => setShowKeyModal(false)}
+          traderName={profile.display_name || profile.username || "Trader"}
+          currentSupply={profile.keys_supply || 1}
+          currentPrice={keyPrice || 0}
+          keyOwnership={keyOwnership}
+          isTrader={isOwnProfile}
+          onBuy={async (quantity: number) => {
+            const result = await buyKeys({
+              trader_id: profile.id,
+              quantity,
+            });
+            toast.success(`Successfully purchased ${result.quantity} key(s)`);
+            await loadKeyInfo();
+            // Auto-follow if user just bought their first key
+            if (keyOwnership === 0 && result.quantity >= 1 && !isFollowing) {
+              try {
+                await followUser(profile.id);
+                setIsFollowing(true);
+                await checkFollowStatus();
+              } catch (error) {
+                console.error("Auto-follow failed:", error);
+              }
+            }
+          }}
+          onSell={async (quantity: number) => {
+            const result = await sellKeys({
+              trader_id: profile.id,
+              quantity,
+            });
+            toast.success(`Successfully sold ${result.quantity} key(s)`);
+            await loadKeyInfo();
+          }}
+        />
+      )}
     </div>
   );
 };

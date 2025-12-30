@@ -10,6 +10,8 @@ import { UserPositionModel } from "../models/UserPosition";
 import { PriceSnapshotModel } from "../models/PriceSnapshot";
 import { OptionModel } from "../models/Option";
 import { MarketModel } from "../models/Market";
+import { UserKeyModel } from "../models/UserKey";
+import { UserModel } from "../models/User";
 import { calculate_yes_price, PRECISION } from "../utils/lmsr";
 import {
   emitTradeUpdate,
@@ -706,19 +708,47 @@ export const getUserTrades = async (
     if (currentUserId === userId) {
       // User can always view their own trades
     } else {
-      // Check if current user is following the target user
-      const followCheck = await pool.query(
-        `SELECT 1 FROM user_follows 
-         WHERE follower_id = $1 AND following_id = $2`,
-        [currentUserId, userId]
-      );
+      // Check if trader has set required_keys_to_follow
+      const trader = await UserModel.findById(userId);
+      if (!trader) {
+        return sendNotFound(res, "User");
+      }
 
-      if (followCheck.rows.length === 0) {
-        return sendError(
-          res,
-          403,
-          "You must follow this user to view their trades"
+      const requiredKeys = (trader as any).required_keys_to_follow || 0;
+
+      if (requiredKeys > 0) {
+        // Check if current user owns enough keys
+        const keyQuantity = await UserKeyModel.getQuantity(
+          userId,
+          currentUserId
         );
+
+        if (keyQuantity < requiredKeys) {
+          return sendError(
+            res,
+            403,
+            `You need at least ${requiredKeys} key(s) to view this user's trades. You currently have ${keyQuantity} key(s).`,
+            {
+              required_keys: requiredKeys,
+              owned_keys: keyQuantity,
+            }
+          );
+        }
+      } else {
+        // If no required keys set, check if user is following (backward compatibility)
+        const followCheck = await pool.query(
+          `SELECT 1 FROM user_follows 
+           WHERE follower_id = $1 AND following_id = $2`,
+          [currentUserId, userId]
+        );
+
+        if (followCheck.rows.length === 0) {
+          return sendError(
+            res,
+            403,
+            "You must follow this user to view their trades"
+          );
+        }
       }
     }
 

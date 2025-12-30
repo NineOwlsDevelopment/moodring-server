@@ -1931,3 +1931,92 @@ export const updateMarketCategories = async (
   apiCache.invalidatePattern("markets:");
   return response.data;
 };
+
+// ============================================
+// USER KEYS (Influencer/Trader Keys)
+// ============================================
+export const buyKeys = async (data: {
+  trader_id: string;
+  quantity: number;
+}): Promise<{
+  message: string;
+  quantity: number;
+  total_cost: number;
+  average_price: number;
+  new_supply: number;
+  new_balance: number;
+}> => {
+  const response = await api.post("/key/buy", data);
+  return response.data;
+};
+
+export const sellKeys = async (data: {
+  trader_id: string;
+  quantity: number;
+}): Promise<{
+  message: string;
+  quantity: number;
+  total_payout: number;
+  average_price: number;
+  new_supply: number;
+  new_balance: number;
+}> => {
+  const response = await api.post("/key/sell", data);
+  return response.data;
+};
+
+export const getKeyPrice = async (
+  trader_id: string
+): Promise<{
+  trader_id: string;
+  supply: number;
+  current_price: number;
+  next_price: number;
+  price_in_usdc: number;
+  next_price_in_usdc: number;
+}> => {
+  const response = await api.get(`/key/price/${trader_id}`);
+  return response.data;
+};
+
+export const getKeyOwnership = async (
+  trader_id: string
+): Promise<{
+  trader_id: string;
+  quantity: number;
+  has_keys: boolean;
+}> => {
+  const response = await api.get(`/key/ownership/${trader_id}`);
+  return response.data;
+};
+
+export const setRequiredKeys = async (required_keys: number): Promise<{
+  message: string;
+  required_keys: number;
+}> => {
+  const response = await api.post("/key/set-required", { required_keys });
+  return response.data;
+};
+
+export const getKeyHolders = async (
+  trader_id: string,
+  params?: { page?: number; limit?: number }
+): Promise<{
+  holders: Array<{
+    holder_id: string;
+    quantity: number;
+    username?: string;
+    display_name?: string;
+    avatar_url?: string;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}> => {
+  const response = await api.get(`/key/holders/${trader_id}`, { params });
+  return response.data;
+};

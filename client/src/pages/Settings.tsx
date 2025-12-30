@@ -691,6 +691,7 @@ export const Settings = () => {
                       Used for notifications and account recovery
                     </p>
                   </div>
+
                   {profileError && (
                     <div className="p-3 bg-brand-danger/20 border border-brand-danger/30 rounded-xl text-brand-danger text-sm">
                       {profileError}

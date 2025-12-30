@@ -10,6 +10,7 @@ const reservedNames_1 = require("../utils/reservedNames");
 const contentModeration_1 = require("../utils/contentModeration");
 const metadata_1 = require("../utils/metadata");
 const Post_1 = require("../models/Post");
+const UserKey_1 = require("../models/UserKey");
 /**
  * @route GET /api/user/:id
  * @desc Get public user profile by ID (limited data)
@@ -52,7 +53,9 @@ const getUserProfile = async (req, res) => {
         u.created_at,
         COALESCE(u.followers_count, 0)::int as followers_count,
         COALESCE(u.following_count, 0)::int as following_count,
-        COALESCE(u.posts_count, 0)::int as posts_count
+        COALESCE(u.posts_count, 0)::int as posts_count,
+        COALESCE(u.keys_supply, 0)::int as keys_supply,
+        COALESCE(u.required_keys_to_follow, 0)::int as required_keys_to_follow
       FROM users u 
       WHERE ${isUUID ? "u.id = $1" : "u.username = $1"}`, [id]);
         if (userResult.rows.length === 0) {
@@ -338,6 +341,17 @@ const followUser = async (req, res) => {
         // Can't follow yourself
         if (currentUserId === targetUserId) {
             return (0, errors_1.sendError)(res, 400, "You cannot follow yourself");
+        }
+        // Get required keys to follow (default to 1)
+        const traderResult = await db_1.pool.query(`SELECT COALESCE(required_keys_to_follow, 1)::int as required_keys FROM users WHERE id = $1`, [targetUserId]);
+        const requiredKeys = traderResult.rows[0]?.required_keys || 1;
+        // Check if user owns enough keys (required to follow)
+        const keyQuantity = await UserKey_1.UserKeyModel.getQuantity(targetUserId, currentUserId);
+        if (keyQuantity < requiredKeys) {
+            return (0, errors_1.sendError)(res, 403, `You must purchase at least ${requiredKeys} key(s) to follow this user`, {
+                required_keys: requiredKeys,
+                owned_keys: keyQuantity,
+            });
         }
         // Check if already following
         const existing = await db_1.pool.query(`SELECT id FROM user_follows WHERE follower_id = $1 AND following_id = $2`, [currentUserId, targetUserId]);

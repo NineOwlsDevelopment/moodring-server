@@ -23,8 +23,10 @@ import {
   DeleteCurrentUserRequest,
   GenerateWalletRequest,
   UploadAvatarRequest,
+  GetCurrentUserRequest,
 } from "../types/requests";
 import { PostModel } from "../models/Post";
+import { UserKeyModel } from "../models/UserKey";
 
 /**
  * @route GET /api/user/:id
@@ -85,7 +87,9 @@ export const getUserProfile = async (
         u.created_at,
         COALESCE(u.followers_count, 0)::int as followers_count,
         COALESCE(u.following_count, 0)::int as following_count,
-        COALESCE(u.posts_count, 0)::int as posts_count
+        COALESCE(u.posts_count, 0)::int as posts_count,
+        COALESCE(u.keys_supply, 0)::int as keys_supply,
+        COALESCE(u.required_keys_to_follow, 0)::int as required_keys_to_follow
       FROM users u 
       WHERE ${isUUID ? "u.id = $1" : "u.username = $1"}`,
       [id]
@@ -410,10 +414,7 @@ export const deleteCurrentUser = async (
  * @access Public
  * @note Supports both username and UUID as identifier
  */
-export const getUserPosts = async (
-  req: GetUserPostsRequest,
-  res: Response
-) => {
+export const getUserPosts = async (req: GetUserPostsRequest, res: Response) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -439,7 +440,12 @@ export const getUserPosts = async (
     const userId = userResult.rows[0].id;
 
     // Get posts using PostModel
-    const posts = await PostModel.getByUser(userId, currentUserId, limit, offset);
+    const posts = await PostModel.getByUser(
+      userId,
+      currentUserId,
+      limit,
+      offset
+    );
 
     return sendSuccess(res, { posts });
   } catch (error) {
@@ -484,6 +490,30 @@ export const followUser = async (req: FollowUserRequest, res: Response) => {
     // Can't follow yourself
     if (currentUserId === targetUserId) {
       return sendError(res, 400, "You cannot follow yourself");
+    }
+
+    // Get required keys to follow (default to 1)
+    const traderResult = await pool.query(
+      `SELECT COALESCE(required_keys_to_follow, 1)::int as required_keys FROM users WHERE id = $1`,
+      [targetUserId]
+    );
+    const requiredKeys = traderResult.rows[0]?.required_keys || 1;
+
+    // Check if user owns enough keys (required to follow)
+    const keyQuantity = await UserKeyModel.getQuantity(
+      targetUserId,
+      currentUserId
+    );
+    if (keyQuantity < requiredKeys) {
+      return sendError(
+        res,
+        403,
+        `You must purchase at least ${requiredKeys} key(s) to follow this user`,
+        {
+          required_keys: requiredKeys,
+          owned_keys: keyQuantity,
+        }
+      );
     }
 
     // Check if already following

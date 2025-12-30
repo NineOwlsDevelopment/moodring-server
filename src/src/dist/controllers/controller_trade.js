@@ -11,6 +11,8 @@ const UserPosition_1 = require("../models/UserPosition");
 const PriceSnapshot_1 = require("../models/PriceSnapshot");
 const Option_1 = require("../models/Option");
 const Market_1 = require("../models/Market");
+const UserKey_1 = require("../models/UserKey");
+const User_1 = require("../models/User");
 const lmsr_1 = require("../utils/lmsr");
 const websocket_1 = require("../services/websocket");
 const transaction_1 = require("../utils/transaction");
@@ -534,11 +536,29 @@ const getUserTrades = async (req, res) => {
             // User can always view their own trades
         }
         else {
-            // Check if current user is following the target user
-            const followCheck = await db_1.pool.query(`SELECT 1 FROM user_follows 
-         WHERE follower_id = $1 AND following_id = $2`, [currentUserId, userId]);
-            if (followCheck.rows.length === 0) {
-                return (0, errors_1.sendError)(res, 403, "You must follow this user to view their trades");
+            // Check if trader has set required_keys_to_follow
+            const trader = await User_1.UserModel.findById(userId);
+            if (!trader) {
+                return (0, errors_1.sendNotFound)(res, "User");
+            }
+            const requiredKeys = trader.required_keys_to_follow || 0;
+            if (requiredKeys > 0) {
+                // Check if current user owns enough keys
+                const keyQuantity = await UserKey_1.UserKeyModel.getQuantity(userId, currentUserId);
+                if (keyQuantity < requiredKeys) {
+                    return (0, errors_1.sendError)(res, 403, `You need at least ${requiredKeys} key(s) to view this user's trades. You currently have ${keyQuantity} key(s).`, {
+                        required_keys: requiredKeys,
+                        owned_keys: keyQuantity,
+                    });
+                }
+            }
+            else {
+                // If no required keys set, check if user is following (backward compatibility)
+                const followCheck = await db_1.pool.query(`SELECT 1 FROM user_follows 
+           WHERE follower_id = $1 AND following_id = $2`, [currentUserId, userId]);
+                if (followCheck.rows.length === 0) {
+                    return (0, errors_1.sendError)(res, 403, "You must follow this user to view their trades");
+                }
             }
         }
         const page = parseInt(req.query.page) || 1;

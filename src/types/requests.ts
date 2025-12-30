@@ -357,6 +357,51 @@ export interface GetUserTradesRequest extends UserRequest {
   };
 }
 
+/**
+ * Typed request interfaces for Key Controller
+ */
+export interface BuyKeysRequest extends UserRequest {
+  body: {
+    trader_id: string;
+    quantity: number;
+  };
+}
+
+export interface SellKeysRequest extends UserRequest {
+  body: {
+    trader_id: string;
+    quantity: number;
+  };
+}
+
+export interface GetKeyPriceRequest extends Request {
+  params: {
+    trader_id: string;
+  };
+}
+
+export interface GetKeyOwnershipRequest extends UserRequest {
+  params: {
+    trader_id: string;
+  };
+}
+
+export interface SetRequiredKeysRequest extends UserRequest {
+  body: {
+    required_keys: number;
+  };
+}
+
+export interface GetKeyHoldersRequest extends Request {
+  params: {
+    trader_id: string;
+  };
+  query: {
+    page?: string;
+    limit?: string;
+  };
+}
+
 export interface GetPriceHistoryRequest extends Request {
   params: {
     optionId: string;

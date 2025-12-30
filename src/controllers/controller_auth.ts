@@ -3,11 +3,7 @@ import crypto from "crypto";
 import { pool } from "../db";
 import { UserModel } from "../models/User";
 import { generateOTP, sendOTPEmail } from "../utils/email";
-import {
-  generateTokenPair,
-  verifyRefreshToken,
-  generateAccessToken,
-} from "../utils/jwt";
+import { generateTokenPair, verifyRefreshToken } from "../utils/jwt";
 import { revokeToken, isTokenRevoked } from "../utils/revocation";
 import { PublicKey } from "@solana/web3.js";
 import nacl from "tweetnacl";
