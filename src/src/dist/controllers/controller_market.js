@@ -2198,9 +2198,25 @@ const getMarketMeta = async (req, res) => {
         const baseUrl = process.env.CLIENT_URL || "https://moodring.io";
         const marketUrl = `${baseUrl}/market/${id}`;
         // Always use market's image_url if it exists and is not empty, otherwise fallback to icon
-        const marketImage = market.image_url && market.image_url.trim() !== ""
-            ? market.image_url
-            : `${baseUrl}/icon.png`;
+        // Ensure image URL is absolute (starts with http:// or https://)
+        let marketImage;
+        if (market.image_url && market.image_url.trim() !== "") {
+            const imageUrl = market.image_url.trim();
+            // If it's already an absolute URL, use it as-is
+            if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+                marketImage = imageUrl;
+            }
+            else {
+                // If it's a relative URL, make it absolute
+                marketImage = imageUrl.startsWith("/")
+                    ? `${baseUrl}${imageUrl}`
+                    : `${baseUrl}/${imageUrl}`;
+            }
+        }
+        else {
+            marketImage = `${baseUrl}/icon.png`;
+        }
+        console.log(`[Meta] Market ${id} - image_url: ${market.image_url}, final marketImage: ${marketImage}`);
         // Calculate prices for options and build options string
         let optionsText = "";
         if (options && options.length > 0) {
@@ -2262,32 +2278,41 @@ const getMarketMeta = async (req, res) => {
             description = `Trade on ${market.question}${optionsText}`;
         }
         const title = `${market.question} | Moodring`;
-        // Return HTML with meta tags for Discord to scrape
+        // Escape HTML in title and description to prevent XSS
+        const escapedTitle = title.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        const escapedDescription = description
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        // Return HTML with meta tags for social media crawlers
         const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <meta name="description" content="${description.replace(/"/g, "&quot;")}">
+  <title>${escapedTitle}</title>
+  <meta name="description" content="${escapedDescription}">
   <link rel="canonical" href="${marketUrl}">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="${marketUrl}">
-  <meta property="og:title" content="${title.replace(/"/g, "&quot;")}">
-  <meta property="og:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta property="og:title" content="${escapedTitle}">
+  <meta property="og:description" content="${escapedDescription}">
   <meta property="og:image" content="${marketImage}">
+  <meta property="og:image:secure_url" content="${marketImage}">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${escapedTitle}">
   <meta property="og:site_name" content="Moodring">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="${marketUrl}">
-  <meta name="twitter:title" content="${title.replace(/"/g, "&quot;")}">
-  <meta name="twitter:description" content="${description.replace(/"/g, "&quot;")}">
+  <meta name="twitter:title" content="${escapedTitle}">
+  <meta name="twitter:description" content="${escapedDescription}">
   <meta name="twitter:image" content="${marketImage}">
+  <meta name="twitter:image:alt" content="${escapedTitle}">
   
   <meta http-equiv="refresh" content="0;url=${marketUrl}">
 </head>

@@ -278,6 +278,71 @@ app.use("/api/key", route_key);
 app.use("/api/admin", adminIPWhitelist, route_admin);
 
 // ============================================================================
+// Meta Tags Handler for Social Media Crawlers (BEFORE static file serving)
+// This must be BEFORE static file serving so crawlers get meta HTML
+// ============================================================================
+app.get("/market/:id", async (req, res, next) => {
+  const { id } = req.params;
+  const userAgent = (req.get("user-agent") || "").toLowerCase();
+  
+  // List of social media crawler user agents
+  const socialCrawlers = [
+    "facebookexternalhit",
+    "facebot",
+    "twitterbot",
+    "linkedinbot",
+    "whatsapp",
+    "discordbot",
+    "discord",
+    "telegrambot",
+    "slackbot",
+    "applebot",
+    "googlebot",
+    "bingbot",
+    "slurp",
+    "duckduckbot",
+    "baiduspider",
+    "yandexbot",
+    "sogou",
+    "exabot",
+    "ia_archiver",
+    "bot",
+    "crawler",
+    "spider",
+    "curl",
+    "wget",
+    "postman",
+  ];
+  
+  // Check for ?meta=true query parameter to force meta HTML (for testing)
+  const forceMeta = req.query.meta === "true" || req.query.meta === "1";
+  
+  // Check if it's a crawler
+  const isSocialCrawler = socialCrawlers.some((crawler) =>
+    userAgent.includes(crawler)
+  ) || userAgent.includes("bot") || !userAgent;
+
+  if (isSocialCrawler || forceMeta) {
+    console.log(
+      `[Meta] Serving meta HTML for market ${id}. User-Agent: ${userAgent || "none"}, forceMeta: ${forceMeta}`
+    );
+    const mockReq = {
+      params: { id },
+    } as GetMarketRequest;
+    try {
+      await getMarketMeta(mockReq, res);
+      return; // getMarketMeta handles the response
+    } catch (error: any) {
+      console.error(`[Meta] Error serving market meta for ${id}:`, error);
+      // Continue to next handler on error
+      return next();
+    }
+  }
+  // Not a crawler, continue to next handler (will serve React app)
+  next();
+});
+
+// ============================================================================
 // Service Initialization
 // ============================================================================
 // Initialize services after database pool is ready
