@@ -506,6 +506,24 @@
   /* Toast close button styling - move to right side */
   [data-sonner-toast] {
     position: relative !important;
+    border-radius: 0 !important;
+    font-weight: 300 !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  /* Toast success state */
+  [data-sonner-toast][data-type="success"] {
+    border-left: 2px solid #21F6D2 !important;
+  }
+
+  /* Toast error state */
+  [data-sonner-toast][data-type="error"] {
+    border-left: 2px solid #f43f5e !important;
+  }
+
+  /* Toast warning state */
+  [data-sonner-toast][data-type="warning"] {
+    border-left: 2px solid #fbbf24 !important;
   }
 
   [data-sonner-toast] [data-close-button] {
@@ -516,21 +534,21 @@
     transform: translateY(-50%) !important;
     width: 20px !important;
     height: 20px !important;
-    border-radius: 4px !important;
+    border-radius: 0 !important;
     background: transparent !important;
     border: none !important;
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: rgba(255, 255, 255, 0.4) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    transition: all 0.2s ease !important;
     padding: 0 !important;
   }
 
   [data-sonner-toast] [data-close-button]:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
   }
 
   [data-sonner-toast] [data-close-button] svg {
@@ -541,6 +559,18 @@
   /* Add right padding to toast content to avoid overlap with close button */
   [data-sonner-toast] [data-content] {
     padding-right: 24px !important;
+  }
+
+  /* Toast title styling */
+  [data-sonner-toast] [data-title] {
+    font-weight: 400 !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Toast description styling */
+  [data-sonner-toast] [data-description] {
+    font-weight: 300 !important;
+    opacity: 0.7 !important;
   }
 
   /* Mobile toast positioning - ensure it doesn't interfere with bottom elements */

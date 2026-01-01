@@ -28,6 +28,7 @@ export interface CommentCreateInput {
 export interface CommentWithUser extends Comment {
   username: string;
   display_name: string | null;
+  avatar_url: string | null;
   user_vote?: "up" | "down" | null;
   reply_count?: number;
 }
@@ -83,7 +84,7 @@ export class CommentModel {
     const db = client || pool;
     const result = await db.query(
       `
-      SELECT c.*, u.username, u.display_name,
+      SELECT c.*, u.username, u.display_name, u.avatar_url,
         cv.vote_type as user_vote,
         COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
       FROM comments c
@@ -123,7 +124,7 @@ export class CommentModel {
     const [commentsResult, countResult] = await Promise.all([
       db.query(
         `
-        SELECT c.*, u.username, u.display_name,
+        SELECT c.*, u.username, u.display_name, u.avatar_url,
           cv.vote_type as user_vote,
           COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
         FROM comments c
@@ -165,7 +166,7 @@ export class CommentModel {
     const db = client || pool;
     const result = await db.query(
       `
-      SELECT c.*, u.username, u.display_name,
+      SELECT c.*, u.username, u.display_name, u.avatar_url,
         cv.vote_type as user_vote,
         COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
       FROM comments c

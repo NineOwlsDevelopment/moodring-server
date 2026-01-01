@@ -28,11 +28,16 @@ const web3_js_1 = require("@solana/web3.js");
 const spl_token_1 = require("@solana/spl-token");
 const Wallet_1 = require("../models/Wallet");
 const Deposit_1 = require("../models/Deposit");
+// Note: WalletModel is used for:
+// - findAll() to get all wallets to monitor
+// - updateLastSignature() to track last processed signature per wallet
 const Sweep_1 = require("../models/Sweep");
 const circleWallet_1 = require("./circleWallet");
 const constants_1 = require("../sdk/constants");
 // Configuration constants
-const DEFAULT_POLL_INTERVAL_MS = 45000; // How often to check for new deposits (45 seconds)
+// OPTIMIZATION: Increased from 45s to 2 minutes - with last_signature tracking,
+// we only fetch NEW signatures each poll, so frequent polling is less critical
+const DEFAULT_POLL_INTERVAL_MS = 120000; // How often to check for new deposits (2 minutes)
 const DEFAULT_SIGNATURE_LIMIT = 50; // Number of recent transactions to check per wallet per poll
 // On startup, fetch more signatures to catch up on missed deposits
 const STARTUP_SIGNATURE_LIMIT = 200; // Higher limit on first run to catch up
@@ -207,6 +212,7 @@ class DepositListener {
     }
     /**
      * Sync deposits for a token account - fetch recent transactions and process new deposits
+     * Uses the wallet's last_signature to only fetch NEW transactions (optimization)
      * @param wallet - Wallet record
      * @param walletPublicKey - Wallet's public key
      * @param tokenAccountPublicKey - Associated token account address for USDC
@@ -214,10 +220,17 @@ class DepositListener {
      */
     async syncTokenDeposits(wallet, walletPublicKey, tokenAccountPublicKey, limit) {
         // Fetch recent transaction signatures for the token account
+        // OPTIMIZATION: Use 'until' to only fetch signatures NEWER than the last processed one
+        // This dramatically reduces RPC calls for wallets with no new activity
         let signatures = [];
         try {
-            signatures = await this.connection.getSignaturesForAddress(tokenAccountPublicKey, { limit } // Get up to 'limit' most recent transactions
-            );
+            const options = { limit };
+            // If we have a last processed signature, only fetch newer ones
+            // This prevents re-scanning the same transactions repeatedly
+            if (wallet.last_signature && !this.isFirstRun) {
+                options.until = wallet.last_signature;
+            }
+            signatures = await this.connection.getSignaturesForAddress(tokenAccountPublicKey, options);
         }
         catch (error) {
             // Token account doesn't exist yet - no deposits to process
@@ -247,9 +260,10 @@ class DepositListener {
             throw error;
         }
         if (!signatures.length) {
-            return; // No transactions to process
+            return; // No new transactions to process
         }
         // Check which signatures we've already processed (avoid duplicates)
+        // This is a safety check - with 'until' we should only get new ones
         const processedSignatures = await Deposit_1.DepositModel.findExistingSignatures(signatures.map((signatureInfo) => signatureInfo.signature));
         // Filter to only new signatures and reverse to process oldest first
         // Processing chronologically ensures we handle deposits in order
@@ -259,6 +273,13 @@ class DepositListener {
         // Process each new signature
         for (const signatureInfo of pendingSignatures) {
             await this.processTokenSignature(wallet, walletPublicKey, tokenAccountPublicKey, signatureInfo);
+        }
+        // OPTIMIZATION: Update the wallet's last_signature to the most recent one
+        // This ensures next poll only fetches newer signatures
+        // signatures[0] is the newest (getSignaturesForAddress returns newest first)
+        if (signatures.length > 0) {
+            const newestSignature = signatures[0];
+            await Wallet_1.WalletModel.updateLastSignature(wallet.id, newestSignature.signature, newestSignature.slot);
         }
     }
     /**

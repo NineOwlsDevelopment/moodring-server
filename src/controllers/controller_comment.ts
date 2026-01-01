@@ -205,7 +205,7 @@ export const getMarketComments = async (
 /**
  * @route GET /api/comments/:id/replies
  * @desc Get replies to a comment
- * @access Public
+ * @access Public (optional auth)
  */
 export const getCommentReplies = async (
   req: GetCommentRepliesRequest,
@@ -213,10 +213,7 @@ export const getCommentReplies = async (
 ) => {
   try {
     const { id } = req.params;
-    const currentUserId = req.id;
-    if (!currentUserId) {
-      return sendError(res, 401, "Unauthorized");
-    }
+    const currentUserId = req.id; // May be undefined if not authenticated
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
     const offset = parseInt(req.query.offset as string) || 0;
 

@@ -178,6 +178,7 @@ export interface Comment {
   user_id: string;
   username: string;
   display_name: string;
+  avatar_url?: string | null;
   content: string;
   upvotes: number;
   downvotes: number;
@@ -741,8 +742,6 @@ export const createMarket = async (
   params: CreateMarketParams
 ): Promise<{
   market: string;
-  creation_fee: number;
-  creation_fee_display: number;
 }> => {
   const formData = new FormData();
   formData.append("base", params.base);
@@ -934,33 +933,6 @@ export const submitResolution = async (
   return response.data;
 };
 
-export interface FinalizeResolutionParams {
-  marketId: string;
-}
-
-export interface FinalizeResolutionResponse {
-  resolution: {
-    market_id: string;
-    final_outcome: string;
-    resolution_mode: string;
-    resolver_summary: any;
-    resolution_trace: any;
-    canonical_hash: string;
-    resolved_at: string;
-  };
-}
-
-// DEPRECATED: Markets now auto-resolve when all options are resolved
-// This function is kept for backwards compatibility but does nothing
-export const finalizeResolution = async (
-  _params: FinalizeResolutionParams
-): Promise<FinalizeResolutionResponse> => {
-  // Markets now auto-resolve when all options are resolved
-  // No manual finalization needed
-  throw new Error(
-    "Market finalization is no longer needed. Markets auto-resolve when all options are resolved."
-  );
-};
 
 export interface DisputeResolutionParams {
   marketId: string;

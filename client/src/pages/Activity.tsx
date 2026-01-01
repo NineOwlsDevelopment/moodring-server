@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useUserStore } from "@/stores/userStore";
 import {
   fetchMyActivity,
@@ -18,9 +19,23 @@ import {
   Wallet,
   TrendingUp,
   Clock,
-  Filter,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+
+// Animation variants matching Home page
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
 
 // Helper to get activity type - handles both 'type' and 'activity_type' from API
 const getType = (activity: any): string => {
@@ -56,18 +71,18 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
         return (
           <span className="flex flex-wrap items-center gap-1">
             <span
-              className={`font-semibold ${
-                side === "yes" ? "text-brand-success" : "text-brand-danger"
+              className={`font-medium ${
+                side === "yes" ? "text-aqua-pulse" : "text-rose-400"
               }`}
             >
               {tradeType === "buy" ? "Bought" : "Sold"} {formatShares(quantity)}{" "}
               {side?.toUpperCase()}
             </span>
-            <span className="text-moon-grey">shares</span>
+            <span className="text-moon-grey/60">shares</span>
             {amount > 0 && (
               <>
-                <span className="text-moon-grey">for</span>
-                <span className="font-semibold text-white">
+                <span className="text-moon-grey/60">for</span>
+                <span className="font-medium text-white">
                   {formatUSDC(amount)}
                 </span>
               </>
@@ -76,12 +91,12 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
         );
       case "market_created":
       case "market_initialized":
-        return <span className="text-moon-grey">Created a new market</span>;
+        return <span className="text-moon-grey/60">Created a new market</span>;
       case "market_resolved":
         return (
           <span className="flex items-center gap-1 flex-wrap">
-            <span className="text-moon-grey">Market resolved:</span>
-            <span className="font-semibold text-neon-iris">
+            <span className="text-moon-grey/60">Market resolved:</span>
+            <span className="font-medium text-neon-iris">
               {metadata.outcome || metadata.winning_side?.toUpperCase()}
             </span>
           </span>
@@ -89,8 +104,8 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "deposit":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Deposited</span>
-            <span className="font-semibold text-brand-success">
+            <span className="text-moon-grey/60">Deposited</span>
+            <span className="font-medium text-aqua-pulse">
               {formatUSDC(metadata.amount || 0)}
             </span>
           </span>
@@ -98,8 +113,8 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "withdrawal":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Withdrew</span>
-            <span className="font-semibold text-amber-400">
+            <span className="text-moon-grey/60">Withdrew</span>
+            <span className="font-medium text-amber-400">
               {formatUSDC(metadata.amount || 0)}
             </span>
           </span>
@@ -107,8 +122,8 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "claim":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Claimed</span>
-            <span className="font-semibold text-brand-success">
+            <span className="text-moon-grey/60">Claimed</span>
+            <span className="font-medium text-aqua-pulse">
               {formatUSDC(metadata.payout || 0)}
             </span>
           </span>
@@ -116,8 +131,8 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "lp_rewards_claimed":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Claimed LP rewards</span>
-            <span className="font-semibold text-brand-success">
+            <span className="text-moon-grey/60">Claimed LP rewards</span>
+            <span className="font-medium text-aqua-pulse">
               {formatUSDC(metadata.usdc_payout || 0)}
             </span>
           </span>
@@ -125,8 +140,8 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "liquidity_added":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Added liquidity:</span>
-            <span className="font-semibold text-aqua-pulse">
+            <span className="text-moon-grey/60">Added liquidity:</span>
+            <span className="font-medium text-aqua-pulse">
               {formatUSDC(metadata.amount || 0)}
             </span>
           </span>
@@ -134,23 +149,23 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
       case "liquidity_removed":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Removed liquidity:</span>
-            <span className="font-semibold text-amber-400">
+            <span className="text-moon-grey/60">Removed liquidity:</span>
+            <span className="font-medium text-amber-400">
               {formatUSDC(metadata.amount || 0)}
             </span>
           </span>
         );
       case "user_joined":
-        return <span className="text-moon-grey">Joined the platform</span>;
+        return <span className="text-moon-grey/60">Joined the platform</span>;
       case "comment":
         return (
           <span className="flex items-center gap-1">
-            <span className="text-moon-grey">Commented on market</span>
+            <span className="text-moon-grey/60">Commented on market</span>
           </span>
         );
       default:
         return (
-          <span className="text-moon-grey capitalize">
+          <span className="text-moon-grey/60 capitalize">
             {activityType.replace(/_/g, " ")}
           </span>
         );
@@ -172,7 +187,10 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
     (activityType === "market_created" ? metadata.question : null);
 
   return (
-    <div className="flex items-start gap-3 p-4 rounded-xl bg-graphite-light/50 hover:bg-graphite-light transition-all duration-200  animate-fade-in">
+    <motion.div
+      variants={fadeInUp}
+      className="flex items-start gap-4 p-5 bg-graphite-deep/50 border border-white/5 hover:border-white/10 transition-colors duration-300"
+    >
       {/* User Avatar */}
       {activity.username && (
         <UserAvatar
@@ -187,9 +205,9 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1 overflow-hidden">
             {/* User & action */}
-            <div className="text-sm leading-relaxed flex flex-wrap items-center gap-x-1">
+            <div className="text-sm leading-relaxed flex flex-wrap items-center gap-x-1.5">
               {activity.username && (
-                <span className="font-semibold text-white truncate max-w-[120px] inline-block align-middle">
+                <span className="font-medium text-white truncate max-w-[140px] inline-block align-middle">
                   @{activity.username}
                 </span>
               )}
@@ -200,7 +218,7 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
             {marketId && marketQuestion && (
               <Link
                 to={`/market/${marketId}`}
-                className="text-neon-iris hover:text-neon-iris-light text-sm font-medium line-clamp-1 mt-1.5 transition-colors block"
+                className="text-neon-iris/80 hover:text-neon-iris text-sm font-light line-clamp-1 mt-2 transition-colors block"
               >
                 {marketQuestion}
               </Link>
@@ -208,13 +226,13 @@ const ActivityItem = ({ activity }: { activity: ActivityType }) => {
           </div>
 
           {/* Timestamp */}
-          <div className="flex items-center gap-1.5 text-xs text-moon-grey-dark flex-shrink-0 whitespace-nowrap">
-            <Clock className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1.5 text-[10px] tracking-[0.1em] uppercase text-moon-grey/50 flex-shrink-0 whitespace-nowrap">
+            <Clock className="w-3 h-3" />
             {formatDistanceToNow(Number(activity.created_at))}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -256,29 +274,50 @@ export const Activity = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8">
-      {/* Background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-b from-neon-iris/5 via-transparent to-aqua-pulse/5 pointer-events-none" />
+    <div className="min-h-screen bg-ink-black pb-20 md:pb-8">
+      {/* Atmospheric background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.08),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_100%,rgba(33,246,210,0.05),transparent_50%)]" />
+      </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/20 to-transparent" />
+
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-              Activity
-            </h1>
-            <p className="text-moon-grey text-sm">
-              Track your transactions and activity
-            </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="mb-12"
+        >
+          <div className="inline-flex items-center gap-3 mb-6">
+            <div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent to-neon-iris/60" />
+            <span className="text-[10px] sm:text-xs tracking-[0.3em] uppercase text-moon-grey/70 font-medium">
+              Transaction History
+            </span>
+            <div className="h-px w-8 sm:w-12 bg-gradient-to-l from-transparent to-neon-iris/60" />
           </div>
-        </div>
+          
+          <h1 className="text-4xl sm:text-5xl font-extralight tracking-tight text-white mb-3">
+            Activity
+          </h1>
+          <p className="text-moon-grey/60 text-base font-light">
+            Track your transactions and trading history
+          </p>
+        </motion.div>
 
         {/* Filters */}
         {user && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-moon-grey-dark" />
-              <span className="text-sm text-moon-grey-dark">Filter by</span>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-10"
+          >
+            <div className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 mb-4 font-medium">
+              Filter by type
             </div>
             <div className="flex flex-wrap gap-2">
               {filters.map((f) => {
@@ -287,84 +326,114 @@ export const Activity = () => {
                   <button
                     key={f.id}
                     onClick={() => setFilter(f.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 min-h-[40px] ${
+                    className={`flex items-center gap-2 px-4 py-2.5 text-xs tracking-wide uppercase font-medium transition-all duration-300 border ${
                       filter === f.id
-                        ? "bg-gradient-brand text-white shadow-neon-subtle"
-                        : "bg-graphite-light text-moon-grey  hover:text-white "
+                        ? "bg-white text-ink-black border-white"
+                        : "bg-transparent text-moon-grey/60 border-white/10 hover:border-white/20 hover:text-white"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5" />
                     {f.label}
                   </button>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Activity List Card */}
-        <div className="card">
-          <div className="flex items-center gap-3 mb-5">
+        {/* Activity List */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="bg-graphite-deep/30 border border-white/5"
+        >
+          {/* Section Header */}
+          <div className="px-6 py-5 border-b border-white/5 flex items-center gap-3">
             <div className="relative">
               <span className="flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-success opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-success" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-aqua-pulse opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-aqua-pulse" />
               </span>
             </div>
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
               Recent Transactions
             </h2>
           </div>
 
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-20 bg-graphite-light rounded-xl skeleton-pulse"
-                />
-              ))}
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 rounded-full bg-graphite-light flex items-center justify-center mb-4">
-                <ActivityIcon className="w-8 h-8 text-moon-grey-dark" />
+          {/* Content */}
+          <div className="p-4">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-graphite-deep/50 border border-white/5 animate-pulse"
+                  />
+                ))}
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
-                No activity yet
-              </h3>
-              <p className="text-moon-grey text-center max-w-sm mb-6">
-                {user
-                  ? "Start trading to see your transaction history here!"
-                  : "Please log in to view your activity."}
-              </p>
-              {user && (
-                <Link to="/markets" className="btn btn-primary">
-                  Browse Markets
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities.map((activity, index) => (
-                <div
-                  key={activity.id}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <ActivityItem activity={activity} />
+            ) : activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-16 h-16 border border-white/10 flex items-center justify-center mb-6">
+                  <ActivityIcon className="w-7 h-7 text-moon-grey/40" />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <h3 className="text-xl font-light text-white mb-3">
+                  No activity yet
+                </h3>
+                <p className="text-moon-grey/60 text-center max-w-sm mb-8 font-light">
+                  {user
+                    ? "Start trading to see your transaction history here."
+                    : "Please log in to view your activity."}
+                </p>
+                {user && (
+                  <Link
+                    to="/markets"
+                    className="group px-6 py-3 text-sm font-medium tracking-wide uppercase bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 inline-flex items-center gap-3"
+                  >
+                    <span>Browse Markets</span>
+                    <svg
+                      className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
+                className="space-y-2"
+              >
+                {activities.map((activity) => (
+                  <ActivityItem key={activity.id} activity={activity} />
+                ))}
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
 
         {/* Load More */}
         {!isLoading && activities.length > 0 && (
-          <div className="text-center mt-6">
-            <button className="text-neon-iris hover:text-neon-iris-light text-sm font-medium transition-colors">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-center mt-8"
+          >
+            <button className="text-xs tracking-[0.2em] uppercase text-moon-grey/50 hover:text-white transition-colors duration-300 font-medium">
               Load more activity
             </button>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

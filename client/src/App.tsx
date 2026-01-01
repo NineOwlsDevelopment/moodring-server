@@ -189,14 +189,17 @@ function App() {
         visibleToasts={1}
         toastOptions={{
           style: {
-            background: "#2a2a3e",
-            border: "1px solid #7C4DFF",
-            color: "#e2e8f0",
-            boxShadow: "0 4px 12px rgba(124, 77, 255, 0.3)",
+            background: "#0d0d12",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "#ffffff",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+            borderRadius: "0",
+            fontWeight: "300",
+            letterSpacing: "0.02em",
           },
           className: "toast-swipeable",
         }}
-        richColors
+        richColors={false}
         expand={false}
         duration={4000}
       />
@@ -217,6 +220,7 @@ function App() {
               <Route path="/pools" element={<Pools />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/user/:identifier" element={<UserProfile />} />
               {/* Legal Pages */}
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -232,7 +236,6 @@ function App() {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/user/:identifier" element={<UserProfile />} />
             </Route>
 
             {/* Admin Routes (Require Admin Role) */}

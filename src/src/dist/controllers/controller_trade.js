@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOHLCData = exports.getMarketPriceHistory = exports.getPriceHistory = exports.getMarketTrades = exports.getRecentTrades = exports.getUserTrades = exports.getTradeHistory = exports.getAllPositions = exports.getPosition = exports.claimWinnings = exports.sellShares = exports.buyShares = void 0;
+exports.getOHLCData = exports.getMarketPriceHistory = exports.getPriceHistory = exports.getUserTrades = exports.getTradeHistory = exports.getAllPositions = exports.getPosition = exports.claimWinnings = exports.sellShares = exports.buyShares = void 0;
 const anchor_1 = require("@coral-xyz/anchor");
 const db_1 = require("../db");
 const Trade_1 = require("../models/Trade");
@@ -583,51 +583,6 @@ const getUserTrades = async (req, res) => {
     }
 };
 exports.getUserTrades = getUserTrades;
-/**
- * @route GET /api/trade/recent
- * @desc Get recent public trades (DEPRECATED - trades are now private)
- * @access Public
- * @note This endpoint is kept for backward compatibility but returns empty array
- *       Trades are now private and only visible to the user who made them
- */
-const getRecentTrades = async (req, res) => {
-    try {
-        // Trades are now private - return empty array to prevent exposing other users' trades
-        return (0, errors_1.sendSuccess)(res, { trades: [] });
-    }
-    catch (error) {
-        console.error("Get recent trades error:", error);
-        return (0, errors_1.sendError)(res, 500, error.message || "Failed to get recent trades. Please try again.");
-    }
-};
-exports.getRecentTrades = getRecentTrades;
-/**
- * @route GET /api/trade/market/:id
- * @desc Get trades for a specific market (DEPRECATED - trades are now private)
- * @access Public
- * @note This endpoint is kept for backward compatibility but returns empty array
- *       Trades are now private and only visible to the user who made them
- */
-const getMarketTrades = async (req, res) => {
-    try {
-        // Trades are now private - return empty array to prevent exposing other users' trades
-        return (0, errors_1.sendSuccess)(res, {
-            trades: [],
-            pagination: {
-                page: 1,
-                limit: 20,
-                total: 0,
-                totalPages: 0,
-                hasMore: false,
-            },
-        });
-    }
-    catch (error) {
-        console.error("Get market trades error:", error);
-        return (0, errors_1.sendError)(res, 500, error.message || "Failed to get market trades. Please try again.");
-    }
-};
-exports.getMarketTrades = getMarketTrades;
 /**
  * @route GET /api/trade/price-history/:optionId
  * @desc Get price history for an option (for charts)

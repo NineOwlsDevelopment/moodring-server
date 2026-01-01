@@ -331,21 +331,6 @@ export interface GetTradeHistoryRequest extends UserRequest {
   };
 }
 
-export interface GetRecentTradesRequest extends Request {
-  query: {
-    limit?: string;
-  };
-}
-
-export interface GetMarketTradesRequest extends Request {
-  params: {
-    id: string;
-  };
-  query: {
-    page?: string;
-    limit?: string;
-  };
-}
 
 export interface GetUserTradesRequest extends UserRequest {
   params: {

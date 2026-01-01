@@ -324,45 +324,7 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
       );
     }
 
-    const marketCreationFee = Number(moodringConfig.market_creation_fee) || 0;
-
     const marketId = await withTransaction(async (client) => {
-      // Get wallet with lock for balance check and fee deduction
-      const walletResult = await client.query(
-        `SELECT * FROM wallets WHERE user_id = $1 FOR UPDATE`,
-        [userId]
-      );
-      const wallet = walletResult.rows[0];
-
-      if (!wallet) {
-        throw new TransactionError(404, "Wallet not found");
-      }
-
-      // Check if user has sufficient balance for creation fee
-      if (
-        marketCreationFee > 0 &&
-        Number(wallet.balance_usdc) < marketCreationFee
-      ) {
-        throw new TransactionError(
-          400,
-          `Insufficient balance. Market creation fee is ${
-            marketCreationFee / 1000
-          } USDC, but you have ${Number(wallet.balance_usdc) / 1000} USDC`
-        );
-      }
-
-      // Deduct market creation fee from wallet
-      if (marketCreationFee > 0) {
-        await client.query(
-          `UPDATE wallets SET balance_usdc = balance_usdc - $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE user_id = $2`,
-          [marketCreationFee, userId]
-        );
-
-        // Record the market creation fee as protocol revenue
-        // Market creation fees go to the protocol (not creator fees)
-        await MoodringModel.recordFees(0, marketCreationFee, client);
-      }
-
       // Parse and validate categoryIds - require exactly one category
       let parsedCategoryIds: string[] = [];
       if (categoryIds) {
@@ -434,6 +396,28 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
         client
       );
 
+      // Automatically create a "binary" option for binary markets
+      const isBinaryMarket = String(isBinary) === "true";
+      if (isBinaryMarket) {
+        await OptionModel.create(
+          {
+            market_id: createdMarket.id,
+            option_label: "Binary",
+            option_sub_label: null,
+            option_image_url: null,
+            yes_quantity: 0,
+            no_quantity: 0,
+          },
+          client
+        );
+
+        // Update market total_options count
+        await client.query(
+          `UPDATE markets SET total_options = total_options + 1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $1`,
+          [createdMarket.id]
+        );
+      }
+
       return createdMarket.id;
     });
 
@@ -452,8 +436,6 @@ export const createMarket = async (req: CreateMarketRequest, res: Response) => {
 
     return sendSuccess(res, {
       market: marketId,
-      creation_fee: marketCreationFee,
-      creation_fee_display: marketCreationFee / 1000, // Convert microUSDC to USDC for display
     });
   } catch (error: any) {
     if (error instanceof TransactionError) {
@@ -1409,9 +1391,14 @@ export const getTrendingMarkets = async (
 
     const result = await pool.query(
       `
-      SELECT m.*, 
+      SELECT 
+        m.*, 
         COALESCE(t.recent_volume, 0) as recent_volume,
-        COALESCE(t.recent_trades, 0) as recent_trades
+        COALESCE(t.recent_trades, 0) as recent_trades,
+        u.username as creator_username,
+        u.display_name as creator_display_name,
+        u.avatar_url as creator_avatar_url,
+        CASE WHEN ma.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_admin_creator
       FROM markets m
       LEFT JOIN (
         SELECT market_id, 
@@ -1421,6 +1408,8 @@ export const getTrendingMarkets = async (
         WHERE created_at > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')::BIGINT AND status = 'completed'
         GROUP BY market_id
       ) t ON m.id = t.market_id
+      LEFT JOIN users u ON m.creator_id = u.id
+      LEFT JOIN moodring_admins ma ON m.creator_id = ma.user_id
       WHERE m.is_resolved = FALSE AND m.is_initialized = TRUE
         AND m.expiration_timestamp > EXTRACT(EPOCH FROM NOW())
       ORDER BY recent_volume DESC NULLS LAST, m.total_volume DESC
@@ -1923,327 +1912,6 @@ export const initializeMarket = async (
     return sendError(res, 500, error.message || "Internal server error");
   }
 };
-
-/**
- * Auto-credit winnings to all winners when an option is resolved
- * This runs asynchronously after the resolution transaction commits
- * to avoid blocking the resolution process
- */
-async function autoCreditWinnings(
-  optionId: string,
-  winningSide: number,
-  marketId: string,
-  originalClient: PoolClient
-) {
-  // Use a new connection to avoid transaction conflicts
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-
-    // SECURITY FIX: Atomic update to prevent race condition
-    // Only one process can set status to 'in_progress' if it's currently NULL
-    // This eliminates the race condition window between SELECT and UPDATE
-    const updateResult = await client.query(
-      `UPDATE market_options 
-       SET auto_credit_status = 'in_progress', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-       WHERE id = $1 
-         AND auto_credit_status IS NULL
-       RETURNING id, is_resolved`,
-      [optionId]
-    );
-
-    // If no rows updated, another process already started or option doesn't exist
-    if (updateResult.rows.length === 0) {
-      // Check if option exists and what its status is
-      const checkResult = await client.query(
-        `SELECT id, auto_credit_status FROM market_options WHERE id = $1`,
-        [optionId]
-      );
-
-      if (checkResult.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return;
-      }
-
-      const option = checkResult.rows[0];
-      if (
-        option.auto_credit_status === "in_progress" ||
-        option.auto_credit_status === "completed"
-      ) {
-        await client.query("COMMIT");
-        console.log(
-          `[Auto-Credit] Option ${optionId} already processed or in progress`
-        );
-        return;
-      }
-
-      // Status is not NULL but also not in_progress/completed - unexpected state
-      await client.query("ROLLBACK");
-      console.error(
-        `[Auto-Credit] Option ${optionId} has unexpected status: ${option.auto_credit_status}`
-      );
-      return;
-    }
-
-    const option = updateResult.rows[0];
-
-    // Verify option is resolved before processing
-    if (!option.is_resolved) {
-      // Rollback the status update
-      await client.query("ROLLBACK");
-      console.warn(
-        `[Auto-Credit] Option ${optionId} is not resolved, skipping auto-credit`
-      );
-      return;
-    }
-
-    // Get ALL positions for this option that haven't been claimed (both winners and losers)
-    const positionsResult = await client.query(
-      `SELECT up.*, w.id as wallet_id
-       FROM user_positions up
-       JOIN wallets w ON w.user_id = up.user_id
-       WHERE up.option_id = $1 
-         AND up.is_claimed = FALSE
-         AND (up.yes_shares > 0 OR up.no_shares > 0)
-       FOR UPDATE`,
-      [optionId]
-    );
-
-    const positions = positionsResult.rows;
-
-    if (positions.length === 0) {
-      await client.query("COMMIT");
-      return; // No positions to process
-    }
-
-    // Get market data to check pool liquidity
-    const marketResult = await client.query(
-      `SELECT shared_pool_liquidity, base_liquidity_parameter FROM markets WHERE id = $1 FOR UPDATE`,
-      [marketId]
-    );
-    const marketData = marketResult.rows[0];
-
-    if (!marketData) {
-      await client.query("ROLLBACK");
-      return;
-    }
-
-    let currentPoolLiquidity = Number(marketData.shared_pool_liquidity || 0);
-    let totalPayout = 0;
-    const winnerUpdates: Array<{
-      userId: string;
-      walletId: string;
-      payout: number;
-      realizedPnl: number;
-    }> = [];
-    const loserUpdates: Array<{
-      userId: string;
-      realizedPnl: number;
-    }> = [];
-
-    // Process all positions - separate winners and losers
-    for (const position of positions) {
-      const yesShares = Number(position.yes_shares);
-      const noShares = Number(position.no_shares);
-      const winningShares = winningSide === 1 ? yesShares : noShares;
-      const totalCostBasis =
-        Number(position.total_yes_cost) + Number(position.total_no_cost);
-
-      if (winningShares > 0) {
-        // Winner: gets payout
-        const payout = winningShares;
-        const realizedPnl = payout - totalCostBasis;
-
-        // Check if pool has enough liquidity
-        if (currentPoolLiquidity < payout) {
-          console.warn(
-            `Insufficient pool liquidity for auto-credit. User ${position.user_id} will need to claim manually.`
-          );
-          continue; // Skip this user, they can claim manually
-        }
-
-        currentPoolLiquidity -= payout;
-        totalPayout += payout;
-
-        winnerUpdates.push({
-          userId: position.user_id,
-          walletId: position.wallet_id,
-          payout,
-          realizedPnl,
-        });
-      } else {
-        // Loser: gets $0 payout, loses their cost basis
-        const realizedPnl = -totalCostBasis; // Negative PnL = loss
-
-        loserUpdates.push({
-          userId: position.user_id,
-          realizedPnl,
-        });
-      }
-    }
-
-    // Update wallets for winners
-    for (const update of winnerUpdates) {
-      await client.query(
-        `UPDATE wallets SET balance_usdc = balance_usdc + $1, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT WHERE id = $2`,
-        [update.payout, update.walletId]
-      );
-    }
-
-    // Update positions for winners - zero out shares and mark as claimed
-    for (const update of winnerUpdates) {
-      await client.query(
-        `UPDATE user_positions SET 
-          yes_shares = 0, 
-          no_shares = 0,
-          total_yes_cost = 0,
-          total_no_cost = 0,
-          realized_pnl = realized_pnl + $1,
-          is_claimed = TRUE,
-          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-         WHERE user_id = $2 AND option_id = $3`,
-        [update.realizedPnl, update.userId, optionId]
-      );
-    }
-
-    // Update positions for losers - zero out shares and record loss
-    for (const update of loserUpdates) {
-      await client.query(
-        `UPDATE user_positions SET 
-          yes_shares = 0, 
-          no_shares = 0,
-          total_yes_cost = 0,
-          total_no_cost = 0,
-          realized_pnl = realized_pnl + $1,
-          is_claimed = TRUE,
-          updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-         WHERE user_id = $2 AND option_id = $3`,
-        [update.realizedPnl, update.userId, optionId]
-      );
-    }
-
-    // Update market pool liquidity
-    // NOTE: We do NOT update liquidity_parameter here - it should remain fixed
-    // even after market resolution for consistency. The market is resolved anyway,
-    // so no more trades will occur, but keeping b fixed maintains consistency.
-    await client.query(
-      `UPDATE markets SET 
-        shared_pool_liquidity = $1,
-        updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT
-       WHERE id = $2`,
-      [currentPoolLiquidity, marketId]
-    );
-
-    // SECURITY FIX: Mark auto-credit as completed to prevent reprocessing
-    await client.query(
-      `UPDATE market_options 
-       SET auto_credit_status = 'completed', updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
-       WHERE id = $1`,
-      [optionId]
-    );
-
-    await client.query("COMMIT");
-
-    // Create notifications and activities for each winner (non-blocking)
-    for (const update of winnerUpdates) {
-      try {
-        await NotificationModel.create({
-          user_id: update.userId as any,
-          notification_type: "trade_executed",
-          title: "Winnings Credited",
-          message: `Your winnings of ${
-            update.payout / 1_000_000
-          } USDC have been automatically added to your wallet.`,
-          entity_type: "option",
-          entity_id: optionId as any,
-          metadata: {
-            market_id: marketId,
-            payout: update.payout,
-            winning_side: winningSide === 1 ? "yes" : "no",
-            realized_pnl: update.realizedPnl,
-            auto_credited: true,
-          },
-        });
-
-        await ActivityModel.create({
-          user_id: update.userId as UUID,
-          activity_type: "claim",
-          entity_type: "option",
-          entity_id: optionId as string,
-          metadata: {
-            payout: update.payout,
-            winning_side: winningSide === 1 ? "yes" : "no",
-            realized_pnl: update.realizedPnl,
-            market_id: marketId,
-            auto_credited: true,
-          },
-        });
-      } catch (notifError) {
-        console.error(
-          `Error creating notification for user ${update.userId}:`,
-          notifError
-        );
-        // Don't fail the whole process if notification fails
-      }
-    }
-
-    // Create notifications and activities for each loser (non-blocking)
-    for (const update of loserUpdates) {
-      try {
-        await NotificationModel.create({
-          user_id: update.userId as any,
-          notification_type: "trade_executed",
-          title: "Position Resolved",
-          message: `Your position resolved unfavorably. Loss: ${
-            Math.abs(update.realizedPnl) / 1_000_000
-          } USDC.`,
-          entity_type: "option",
-          entity_id: optionId as any,
-          metadata: {
-            market_id: marketId,
-            payout: 0,
-            winning_side: winningSide === 1 ? "yes" : "no",
-            realized_pnl: update.realizedPnl,
-            auto_credited: true,
-            is_loss: true,
-          },
-        });
-
-        await ActivityModel.create({
-          user_id: update.userId as UUID,
-          activity_type: "market_resolved",
-          entity_type: "option",
-          entity_id: optionId as string,
-          metadata: {
-            payout: 0,
-            winning_side: winningSide === 1 ? "yes" : "no",
-            realized_pnl: update.realizedPnl,
-            market_id: marketId,
-            auto_credited: true,
-            is_loss: true,
-          },
-        });
-      } catch (notifError) {
-        console.error(
-          `Error creating notification for user ${update.userId}:`,
-          notifError
-        );
-        // Don't fail the whole process if notification fails
-      }
-    }
-
-    console.log(
-      `Auto-processed ${winnerUpdates.length} winners and ${loserUpdates.length} losers for option ${optionId}`
-    );
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error in autoCreditWinnings:", error);
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 /**
  * @route POST /api/market/withdraw/creator-fee

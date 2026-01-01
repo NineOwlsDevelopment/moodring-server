@@ -31,11 +31,11 @@ import {
 /**
  * Navbar Component
  *
- * Updated with Moodring brand identity:
- * - Glass effect with graphite background
- * - Neon iris accent on active states
- * - Gradient border on hover
- * - Smooth motion transitions
+ * Refined design matching the Moodring brand aesthetic:
+ * - Sharp edges, no rounded corners
+ * - Subtle gradient accents
+ * - Extralight typography with refined tracking
+ * - Premium dark aesthetic
  */
 export const Navbar = () => {
   const { user, isAdmin } = useUserStore();
@@ -60,7 +60,6 @@ export const Navbar = () => {
         setIsUserMenuOpen(false);
       }
     };
-    // Use capture phase to catch events earlier
     document.addEventListener("mousedown", handleClickOutside, true);
     document.addEventListener("touchstart", handleClickOutside, true);
     return () => {
@@ -73,7 +72,6 @@ export const Navbar = () => {
   useEffect(() => {
     if (!isMobileMenuOpen) return;
 
-    // Prevent body scroll when drawer is open
     document.body.style.overflow = "hidden";
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -85,7 +83,6 @@ export const Navbar = () => {
         setIsMobileMenuOpen(false);
       }
     };
-    // Use capture phase to catch events earlier
     document.addEventListener("mousedown", handleClickOutside, true);
     document.addEventListener("touchstart", handleClickOutside, true);
     return () => {
@@ -99,13 +96,9 @@ export const Navbar = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    // Ensure socket is connected
     socketService.connect();
-
-    // Subscribe to balance updates
     socketService.subscribeToBalance(user.id);
 
-    // Listen for balance updates
     const unsubscribe = socketService.onBalance((update) => {
       if (update.user_id === user.id) {
         useUserStore.getState().updateBalance(update.balance_usdc);
@@ -157,7 +150,6 @@ export const Navbar = () => {
     return `${name.slice(0, maxLength)}...`;
   };
 
-  // Handlers to close dropdowns immediately
   const closeUserMenu = useCallback(() => {
     flushSync(() => {
       setIsUserMenuOpen(false);
@@ -171,27 +163,31 @@ export const Navbar = () => {
   }, []);
 
   return (
-    <nav className="relative bg-graphite-deep/95 backdrop-blur-xl sticky top-0 md:fixed md:top-0 md:left-0 md:right-0 z-50">
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
+    <nav className="relative bg-ink-black/95 backdrop-blur-xl sticky top-0 md:fixed md:top-0 md:left-0 md:right-0 z-50">
+      {/* Top gradient line accent */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/20 to-transparent" />
+      {/* Bottom gradient line accent */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
       <div className="section-container">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo */}
           <Link
             to="/"
             onClick={closeMobileMenu}
-            className="flex items-center gap-2.5 group flex-shrink-0"
+            className="flex items-center gap-3 group flex-shrink-0"
           >
             <motion.div
-              className="w-9 h-9 flex items-center justify-center"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <img src={logo} alt="Moodring" className="w-9 h-9" />
+              <img src={logo} alt="Moodring" className="w-8 h-8 sm:w-9 sm:h-9" />
             </motion.div>
-            <span className="text-xl font-bold text-white group-hover:text-gradient transition-all hidden sm:block">
+            <span className="text-lg sm:text-xl font-light tracking-tight text-white group-hover:text-moon-grey-light transition-colors hidden sm:block">
               Moodring
             </span>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neon-iris bg-neon-iris/10 border border-neon-iris/30 rounded-md">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.15em] text-neon-iris border border-neon-iris/30">
               Beta
             </span>
           </Link>
@@ -206,17 +202,17 @@ export const Navbar = () => {
                   closeMobileMenu();
                   closeUserMenu();
                 }}
-                className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap ${
+                className={`relative px-5 py-2.5 text-xs font-medium tracking-[0.1em] uppercase transition-all duration-300 ${
                   isActive(link.path)
                     ? "text-white"
-                    : "text-moon-grey hover:text-white hover:bg-white/5"
+                    : "text-moon-grey/60 hover:text-white"
                 }`}
               >
                 {link.label}
                 {isActive(link.path) && (
                   <motion.div
                     layoutId="activeNav"
-                    className="absolute inset-0 bg-neon-iris/15 rounded-xl"
+                    className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
                   />
                 )}
@@ -225,15 +221,15 @@ export const Navbar = () => {
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-3 sm:gap-4">
             {user ? (
               <>
                 {/* Balance */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-graphite-light rounded-xl">
-                  <span className="text-sm font-semibold text-white tabular-nums">
+                <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/[0.03] border border-white/5">
+                  <span className="text-xs sm:text-sm font-light text-white tabular-nums tracking-wide">
                     {formatUSDC(user?.wallet?.balance_usdc) || "0.00"}
                   </span>
-                  <span className="text-xs text-moon-grey-dark font-medium">
+                  <span className="text-[10px] sm:text-xs text-moon-grey/50 font-medium tracking-[0.1em] uppercase">
                     USDC
                   </span>
                 </div>
@@ -241,9 +237,9 @@ export const Navbar = () => {
                 {/* Wallet Icon */}
                 <button
                   onClick={() => setIsWalletModalOpen(true)}
-                  className="p-2 rounded-xl hover:bg-white/5 transition-colors text-moon-grey hover:text-white"
+                  className="p-2 sm:p-2.5 border border-white/5 hover:border-neon-iris/30 transition-all duration-300 text-moon-grey/60 hover:text-white"
                 >
-                  <Wallet className="w-5 h-5" />
+                  <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
                 {/* Notifications */}
@@ -256,16 +252,16 @@ export const Navbar = () => {
                       e.stopPropagation();
                       setIsUserMenuOpen(!isUserMenuOpen);
                     }}
-                    className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-colors"
+                    className="flex items-center gap-2 p-1.5 border border-transparent hover:border-white/10 transition-all duration-300"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center text-white text-sm font-bold shadow-button-primary">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-neon-iris/80 to-aqua-pulse/60 flex items-center justify-center text-white text-xs sm:text-sm font-medium">
                       {user.display_name?.charAt(0).toUpperCase() || "U"}
                     </div>
                     <motion.div
                       animate={{ rotate: isUserMenuOpen ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <ChevronDown className="w-4 h-4 text-moon-grey" />
+                      <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-moon-grey/50" />
                     </motion.div>
                   </button>
 
@@ -273,37 +269,35 @@ export const Navbar = () => {
                   <AnimatePresence>
                     {isUserMenuOpen && (
                       <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-72 bg-graphite-deep rounded-2xl shadow-card-elevated z-50 overflow-hidden"
+                        className="absolute right-0 mt-3 w-72 bg-graphite-deep border border-white/5 z-50 overflow-hidden"
                       >
-                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+                        {/* Top gradient line */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/40 to-transparent" />
+
                         {/* User Info Header */}
-                        <div className="p-4 border-b border-white/[0.04] bg-graphite-light/50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-brand flex items-center justify-center text-white text-lg font-bold shadow-button-primary flex-shrink-0">
-                              {user.display_name?.charAt(0).toUpperCase() ||
-                                "U"}
+                        <div className="p-5 border-b border-white/5">
+                          <div className="flex items-center gap-4">
+                            <div className="w-11 h-11 bg-gradient-to-br from-neon-iris/80 to-aqua-pulse/60 flex items-center justify-center text-white text-base font-medium flex-shrink-0">
+                              {user.display_name?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-white truncate">
+                              <p className="text-sm font-light text-white truncate">
                                 {truncateUsername(user.display_name || "", 20)}
                               </p>
-                              <p className="text-sm text-moon-grey truncate">
+                              <p className="text-xs text-moon-grey/50 truncate">
                                 @{truncateUsername(user.username || "", 18)}
                               </p>
                             </div>
                           </div>
                           {user.wallet?.publicKey && (
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-graphite-deep rounded-xl">
-                              <div className="w-2 h-2 rounded-full bg-aqua-pulse animate-pulse flex-shrink-0" />
-                              <span className="text-xs text-moon-grey font-mono truncate">
-                                {truncateAddress(
-                                  user.wallet.publicKey.toString()
-                                )}
+                            <div className="mt-4 flex items-center gap-2 px-3 py-2.5 bg-ink-black border border-white/5">
+                              <div className="w-1.5 h-1.5 bg-aqua-pulse animate-pulse flex-shrink-0" />
+                              <span className="text-[11px] text-moon-grey/60 font-mono truncate">
+                                {truncateAddress(user.wallet.publicKey.toString())}
                               </span>
                               <Tooltip
                                 content="Copy wallet address to clipboard"
@@ -315,9 +309,9 @@ export const Navbar = () => {
                                       user.wallet?.publicKey?.toString() || ""
                                     );
                                   }}
-                                  className="ml-auto text-moon-grey-dark hover:text-white transition-colors flex-shrink-0"
+                                  className="ml-auto text-moon-grey/40 hover:text-white transition-colors flex-shrink-0"
                                 >
-                                  <Copy className="w-4 h-4" />
+                                  <Copy className="w-3.5 h-3.5" />
                                 </button>
                               </Tooltip>
                             </div>
@@ -327,29 +321,34 @@ export const Navbar = () => {
                         {/* Menu Items */}
                         <div className="py-2">
                           <MenuLink to="/my-markets" onClick={closeUserMenu}>
-                            <BarChart3 className="w-5 h-5" /> My Markets
+                            <BarChart3 className="w-4 h-4" />
+                            <span>My Markets</span>
                           </MenuLink>
                           <MenuLink to="/watchlist" onClick={closeUserMenu}>
-                            <Bookmark className="w-5 h-5" /> Watchlist
+                            <Bookmark className="w-4 h-4" />
+                            <span>Watchlist</span>
                           </MenuLink>
                           <MenuLink to="/portfolio" onClick={closeUserMenu}>
-                            <Wallet className="w-5 h-5" /> Portfolio
+                            <Wallet className="w-4 h-4" />
+                            <span>Portfolio</span>
                           </MenuLink>
                           <MenuLink to="/activity" onClick={closeUserMenu}>
-                            <Clock className="w-5 h-5" /> Activity
+                            <Clock className="w-4 h-4" />
+                            <span>Activity</span>
                           </MenuLink>
                           <MenuLink to="/settings" onClick={closeUserMenu}>
-                            <Settings className="w-5 h-5" /> Settings
+                            <Settings className="w-4 h-4" />
+                            <span>Settings</span>
                           </MenuLink>
                         </div>
 
                         {/* Logout */}
-                        <div className="border-t border-white/[0.04] py-2">
+                        <div className="border-t border-white/5 py-2">
                           <button
                             onClick={handleLogout}
-                            className="flex items-center gap-3 w-full px-4 py-2.5 text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-colors"
+                            className="flex items-center gap-3 w-full px-5 py-3 text-moon-grey/60 hover:text-brand-danger hover:bg-brand-danger/5 transition-all duration-300 text-sm font-light"
                           >
-                            <LogOut className="w-5 h-5" />
+                            <LogOut className="w-4 h-4" />
                             <span>Log out</span>
                           </button>
                         </div>
@@ -361,10 +360,22 @@ export const Navbar = () => {
             ) : (
               <button
                 onClick={() => setIsLoginModalOpen(true)}
-                className="relative px-6 py-2.5 rounded-xl font-semibold text-sm sm:text-base bg-neon-iris text-white hover:bg-neon-iris-light border border-neon-iris/50 hover:border-neon-iris hover:shadow-lg hover:shadow-neon-iris/40 active:scale-[0.97] transition-all duration-200 overflow-hidden group"
+                className="group relative px-5 sm:px-7 py-2.5 sm:py-3 text-xs sm:text-sm font-medium tracking-wide uppercase bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 inline-flex items-center justify-center gap-2"
               >
-                <span className="relative z-10">Login</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/0 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                <span>Login</span>
+                <svg
+                  className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
+                </svg>
               </button>
             )}
 
@@ -375,16 +386,16 @@ export const Navbar = () => {
                 e.stopPropagation();
                 setIsMobileMenuOpen(!isMobileMenuOpen);
               }}
-              className="lg:hidden p-2 text-moon-grey hover:text-white transition-colors rounded-xl hover:bg-white/5"
+              className="lg:hidden p-2 text-moon-grey/60 hover:text-white transition-colors border border-white/5 hover:border-white/10"
             >
               <motion.div
                 animate={{ rotate: isMobileMenuOpen ? 90 : 0 }}
                 transition={{ duration: 0.2 }}
               >
                 {isMobileMenuOpen ? (
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 ) : (
-                  <Menu className="w-6 h-6" />
+                  <Menu className="w-5 h-5" />
                 )}
               </motion.div>
             </button>
@@ -402,9 +413,9 @@ export const Navbar = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.3 }}
                     onClick={closeMobileMenu}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+                    className="fixed inset-0 bg-ink-black/80 backdrop-blur-sm z-[100] lg:hidden"
                   />
 
                   {/* Drawer */}
@@ -413,56 +424,58 @@ export const Navbar = () => {
                     initial={{ x: "100%" }}
                     animate={{ x: 0 }}
                     exit={{ x: "100%" }}
-                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                    className="fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-graphite-deep z-[101] lg:hidden shadow-card-elevated overflow-y-auto"
+                    transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                    className="fixed right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-graphite-deep z-[101] lg:hidden overflow-y-auto border-l border-white/5"
                     style={{
                       paddingTop: "env(safe-area-inset-top, 0px)",
                       paddingBottom: "env(safe-area-inset-bottom, 0px)",
                     }}
                   >
+                    {/* Top gradient line */}
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-neon-iris/30 via-aqua-pulse/20 to-transparent" />
+
                     {/* Drawer Header with Close Button */}
-                    <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
-                      <div className="flex items-center gap-2.5">
-                        <img src={logo} alt="Moodring" className="w-8 h-8" />
-                        <span className="text-lg font-bold text-white">
+                    <div className="flex items-center justify-between p-5 border-b border-white/5">
+                      <div className="flex items-center gap-3">
+                        <img src={logo} alt="Moodring" className="w-7 h-7" />
+                        <span className="text-base font-light tracking-tight text-white">
                           Moodring
                         </span>
                       </div>
                       <button
                         onClick={closeMobileMenu}
-                        className="p-2 rounded-xl hover:bg-white/5 transition-colors text-moon-grey hover:text-white"
+                        className="p-2 border border-white/5 hover:border-white/10 transition-all duration-300 text-moon-grey/60 hover:text-white"
                         aria-label="Close menu"
                       >
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
 
                     {/* Drawer Content */}
-                    <div className="p-4">
+                    <div className="p-5">
                       {/* User Info (Mobile) */}
                       {user && (
-                        <div className="pb-4 mb-4 border-b border-white/[0.04]">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0">
-                              {user.display_name?.charAt(0).toUpperCase() ||
-                                "U"}
+                        <div className="pb-5 mb-5 border-b border-white/5">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-10 h-10 bg-gradient-to-br from-neon-iris/80 to-aqua-pulse/60 flex items-center justify-center text-white font-medium flex-shrink-0">
+                              {user.display_name?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-white truncate">
+                              <p className="text-sm font-light text-white truncate">
                                 {truncateUsername(user.display_name || "", 20)}
                               </p>
-                              <p className="text-sm text-moon-grey truncate">
+                              <p className="text-xs text-moon-grey/50 truncate">
                                 @{truncateUsername(user.username || "", 18)}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between px-4 py-3 bg-graphite-light rounded-xl">
-                            <span className="text-sm text-moon-grey">
+                          <div className="flex items-center justify-between px-4 py-3 bg-ink-black border border-white/5">
+                            <span className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50">
                               Balance
                             </span>
-                            <span className="font-semibold text-white tabular-nums">
+                            <span className="text-sm font-light text-white tabular-nums">
                               {formatUSDC(user?.wallet?.balance_usdc) || "0.00"}{" "}
-                              USDC
+                              <span className="text-moon-grey/50 text-xs">USDC</span>
                             </span>
                           </div>
                         </div>
@@ -477,14 +490,14 @@ export const Navbar = () => {
                               key={link.path}
                               to={link.path}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                              className={`flex items-center gap-4 px-4 py-3.5 font-light transition-all duration-300 ${
                                 isActive(link.path)
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
+                                  ? "bg-neon-iris/10 text-white border-l-2 border-neon-iris"
+                                  : "text-moon-grey/60 hover:text-white hover:bg-white/[0.02]"
                               }`}
                             >
-                              <Icon className="w-5 h-5" />
-                              {link.label}
+                              <Icon className="w-4 h-4" />
+                              <span className="text-sm tracking-wide">{link.label}</span>
                             </Link>
                           );
                         })}
@@ -492,80 +505,75 @@ export const Navbar = () => {
                         {user && (
                           <>
                             {/* Divider */}
-                            <div className="my-2 border-t border-white/[0.08]" />
+                            <div className="my-3 h-px bg-gradient-to-r from-white/5 via-white/10 to-white/5" />
 
-                            <Link
+                            <MobileMenuLink
                               to="/my-markets"
+                              icon={BarChart3}
+                              isActive={isActive("/my-markets")}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                                isActive("/my-markets")
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
-                              }`}
                             >
-                              <BarChart3 className="w-5 h-5" />
                               My Markets
-                            </Link>
-                            <Link
+                            </MobileMenuLink>
+                            <MobileMenuLink
                               to="/portfolio"
+                              icon={Wallet}
+                              isActive={isActive("/portfolio")}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                                isActive("/portfolio")
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
-                              }`}
                             >
-                              <Wallet className="w-5 h-5" />
                               Portfolio
-                            </Link>
-                            <Link
+                            </MobileMenuLink>
+                            <MobileMenuLink
                               to="/watchlist"
+                              icon={Bookmark}
+                              isActive={isActive("/watchlist")}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                                isActive("/watchlist")
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
-                              }`}
                             >
-                              <Bookmark className="w-5 h-5" />
                               Watchlist
-                            </Link>
-                            <Link
+                            </MobileMenuLink>
+                            <MobileMenuLink
                               to="/activity"
+                              icon={Clock}
+                              isActive={isActive("/activity")}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                                isActive("/activity")
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
-                              }`}
                             >
-                              <Clock className="w-5 h-5" />
                               Activity
-                            </Link>
-                            <Link
+                            </MobileMenuLink>
+                            <MobileMenuLink
                               to="/settings"
+                              icon={Settings}
+                              isActive={isActive("/settings")}
                               onClick={closeMobileMenu}
-                              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                                isActive("/settings")
-                                  ? "bg-neon-iris/15 text-white"
-                                  : "text-moon-grey hover:text-white hover:bg-white/5"
-                              }`}
                             >
-                              <Settings className="w-5 h-5" />
                               Settings
-                            </Link>
+                            </MobileMenuLink>
+
+                            {/* Divider before logout */}
+                            <div className="my-3 h-px bg-gradient-to-r from-white/5 via-white/10 to-white/5" />
+
                             <button
                               onClick={() => {
                                 closeMobileMenu();
                                 handleLogout();
                               }}
-                              className="w-full flex items-center gap-3 text-left px-4 py-3 rounded-xl font-medium text-moon-grey hover:text-brand-danger hover:bg-brand-danger/10 transition-all"
+                              className="w-full flex items-center gap-4 text-left px-4 py-3.5 font-light text-moon-grey/60 hover:text-brand-danger hover:bg-brand-danger/5 transition-all duration-300"
                             >
-                              <LogOut className="w-5 h-5" />
-                              Logout
+                              <LogOut className="w-4 h-4" />
+                              <span className="text-sm tracking-wide">Logout</span>
                             </button>
                           </>
                         )}
+                      </div>
+
+                      {/* Footer - subtle branding */}
+                      <div className="mt-8 pt-5 border-t border-white/5">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="h-px w-6 bg-gradient-to-r from-transparent to-neon-iris/40" />
+                          <span className="text-[9px] tracking-[0.2em] uppercase text-moon-grey/30">
+                            Built on Solana
+                          </span>
+                          <div className="h-px w-6 bg-gradient-to-l from-transparent to-neon-iris/40" />
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -605,11 +613,39 @@ const MenuLink = ({
   <Link
     to={to}
     onClick={() => {
-      // Close dropdown immediately, before navigation
       onClick();
     }}
-    className="flex items-center gap-3 px-4 py-2.5 text-moon-grey hover:text-white hover:bg-white/5 transition-colors"
+    className="flex items-center gap-3 px-5 py-3 text-moon-grey/60 hover:text-white hover:bg-white/[0.02] transition-all duration-300 text-sm font-light"
   >
     {children}
+  </Link>
+);
+
+// ===== MOBILE MENU LINK COMPONENT =====
+
+const MobileMenuLink = ({
+  to,
+  icon: Icon,
+  isActive,
+  onClick,
+  children,
+}: {
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isActive: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => (
+  <Link
+    to={to}
+    onClick={onClick}
+    className={`flex items-center gap-4 px-4 py-3.5 font-light transition-all duration-300 ${
+      isActive
+        ? "bg-neon-iris/10 text-white border-l-2 border-neon-iris"
+        : "text-moon-grey/60 hover:text-white hover:bg-white/[0.02]"
+    }`}
+  >
+    <Icon className="w-4 h-4" />
+    <span className="text-sm tracking-wide">{children}</span>
   </Link>
 );

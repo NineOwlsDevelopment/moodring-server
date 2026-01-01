@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   getUserPosts,
   Post,
@@ -50,6 +51,21 @@ import {
   Key,
   Lock,
 } from "lucide-react";
+
+// Animation variants matching Home page
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
 
 interface UserProfileData {
   id: string;
@@ -155,7 +171,7 @@ const UserAvatar = ({
   );
 };
 
-// Reaction bar for posts
+// Reaction bar for posts - refined minimal design
 const ReactionBar = ({
   isLiked,
   likesCount,
@@ -172,37 +188,37 @@ const ReactionBar = ({
   onShare: () => void;
 }) => (
   <div className="flex items-center justify-between pt-4 border-t border-white/5">
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-4">
       <button
         onClick={onLike}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 min-h-[44px] group ${
+        className={`flex items-center gap-2 py-2 transition-all duration-300 group ${
           isLiked
-            ? "bg-brand-danger/15 text-brand-danger hover:bg-brand-danger/20"
-            : "hover:bg-white/5 text-moon-grey hover:text-brand-danger"
+            ? "text-brand-danger"
+            : "text-moon-grey/40 hover:text-brand-danger"
         }`}
       >
         <Heart
-          className={`w-5 h-5 transition-all duration-300 ${
-            isLiked ? "scale-110 fill-current" : "group-hover:scale-110"
+          className={`w-4 h-4 transition-all duration-300 ${
+            isLiked ? "fill-current" : ""
           }`}
         />
-        <span className="text-sm font-semibold tabular-nums">{likesCount}</span>
+        <span className="text-sm tabular-nums font-light">{likesCount}</span>
       </button>
       <button
         onClick={onComment}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-white/5 text-moon-grey hover:text-neon-iris transition-all min-h-[44px] group"
+        className="flex items-center gap-2 py-2 text-moon-grey/40 hover:text-neon-iris transition-all group"
       >
-        <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-        <span className="text-sm font-semibold tabular-nums">
+        <MessageCircle className="w-4 h-4" />
+        <span className="text-sm tabular-nums font-light">
           {commentsCount}
         </span>
       </button>
     </div>
     <button
       onClick={onShare}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-white/5 text-moon-grey hover:text-aqua-pulse transition-all min-h-[44px] group"
+      className="py-2 text-moon-grey/40 hover:text-aqua-pulse transition-all"
     >
-      <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+      <Share2 className="w-4 h-4" />
     </button>
   </div>
 );
@@ -600,7 +616,7 @@ const ReplySection = ({
   );
 };
 
-// Post card for profile (matches feed page design)
+// Post card for profile - refined minimal design
 const ProfilePostCard = ({
   post,
   onLike,
@@ -630,10 +646,10 @@ const ProfilePostCard = ({
   };
 
   return (
-    <article className="bg-graphite-deep border border-white/5 rounded-lg transition-all duration-200 hover:border-white/10">
+    <article className="border border-white/5 transition-all duration-300 hover:border-white/10 group">
       {/* Header */}
-      <div className="p-5 pb-4">
-        <div className="flex items-start gap-3">
+      <div className="p-5 sm:p-6 pb-4">
+        <div className="flex items-start gap-4">
           <div className="flex-shrink-0">
             <UserAvatar
               name={profile.display_name || profile.username}
@@ -643,30 +659,29 @@ const ProfilePostCard = ({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-white text-[15px]">
+              <span className="font-medium text-white text-sm">
                 {profile.display_name || profile.username}
               </span>
               {profile.total_pnl > 10000 && (
-                <span className="px-2 py-0.5 text-xs font-semibold bg-neon-iris/20 text-neon-iris border border-neon-iris/30 rounded">
+                <span className="text-[10px] tracking-wider uppercase text-neon-iris">
                   VIP
                 </span>
               )}
-              <span className="text-gray-500">·</span>
-              <span className="text-xs text-gray-500">
+              <span className="text-moon-grey/30">·</span>
+              <span className="text-xs text-moon-grey/50 font-light">
                 {post.created_at
                   ? formatDistanceToNow(Number(post.created_at))
                   : "now"}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              @
-              {profile.username.length > 10
-                ? profile.username.substring(0, 10) + "..."
+            <p className="text-xs text-moon-grey/40 mt-0.5 font-light">
+              @{profile.username.length > 12
+                ? profile.username.substring(0, 12) + "..."
                 : profile.username}
             </p>
           </div>
-          <button className="p-2 rounded-xl hover:bg-white/5 text-moon-grey-dark hover:text-white transition-all min-w-[40px] min-h-[40px] flex items-center justify-center">
-            <MoreVertical className="w-5 h-5" />
+          <button className="p-2 text-moon-grey/30 hover:text-white transition-colors opacity-0 group-hover:opacity-100">
+            <MoreVertical className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -675,14 +690,14 @@ const ProfilePostCard = ({
       {post.market_question && (
         <Link
           to={`/market/${post.market_id}`}
-          className="mx-5 mb-4 flex items-center gap-2.5 px-3 py-2 bg-graphite-light border border-white/10 rounded-lg transition-all group hover:border-neon-iris/30"
+          className="mx-5 sm:mx-6 mb-4 flex items-center gap-3 px-4 py-3 border border-white/5 transition-all hover:border-neon-iris/20 hover:bg-white/[0.02]"
         >
-          <BarChart3 className="w-4 h-4 text-neon-iris flex-shrink-0" />
-          <span className="text-sm text-moon-grey-light group-hover:text-white line-clamp-1 font-medium flex-1">
+          <BarChart3 className="w-4 h-4 text-neon-iris/60 flex-shrink-0" />
+          <span className="text-sm text-moon-grey/70 hover:text-white line-clamp-1 font-light flex-1">
             {post.market_question}
           </span>
           <svg
-            className="w-4 h-4 text-moon-grey ml-auto flex-shrink-0 group-hover:text-neon-iris group-hover:translate-x-0.5 transition-transform"
+            className="w-4 h-4 text-moon-grey/30 ml-auto flex-shrink-0 group-hover:translate-x-0.5 transition-transform"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -690,7 +705,7 @@ const ProfilePostCard = ({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={1.5}
               d="M9 5l7 7-7 7"
             />
           </svg>
@@ -698,15 +713,15 @@ const ProfilePostCard = ({
       )}
 
       {/* Content */}
-      <div className="px-5 pb-4 relative">
-        <p className="text-white leading-relaxed whitespace-pre-wrap text-sm">
+      <div className="px-5 sm:px-6 pb-4 relative">
+        <p className="text-white/90 leading-relaxed whitespace-pre-wrap text-sm font-light">
           {post.content}
         </p>
       </div>
 
       {/* Image */}
       {post.image_url && (
-        <div className="relative mx-5 mb-4 rounded-lg overflow-hidden border border-white/10">
+        <div className="relative mx-5 sm:mx-6 mb-4 overflow-hidden border border-white/5">
           <img
             src={post.image_url}
             alt="Post attachment"
@@ -720,7 +735,7 @@ const ProfilePostCard = ({
       {/* Video */}
       {post.video_url && (
         <div
-          className="relative mx-5 mb-4 rounded-lg overflow-hidden border border-white/10 bg-graphite-light"
+          className="relative mx-5 sm:mx-6 mb-4 overflow-hidden border border-white/5 bg-ink-black"
           onClick={(e) => e.stopPropagation()}
         >
           <video
@@ -735,7 +750,7 @@ const ProfilePostCard = ({
       )}
 
       {/* Reactions */}
-      <div className="px-5 pb-4">
+      <div className="px-5 sm:px-6 pb-4">
         <ReactionBar
           isLiked={post.is_liked || false}
           likesCount={post.likes_count}
@@ -749,9 +764,9 @@ const ProfilePostCard = ({
       {/* Replies toggle */}
       <button
         onClick={onToggleReplies}
-        className="w-full px-5 py-3 bg-graphite-light border-t border-white/5 text-sm text-moon-grey hover:text-white hover:bg-graphite-hover transition-all flex items-center gap-2 font-medium"
+        className="w-full px-5 sm:px-6 py-4 border-t border-white/5 text-sm text-moon-grey/50 hover:text-white hover:bg-white/[0.02] transition-all flex items-center gap-2 font-light tracking-wide"
       >
-        <MessageCircle className="w-4 h-4 text-neon-iris" />
+        <MessageCircle className="w-4 h-4 text-neon-iris/60" />
         {showReplies
           ? "Hide replies"
           : post.comments_count > 0
@@ -771,50 +786,56 @@ const ProfilePostCard = ({
   );
 };
 
-// Profile tabs
+// Profile tabs - refined minimal design
 const ProfileTabs = ({
   activeTab,
   onTabChange,
   postsCount,
   showTradesTab,
+  isLoggedIn,
 }: {
   activeTab: ProfileTab;
   onTabChange: (tab: ProfileTab) => void;
   postsCount: number;
   showTradesTab: boolean;
+  isLoggedIn: boolean;
 }) => {
+  // Only show trades tab if user is logged in AND has access (following or own profile)
   const tabs: { id: ProfileTab; label: string; count?: number }[] = [
     { id: "posts", label: "Posts", count: postsCount },
     { id: "markets", label: "Markets" },
-    ...(showTradesTab ? [{ id: "trades" as ProfileTab, label: "Trades" }] : []),
+    ...(isLoggedIn && showTradesTab ? [{ id: "trades" as ProfileTab, label: "Trades" }] : []),
   ];
 
   return (
-    <div className="flex border-b border-white/10 gap-1 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+    <div className="flex gap-1 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`px-4 sm:px-6 py-3.5 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-2 ${
+          className={`px-5 sm:px-8 py-4 text-sm font-medium tracking-wide uppercase transition-all relative whitespace-nowrap flex items-center gap-2 ${
             activeTab === tab.id
               ? "text-white"
-              : "text-moon-grey hover:text-white"
+              : "text-moon-grey/60 hover:text-white"
           }`}
         >
           <span>{tab.label}</span>
           {tab.count !== undefined && (
             <span
-              className={`text-xs px-1.5 py-0.5 rounded-full ${
+              className={`text-[10px] px-2 py-0.5 tracking-wider ${
                 activeTab === tab.id
-                  ? "bg-neon-iris/20 text-neon-iris"
-                  : "bg-white/5 text-moon-grey-dark"
+                  ? "text-neon-iris"
+                  : "text-moon-grey/40"
               }`}
             >
               {tab.count}
             </span>
           )}
           {activeTab === tab.id && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-iris rounded-t-full" />
+            <motion.div 
+              layoutId="activeTab"
+              className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent"
+            />
           )}
         </button>
       ))}
@@ -822,7 +843,7 @@ const ProfileTabs = ({
   );
 };
 
-// Empty state for profile sections
+// Empty state for profile sections - refined minimal design
 const EmptySection = ({
   icon: Icon,
   title,
@@ -832,46 +853,23 @@ const EmptySection = ({
   title: string;
   subtitle: string;
 }) => (
-  <div className="flex flex-col items-center justify-center py-16 px-4">
-    <div className="w-16 h-16 rounded-full bg-graphite-deep border border-white/10 flex items-center justify-center mb-4">
-      <Icon className="w-8 h-8 text-moon-grey" />
+  <motion.div 
+    className="flex flex-col items-center justify-center py-20 sm:py-28 px-4 text-center"
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    <div className="w-16 h-16 sm:w-20 sm:h-20 border border-white/10 flex items-center justify-center mb-6">
+      <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-moon-grey/40" />
     </div>
-    <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
-    <p className="text-moon-grey-dark text-sm text-center">{subtitle}</p>
-  </div>
+    <h3 className="text-lg sm:text-xl font-light text-white mb-2">{title}</h3>
+    <p className="text-moon-grey/50 text-sm font-light max-w-xs">{subtitle}</p>
+  </motion.div>
 );
 
-// Loading skeleton
-const ProfileSkeleton = () => (
-  <div className="animate-pulse">
-    {/* Cover */}
-    <div className="h-32 bg-graphite-deep border-b border-white/5" />
 
-    {/* Profile info */}
-    <div className="px-4 -mt-12">
-      <div className="w-24 h-24 rounded-full bg-graphite-light mb-4" />
-      <div className="space-y-3">
-        <div className="h-6 w-40 bg-graphite-light rounded" />
-        <div className="h-4 w-24 bg-graphite-light rounded" />
-        <div className="h-4 w-full bg-graphite-light rounded" />
-      </div>
-    </div>
-  </div>
-);
 
-// Post loading skeleton
-const PostSkeleton = () => (
-  <div className="bg-graphite-deep border border-white/5 rounded-lg animate-pulse">
-    <div className="p-4 space-y-3">
-      <div className="h-3 w-32 bg-graphite-light rounded" />
-      <div className="h-4 w-full bg-graphite-light rounded" />
-      <div className="h-4 w-3/4 bg-graphite-light rounded" />
-    </div>
-    <div className="h-48 bg-graphite-light" />
-  </div>
-);
-
-// Market card component - Twitter-style feed item (World-class UI/UX)
+// Market card component - refined minimal design
 const MarketFeedCard = ({
   market,
   onImageClick,
@@ -890,18 +888,14 @@ const MarketFeedCard = ({
   }> = [];
 
   if (market.is_binary && market.options && market.options.length > 0) {
-    // Binary markets have one option with both yes_price and no_price
     const option = market.options[0];
     const yesPrice = option.yes_price ?? 0.5;
     const noPrice = option.no_price ?? 1 - yesPrice;
-
-    // Create Yes and No display items
     displayItems = [
       { option, side: "yes", price: yesPrice },
       { option, side: "no", price: noPrice },
     ];
   } else if (market.options && market.options.length > 0) {
-    // Non-binary markets: show first 2 options
     displayItems = market.options.slice(0, 2).map((option) => ({
       option,
       side: "other" as const,
@@ -911,26 +905,26 @@ const MarketFeedCard = ({
 
   return (
     <article
-      className="px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/5"
+      className="p-5 sm:p-6 hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/5 group"
       onClick={() => navigate(`/market/${market.id}`)}
     >
-      <div className="flex gap-3">
-        {/* Avatar */}
+      <div className="flex gap-4">
+        {/* Icon */}
         <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-graphite-light border border-white/10 flex items-center justify-center">
-            <PlusCircle className="w-5 h-5 text-neon-iris" />
+          <div className="w-10 h-10 border border-white/10 flex items-center justify-center">
+            <PlusCircle className="w-4 h-4 text-neon-iris/60" />
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[15px] font-semibold text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] tracking-[0.2em] uppercase text-neon-iris/60">
               Created market
             </span>
-            <span className="text-gray-500">·</span>
-            <span className="text-[15px] text-gray-500">
+            <span className="text-moon-grey/30">·</span>
+            <span className="text-xs text-moon-grey/40 font-light">
               {market.created_at
                 ? formatDistanceToNow(Number(market.created_at))
                 : "now"}
@@ -938,16 +932,16 @@ const MarketFeedCard = ({
           </div>
 
           {/* Question */}
-          <p className="text-[15px] text-white leading-5 mb-3">
+          <p className="text-base sm:text-lg text-white font-light leading-relaxed mb-4">
             {market.question}
           </p>
 
           {/* Media: Image + Options */}
-          <div className="flex gap-3 mb-2">
-            {/* Image - Square, compact */}
+          <div className="flex gap-4">
+            {/* Image */}
             {market.image_url && (
               <div
-                className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border border-white/5"
                 onClick={(e) => {
                   e.stopPropagation();
                   onImageClick?.(market.image_url!);
@@ -962,55 +956,34 @@ const MarketFeedCard = ({
               </div>
             )}
 
-            {/* Options - Vertical stack */}
+            {/* Options */}
             {displayItems.length > 0 && (
-              <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+              <div className="flex-1 flex flex-col gap-2 min-w-0">
                 {displayItems.map((item, idx) => {
                   const { option, side, price } = item;
                   const isYes = side === "yes";
                   const isNo = side === "no";
-                  const label = isYes
-                    ? "Yes"
-                    : isNo
-                    ? "No"
-                    : option.option_label;
+                  const label = isYes ? "Yes" : isNo ? "No" : option.option_label;
 
                   return (
                     <div
                       key={`${option.id}-${side}-${idx}`}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-graphite-light transition-colors border ${
+                      className={`flex items-center gap-3 px-3 py-2 transition-colors border ${
                         isYes
-                          ? "bg-muted-green/10 border-muted-green/20"
+                          ? "border-aqua-pulse/20 bg-aqua-pulse/5"
                           : isNo
-                          ? "bg-brand-danger/10 border-brand-danger/20"
-                          : "bg-graphite-light border-white/10"
+                          ? "border-brand-danger/20 bg-brand-danger/5"
+                          : "border-white/5 bg-white/[0.02]"
                       }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/market/${market.id}`);
                       }}
                     >
-                      {option.option_image_url ? (
-                        <img
-                          src={option.option_image_url}
-                          alt=""
-                          className="w-4 h-4 rounded object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div
-                          className={`w-4 h-4 rounded flex-shrink-0 ${
-                            isYes
-                              ? "bg-muted-green/20"
-                              : isNo
-                              ? "bg-rose-500/20"
-                              : "bg-white/10"
-                          }`}
-                        />
-                      )}
                       <span
-                        className={`text-[13px] flex-1 truncate font-medium ${
+                        className={`text-sm font-light flex-1 truncate ${
                           isYes
-                            ? "text-muted-green"
+                            ? "text-aqua-pulse"
                             : isNo
                             ? "text-brand-danger"
                             : "text-white"
@@ -1018,21 +991,19 @@ const MarketFeedCard = ({
                       >
                         {label}
                       </span>
-                      <span className="text-[13px] text-moon-grey-dark flex-shrink-0">
+                      <span className="text-sm text-moon-grey/50 font-light tabular-nums">
                         {(price * 100).toFixed(0)}¢
                       </span>
                     </div>
                   );
                 })}
-                {!market.is_binary &&
-                  market.options &&
-                  market.options.length > 2 && (
-                    <div className="px-2 py-1">
-                      <span className="text-[13px] text-gray-500">
-                        +{market.options.length - 2} more
-                      </span>
-                    </div>
-                  )}
+                {!market.is_binary && market.options && market.options.length > 2 && (
+                  <div className="px-3 py-1">
+                    <span className="text-xs text-moon-grey/40 font-light">
+                      +{market.options.length - 2} more
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1042,7 +1013,7 @@ const MarketFeedCard = ({
   );
 };
 
-// Trade card component - Twitter-style feed item
+// Trade card component - refined minimal design
 const TradeCard = ({ trade }: { trade: Trade }) => {
   const navigate = useNavigate();
   const isBuy = trade.action === "buy";
@@ -1050,23 +1021,23 @@ const TradeCard = ({ trade }: { trade: Trade }) => {
 
   return (
     <article
-      className="relative px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/5"
+      className="relative p-5 sm:p-6 hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/5 group"
       onClick={() => trade.market_id && navigate(`/market/${trade.market_id}`)}
     >
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         {/* Action Icon */}
-        <div className="flex-shrink-0 mt-0.5">
+        <div className="flex-shrink-0">
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            className={`w-10 h-10 border flex items-center justify-center ${
               isBuy
-                ? "bg-aqua-pulse/20 text-aqua-pulse"
-                : "bg-brand-danger/20 text-brand-danger"
+                ? "border-aqua-pulse/20 text-aqua-pulse"
+                : "border-brand-danger/20 text-brand-danger"
             }`}
           >
             {isBuy ? (
-              <ArrowUpRight className="w-5 h-5" />
+              <ArrowUpRight className="w-4 h-4" />
             ) : (
-              <ArrowDownRight className="w-5 h-5" />
+              <ArrowDownRight className="w-4 h-4" />
             )}
           </div>
         </div>
@@ -1074,16 +1045,16 @@ const TradeCard = ({ trade }: { trade: Trade }) => {
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header: Action + Time */}
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span
-              className={`text-sm font-semibold ${
+              className={`text-[10px] tracking-[0.2em] uppercase ${
                 isBuy ? "text-aqua-pulse" : "text-brand-danger"
               }`}
             >
               {isBuy ? "Bought" : "Sold"}
             </span>
-            <span className="text-gray-500">·</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-moon-grey/30">·</span>
+            <span className="text-xs text-moon-grey/40 font-light">
               {trade.created_at
                 ? formatDistanceToNow(Number(trade.created_at))
                 : "now"}
@@ -1092,53 +1063,52 @@ const TradeCard = ({ trade }: { trade: Trade }) => {
 
           {/* Market Question */}
           {trade.market_question && (
-            <p className="text-white text-sm mb-2 line-clamp-2 leading-relaxed">
+            <p className="text-white/90 text-sm sm:text-base font-light mb-3 line-clamp-2 leading-relaxed">
               {trade.market_question}
             </p>
           )}
 
           {/* Trade Details */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-4 flex-wrap">
             {/* Option Badge */}
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              className={`inline-flex items-center px-3 py-1 text-xs font-light border ${
                 isYes
-                  ? "bg-muted-green/20 text-muted-green"
-                  : "bg-rose-500/20 text-rose-400"
+                  ? "border-aqua-pulse/20 text-aqua-pulse bg-aqua-pulse/5"
+                  : "border-brand-danger/20 text-brand-danger bg-brand-danger/5"
               }`}
             >
               {trade.option_label || (isYes ? "Yes" : "No")}
             </span>
 
             {/* Shares */}
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-moon-grey/50 font-light tabular-nums">
               {(trade.shares / 1_000_000).toFixed(2)} shares
             </span>
 
             {/* Price */}
             {trade.pricePerShare !== undefined && (
-              <span className="text-sm text-gray-400">
-                @ ${(trade.pricePerShare * 100).toFixed(2)}
+              <span className="text-sm text-moon-grey/40 font-light">
+                @ {(trade.pricePerShare * 100).toFixed(0)}¢
               </span>
             )}
 
             {/* Amount */}
             {trade.amount && (
               <span
-                className={`text-sm font-semibold ml-auto ${
+                className={`text-sm font-light ml-auto tabular-nums ${
                   isBuy ? "text-aqua-pulse" : "text-brand-danger"
                 }`}
               >
-                {isBuy ? "+" : "-"}$
-                {(Math.abs(trade.amount) / 1_000_000).toFixed(2)}
+                {isBuy ? "+" : "-"}${(Math.abs(trade.amount) / 1_000_000).toFixed(2)}
               </span>
             )}
           </div>
 
           {/* Market Link */}
           {trade.market_id && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-gray-500 hover:text-neon-iris transition-colors">
-              <span>View market</span>
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-moon-grey/30 group-hover:text-neon-iris/60 transition-colors">
+              <span className="font-light">View market</span>
               <ExternalLink className="w-3 h-3" />
             </div>
           )}
@@ -1561,73 +1531,128 @@ export const UserProfile = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pb-20">
-        <ProfileSkeleton />
+      <div className="min-h-screen pb-20 bg-ink-black">
+        <div className="relative h-48 sm:h-56 md:h-64">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.15),transparent_60%)]" />
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-20">
+          <div className="animate-pulse flex gap-6 lg:gap-10">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-graphite-deep/50" />
+            <div className="flex-1 space-y-4 pt-8">
+              <div className="h-8 w-48 bg-graphite-deep/50 rounded" />
+              <div className="h-4 w-32 bg-graphite-deep/30 rounded" />
+              <div className="h-4 w-64 bg-graphite-deep/30 rounded" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <span className="text-6xl mb-4">👻</span>
-        <h1 className="text-2xl font-bold text-white mb-2">User not found</h1>
-        <p className="text-gray-400 mb-6">
-          This profile doesn't exist or has been removed
-        </p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-6 py-2.5 rounded-full bg-white/10 text-white font-medium hover:bg-white/20 transition-all"
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-ink-black">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.1),transparent_60%)]" />
+        <motion.div 
+          className="relative text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          Go back
-        </button>
+          <div className="text-7xl sm:text-8xl font-extralight text-white/10 mb-6">404</div>
+          <h1 className="text-2xl sm:text-3xl font-extralight text-white mb-3">User not found</h1>
+          <p className="text-moon-grey/60 mb-8 font-light">
+            This profile doesn't exist or has been removed
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="group px-6 py-3 text-sm font-medium tracking-wide uppercase text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all duration-300 inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Go back</span>
+          </button>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20 md:pb-8 bg-ink-black">
-      {/* Cover area - minimal and professional */}
-      <div className="h-32 sm:h-36 md:h-40 bg-gradient-to-b from-graphite-deep to-ink-black border-b border-white/5 relative">
-        {/* Back button */}
-        <button
+    <div className="min-h-screen pb-20 md:pb-8 overflow-hidden bg-ink-black">
+      {/* Hero cover area - refined atmospheric background matching Home */}
+      <div className="relative h-48 sm:h-56 md:h-64">
+        {/* Atmospheric gradient background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.15),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_100%,rgba(33,246,210,0.08),transparent_50%)]" />
+          {/* Subtle grid - hidden on mobile for performance */}
+          <div
+            className="absolute inset-0 opacity-[0.03] hidden sm:block"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+              backgroundSize: "80px 80px",
+            }}
+          />
+        </div>
+        
+        {/* Gradient line accent */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        {/* Back button - refined */}
+        <motion.button
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 sm:top-5 sm:left-5 p-2.5 rounded-xl bg-graphite-deep/90 backdrop-blur-md text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center shadow-lg"
+          className="absolute top-4 left-4 sm:top-6 sm:left-6 p-2.5 text-moon-grey/60 hover:text-white transition-colors"
           aria-label="Go back"
         >
           <ArrowLeft className="w-5 h-5" />
-        </button>
+        </motion.button>
 
         {/* Settings button (own profile) */}
         {isOwnProfile && (
-          <Link
-            to="/settings"
-            className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2.5 rounded-xl bg-graphite-deep/90 backdrop-blur-md text-moon-grey hover:text-white hover:bg-graphite-light border border-white/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center shadow-lg"
-            aria-label="Settings"
+          <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
           >
-            <Settings className="w-5 h-5" />
-          </Link>
+            <Link
+              to="/settings"
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2.5 text-moon-grey/60 hover:text-white transition-colors"
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          </motion.div>
         )}
       </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Profile Header */}
-        <div className="flex flex-col sm:flex-row gap-6 lg:gap-8 -mt-12 mb-6 sm:mb-8">
-          {/* Avatar */}
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Profile Header - refined aesthetic */}
+        <motion.div 
+          className="flex flex-col sm:flex-row gap-6 lg:gap-10 -mt-16 sm:-mt-20 mb-8 sm:mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Avatar with border */}
           <div className="flex-shrink-0 self-start">
-            <ProfileAvatar
-              name={profile.display_name || profile.username}
-              imageUrl={profile.avatar_url}
-              size="xl"
-            />
+            <div className="p-1 bg-ink-black rounded-full">
+              <ProfileAvatar
+                name={profile.display_name || profile.username}
+                imageUrl={profile.avatar_url}
+                size="2xl"
+              />
+            </div>
           </div>
 
           {/* Profile info */}
-          <div className="flex-1 min-w-0 space-y-4">
+          <div className="flex-1 min-w-0 space-y-5 pt-4 sm:pt-8">
             {/* Name and verification */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white break-words leading-tight">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-tight text-white break-words leading-[1.1]">
                   {profile.display_name || profile.username}
                 </h1>
                 {/* Verification badge */}
@@ -1637,73 +1662,85 @@ export const UserProfile = () => {
                   </span>
                 )}
               </div>
-              <p className="text-moon-grey text-sm sm:text-base">
-                @
-                {profile.username.length > 10
-                  ? profile.username.substring(0, 10) + "..."
-                  : profile.username}
-              </p>
-              {profile.created_at && (
-                <p className="text-moon-grey text-xs sm:text-sm">
-                  Joined{" "}
-                  {(() => {
-                    const timestamp = Number(profile.created_at);
-                    const date = new Date(
-                      timestamp > 100000000000 ? timestamp : timestamp * 1000
-                    );
-                    if (isNaN(date.getTime())) return "recently";
-                    return date.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    });
-                  })()}
+              <div className="flex items-center gap-3">
+                <p className="text-moon-grey/60 text-sm font-light tracking-wide">
+                  @{profile.username.length > 15
+                    ? profile.username.substring(0, 15) + "..."
+                    : profile.username}
                 </p>
-              )}
+                {profile.created_at && (
+                  <>
+                    <span className="text-moon-grey/30">·</span>
+                    <p className="text-moon-grey/40 text-sm font-light">
+                      Joined{" "}
+                      {(() => {
+                        const timestamp = Number(profile.created_at);
+                        const date = new Date(
+                          timestamp > 100000000000 ? timestamp : timestamp * 1000
+                        );
+                        if (isNaN(date.getTime())) return "recently";
+                        return date.toLocaleDateString("en-US", {
+                          month: "short",
+                          year: "numeric",
+                        });
+                      })()}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Bio */}
             {profile.bio && (
-              <p className="text-moon-grey-light text-sm sm:text-base leading-relaxed break-words max-w-2xl">
+              <p className="text-moon-grey/70 text-base sm:text-lg leading-relaxed break-words max-w-2xl font-light">
                 {profile.bio}
               </p>
             )}
 
-            {/* Stats */}
-            <div className="flex items-center gap-4 sm:gap-6 text-sm flex-wrap">
-              <button className="hover:text-white transition-colors group">
-                <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
+            {/* Stats - refined minimal design */}
+            <div className="flex items-center gap-8 sm:gap-12">
+              <div className="text-center sm:text-left">
+                <div className="text-xl sm:text-2xl font-light text-white tabular-nums">
                   {profile.followers_count.toLocaleString()}
-                </span>
-                <span className="text-moon-grey ml-1.5">Followers</span>
-              </button>
-              <button className="hover:text-white transition-colors group">
-                <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
+                </div>
+                <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50">
+                  Followers
+                </div>
+              </div>
+              <div className="w-px h-8 bg-white/10" />
+              <div className="text-center sm:text-left">
+                <div className="text-xl sm:text-2xl font-light text-white tabular-nums">
                   {(profile.keys_supply || 0).toLocaleString()}
-                </span>
-                <span className="text-moon-grey ml-1.5">Keys</span>
-              </button>
+                </div>
+                <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50">
+                  Keys
+                </div>
+              </div>
               {currentUser && keyOwnership > 0 && (
-                <button className="hover:text-white transition-colors group">
-                  <span className="font-semibold text-white tabular-nums group-hover:text-neon-iris transition-colors">
-                    {keyOwnership.toFixed(2)}
-                  </span>
-                  <span className="text-moon-grey ml-1.5">Owned</span>
-                </button>
+                <>
+                  <div className="w-px h-8 bg-white/10" />
+                  <div className="text-center sm:text-left">
+                    <div className="text-xl sm:text-2xl font-light text-white tabular-nums">
+                      {keyOwnership.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50">
+                      Owned
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
-            {/* Action buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-1">
+            {/* Action buttons - refined minimal design */}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
               {!isOwnProfile && currentUser && (
                 <>
                   <button
                     onClick={() => setShowKeyModal(true)}
-                    className="px-4 py-2.5 rounded-lg font-medium text-sm transition-all border bg-muted-green text-white border-muted-green hover:bg-muted-green-light hover:border-muted-green-light flex items-center gap-2 shadow-lg shadow-muted-green/20"
+                    className="group px-5 sm:px-6 py-3 text-sm font-medium tracking-wide uppercase bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 inline-flex items-center gap-2"
                   >
                     <Key className="w-4 h-4" />
-                    {keyPrice !== null
-                      ? `$${keyPrice.toFixed(4)}`
-                      : "View Keys"}
+                    <span>{keyPrice !== null ? `$${keyPrice.toFixed(4)}` : "View Keys"}</span>
                   </button>
                   <button
                     onClick={handleFollow}
@@ -1712,12 +1749,12 @@ export const UserProfile = () => {
                       (keyOwnership < (profile?.required_keys_to_follow || 1) &&
                         !isFollowing)
                     }
-                    className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all border flex items-center gap-2 ${
+                    className={`group px-5 sm:px-6 py-3 text-sm font-medium tracking-wide uppercase transition-all duration-300 border inline-flex items-center gap-2 ${
                       isFollowing
-                        ? "bg-graphite-deep text-white border-white/10 hover:bg-graphite-light"
+                        ? "text-white border-white/20 hover:border-white/40 hover:bg-white/5"
                         : keyOwnership < (profile?.required_keys_to_follow || 1)
-                        ? "bg-white/5 text-gray-400 border-white/5 cursor-not-allowed"
-                        : "bg-muted-green text-white border-muted-green hover:bg-muted-green-light shadow-lg shadow-muted-green/20"
+                        ? "text-moon-grey/40 border-white/10 cursor-not-allowed"
+                        : "bg-white text-ink-black hover:bg-moon-grey-light border-transparent"
                     }`}
                     title={
                       keyOwnership < (profile?.required_keys_to_follow || 1) &&
@@ -1729,25 +1766,22 @@ export const UserProfile = () => {
                     }
                   >
                     {isFollowLoading ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                     ) : isFollowing ? (
                       "Following"
                     ) : keyOwnership <
                       (profile?.required_keys_to_follow || 1) ? (
-                      `Buy ${profile?.required_keys_to_follow || 1} Key${
-                        (profile?.required_keys_to_follow || 1) > 1 ? "s" : ""
-                      } to Follow`
+                      `${profile?.required_keys_to_follow || 1} Keys Required`
                     ) : (
                       "Follow"
                     )}
                   </button>
                   {!isFollowing &&
                     keyOwnership < (profile?.required_keys_to_follow || 1) && (
-                      <div className="text-xs text-gray-400 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/5">
+                      <div className="text-[10px] text-moon-grey/40 flex items-center gap-1.5 tracking-wider uppercase">
                         <Key className="w-3 h-3" />
                         <span>
-                          {keyOwnership.toFixed(2)} /{" "}
-                          {profile?.required_keys_to_follow || 1} required
+                          {keyOwnership.toFixed(2)} / {profile?.required_keys_to_follow || 1}
                         </span>
                       </div>
                     )}
@@ -1757,122 +1791,116 @@ export const UserProfile = () => {
               {isOwnProfile && (
                 <Link
                   to="/settings"
-                  className="px-4 py-2.5 rounded-lg bg-graphite-deep text-white font-medium text-sm hover:bg-graphite-light border border-white/10 transition-all flex items-center gap-2"
+                  className="group px-5 sm:px-6 py-3 text-sm font-medium tracking-wide uppercase text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all duration-300 inline-flex items-center gap-2"
                 >
                   <Settings className="w-4 h-4" />
-                  Edit Profile
+                  <span>Edit Profile</span>
                 </Link>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Trading stats - Professional data display */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2.5 rounded-lg bg-neon-iris/10 group-hover:bg-neon-iris/20 transition-colors">
-                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-neon-iris" />
-                  </div>
-                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
-                    Total Trades
-                  </div>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
-                  {profile.total_trades.toLocaleString()}
-                </div>
+        {/* Trading stats - refined minimal design matching Home */}
+        <motion.div 
+          className="py-8 sm:py-12 border-t border-b border-white/5 mb-8 sm:mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="text-[10px] sm:text-xs tracking-[0.25em] uppercase text-neon-iris/80 font-medium mb-6 sm:mb-8">
+            Trading Performance
+          </div>
+          <div className="grid grid-cols-3 gap-4 sm:gap-8">
+            <div className="group">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extralight text-white tabular-nums mb-2">
+                {profile.total_trades.toLocaleString()}
+              </div>
+              <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50 flex items-center gap-2">
+                <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 text-neon-iris/60" />
+                Total Trades
+              </div>
+            </div>
+            <div className="group">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extralight text-white tabular-nums mb-2">
+                ${(profile.total_trades * 100).toLocaleString()}
+              </div>
+              <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50 flex items-center gap-2">
+                <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 text-aqua-pulse/60" />
+                Volume
+              </div>
+            </div>
+            <div className="group">
+              <div
+                className={`text-3xl sm:text-4xl lg:text-5xl font-extralight tabular-nums mb-2 ${
+                  profile.total_pnl >= 0
+                    ? "text-aqua-pulse"
+                    : "text-brand-danger"
+                }`}
+              >
+                {profile.total_pnl >= 0 ? "+" : ""}${Math.abs(profile.total_pnl).toLocaleString()}
+              </div>
+              <div className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/50 flex items-center gap-2">
+                {profile.total_pnl >= 0 ? (
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-aqua-pulse/60" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-brand-danger/60" />
+                )}
+                Total P&L
               </div>
             </div>
           </div>
-          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2.5 rounded-lg bg-aqua-pulse/10 group-hover:bg-aqua-pulse/20 transition-colors">
-                    <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-aqua-pulse" />
-                  </div>
-                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
-                    Total Volume
-                  </div>
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
-                  ${(profile.total_trades * 100).toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-graphite-deep border border-white/5 rounded-xl p-4 sm:p-5 hover:border-white/10 transition-all group">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className={`p-2.5 rounded-lg transition-colors ${
-                      profile.total_pnl >= 0
-                        ? "bg-aqua-pulse/10 group-hover:bg-aqua-pulse/20"
-                        : "bg-brand-danger/10 group-hover:bg-brand-danger/20"
-                    }`}
-                  >
-                    {profile.total_pnl >= 0 ? (
-                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-aqua-pulse" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-brand-danger" />
-                    )}
-                  </div>
-                  <div className="text-xs text-moon-grey-dark uppercase tracking-wider font-medium">
-                    Total P&L
-                  </div>
-                </div>
-                <div
-                  className={`text-2xl sm:text-3xl font-bold tabular-nums ${
-                    profile.total_pnl >= 0
-                      ? "text-aqua-pulse"
-                      : "text-brand-danger"
-                  }`}
-                >
-                  {profile.total_pnl >= 0 ? "+" : ""}$
-                  {Math.abs(profile.total_pnl).toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </motion.div>
 
-        {/* Tabs */}
-        <ProfileTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          postsCount={profile.posts_count}
-          showTradesTab={isFollowing || isOwnProfile}
-        />
+        {/* Tabs - refined with divider line */}
+        <div className="border-b border-white/5">
+          <ProfileTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            postsCount={profile.posts_count}
+            showTradesTab={isFollowing || isOwnProfile}
+            isLoggedIn={!!currentUser}
+          />
+        </div>
 
         {/* Tab content */}
-        <div className="py-6 sm:py-8">
+        <motion.div 
+          className="py-8 sm:py-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+        >
           {activeTab === "posts" && (
             <>
-              {/* Create Post Form (only for own profile) */}
+              {/* Create Post Form (only for own profile) - refined design */}
               {isOwnProfile && (
-                <div className="mb-6 bg-graphite-deep border border-white/5 rounded-xl p-5 sm:p-6">
+                <motion.div 
+                  className="mb-8 border border-white/5 p-6 sm:p-8"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 mb-4">
+                    Share an Update
+                  </div>
                   <textarea
                     value={newPostContent}
                     onChange={(e) => setNewPostContent(e.target.value)}
                     placeholder="Share your trading insights..."
-                    className="w-full bg-graphite-light border border-white/10 rounded-lg px-4 py-3 text-white placeholder-moon-grey-dark focus:outline-none focus:ring-2 focus:ring-neon-iris/30 focus:border-neon-iris/50 focus:bg-graphite-hover resize-none transition-all text-sm leading-relaxed min-h-[100px]"
+                    className="w-full bg-transparent border-0 border-b border-white/10 px-0 py-3 text-white placeholder-moon-grey/40 focus:outline-none focus:border-neon-iris/50 resize-none transition-all text-base leading-relaxed min-h-[100px] font-light"
                     rows={4}
                     maxLength={5000}
                   />
 
                   {/* Character count */}
                   {newPostContent.length > 0 && (
-                    <div className="mt-2 text-xs text-moon-grey-dark text-right">
+                    <div className="mt-2 text-[10px] text-moon-grey/40 text-right tracking-wider">
                       {newPostContent.length}/5000
                     </div>
                   )}
 
                   {/* Media Preview */}
                   {newPostMediaPreview && (
-                    <div className="relative mt-4 rounded-lg overflow-hidden border border-white/10 bg-graphite-light">
+                    <div className="relative mt-6 overflow-hidden border border-white/10">
                       {newPostMedia?.type.startsWith("image/") ? (
                         <img
                           src={newPostMediaPreview}
@@ -1883,24 +1911,24 @@ export const UserProfile = () => {
                         <video
                           src={newPostMediaPreview}
                           controls
-                          className="w-full max-h-80 object-contain bg-graphite-light"
+                          className="w-full max-h-80 object-contain bg-ink-black"
                         />
                       )}
                       <button
                         onClick={handleRemoveMedia}
-                        className="absolute top-3 right-3 p-2 bg-graphite-deep/90 backdrop-blur-sm rounded-lg hover:bg-graphite-deep border border-white/10 transition-all"
+                        className="absolute top-3 right-3 p-2 bg-ink-black/80 text-white/60 hover:text-white transition-colors"
                       >
-                        <X className="w-4 h-4 text-white" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-                    <div className="flex items-center gap-2">
-                      <label className="cursor-pointer group relative">
-                        <div className="p-2 rounded-lg hover:bg-graphite-light transition-all">
-                          <ImageIcon className="w-4 h-4 text-moon-grey group-hover:text-neon-iris transition-colors" />
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
+                    <div className="flex items-center gap-1">
+                      <label className="cursor-pointer group">
+                        <div className="p-2.5 text-moon-grey/40 hover:text-neon-iris transition-colors">
+                          <ImageIcon className="w-5 h-5" />
                         </div>
                         <input
                           type="file"
@@ -1909,9 +1937,9 @@ export const UserProfile = () => {
                           className="hidden"
                         />
                       </label>
-                      <label className="cursor-pointer group relative">
-                        <div className="p-2 rounded-lg hover:bg-graphite-light transition-all">
-                          <Video className="w-4 h-4 text-moon-grey group-hover:text-aqua-pulse transition-colors" />
+                      <label className="cursor-pointer group">
+                        <div className="p-2.5 text-moon-grey/40 hover:text-aqua-pulse transition-colors">
+                          <Video className="w-5 h-5" />
                         </div>
                         <input
                           type="file"
@@ -1927,11 +1955,11 @@ export const UserProfile = () => {
                         isCreatingPost ||
                         (!newPostContent.trim() && !newPostMedia)
                       }
-                      className="px-5 py-2 bg-neon-iris text-white rounded-lg font-medium text-sm min-w-[100px] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neon-iris-light transition-all"
+                      className="px-6 py-2.5 bg-white text-ink-black text-sm font-medium tracking-wide uppercase hover:bg-moon-grey-light transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       {isCreatingPost ? (
                         <span className="flex items-center justify-center gap-2">
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span className="w-4 h-4 border-2 border-ink-black/30 border-t-ink-black rounded-full animate-spin" />
                           Posting...
                         </span>
                       ) : (
@@ -1939,13 +1967,25 @@ export const UserProfile = () => {
                       )}
                     </button>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {isLoadingPosts ? (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <PostSkeleton key={i} />
+                    <div key={i} className="border border-white/5 p-5 sm:p-6 animate-pulse">
+                      <div className="flex gap-4 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-white/5" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-32 bg-white/5" />
+                          <div className="h-3 w-20 bg-white/5" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 w-full bg-white/5" />
+                        <div className="h-4 w-3/4 bg-white/5" />
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : posts.length === 0 ? (
@@ -1959,12 +1999,17 @@ export const UserProfile = () => {
                   }
                 />
               ) : (
-                <div className="space-y-5">
+                <motion.div 
+                  className="space-y-4"
+                  variants={staggerContainer}
+                  initial="initial"
+                  animate="animate"
+                >
                   {posts.map((post, index) => (
-                    <div
+                    <motion.div
                       key={post.id}
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                      className="animate-fade-in-up"
+                      variants={fadeInUp}
+                      custom={index}
                     >
                       <ProfilePostCard
                         post={post}
@@ -1975,9 +2020,9 @@ export const UserProfile = () => {
                         profile={profile}
                         onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
                       />
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               )}
             </>
           )}
@@ -1985,50 +2030,52 @@ export const UserProfile = () => {
           {activeTab === "markets" && (
             <>
               {isLoadingMarkets ? (
-                <div className="border-t border-white/10">
+                <div>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
                       key={i}
-                      className="px-4 py-3 border-b border-white/5 animate-pulse"
+                      className="p-5 sm:p-6 border-b border-white/5 animate-pulse"
                     >
-                      <div className="flex gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-24 bg-white/10 rounded" />
-                          <div className="h-4 w-full bg-white/10 rounded" />
-                          <div className="h-3 w-32 bg-white/10 rounded" />
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 bg-white/5 flex-shrink-0" />
+                        <div className="flex-1 space-y-3">
+                          <div className="h-3 w-24 bg-white/5" />
+                          <div className="h-5 w-full bg-white/5" />
+                          <div className="h-4 w-40 bg-white/5" />
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : markets.length === 0 ? (
-                <div className="border-t border-white/10 py-16">
-                  <EmptySection
-                    icon={BarChart3}
-                    title="No markets"
-                    subtitle={
-                      isOwnProfile
-                        ? "Create your first prediction market"
-                        : "This user hasn't created any markets"
-                    }
-                  />
-                </div>
+                <EmptySection
+                  icon={BarChart3}
+                  title="No markets"
+                  subtitle={
+                    isOwnProfile
+                      ? "Create your first prediction market"
+                      : "This user hasn't created any markets"
+                  }
+                />
               ) : (
-                <div className="border-t border-white/10">
+                <motion.div
+                  variants={staggerContainer}
+                  initial="initial"
+                  animate="animate"
+                >
                   {markets.map((market, index) => (
-                    <div
+                    <motion.div
                       key={market.id}
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                      className="animate-fade-in-up"
+                      variants={fadeInUp}
+                      custom={index}
                     >
                       <MarketFeedCard
                         market={market}
                         onImageClick={(imageUrl) => setSelectedImage(imageUrl)}
                       />
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               )}
             </>
           )}
@@ -2038,160 +2085,205 @@ export const UserProfile = () => {
               {!isOwnProfile &&
               (profile?.required_keys_to_follow || 1) > 0 &&
               keyOwnership < (profile?.required_keys_to_follow || 1) ? (
-                <div className="border-t border-white/10 py-16 sm:py-20">
-                  <div className="flex flex-col items-center justify-center text-center px-4 max-w-md mx-auto">
-                    <div className="w-20 h-20 rounded-2xl bg-neon-iris/10 border border-neon-iris/20 flex items-center justify-center mb-6">
-                      <Lock className="w-10 h-10 text-neon-iris" />
+                <motion.div 
+                  className="py-20 sm:py-28"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex flex-col items-center justify-center text-center px-4 max-w-lg mx-auto">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 border border-neon-iris/20 flex items-center justify-center mb-8">
+                      <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-neon-iris/60" />
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">
+                    <h3 className="text-2xl sm:text-3xl font-extralight text-white mb-4">
                       Keys Required
                     </h3>
-                    <p className="text-gray-400 mb-8 text-sm sm:text-base leading-relaxed">
+                    <p className="text-moon-grey/60 mb-10 text-sm sm:text-base leading-relaxed font-light">
                       You need at least {profile?.required_keys_to_follow || 1}{" "}
                       key(s) to view this trader's trades. You currently have{" "}
-                      <span className="text-white font-medium">
+                      <span className="text-white">
                         {keyOwnership.toFixed(2)}
                       </span>{" "}
                       key(s).
                     </p>
                     {keyPrice !== null && (
-                      <div className="bg-graphite-deep rounded-xl p-6 sm:p-8 w-full max-w-md border border-white/10 shadow-xl">
-                        <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/5">
-                          <div>
-                            <p className="text-xs text-moon-grey-dark uppercase tracking-wider mb-1">
-                              Current Price
-                            </p>
-                            <p className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
-                              ${keyPrice.toFixed(4)}
-                            </p>
+                      <div className="border border-white/10 w-full max-w-md relative overflow-hidden">
+                        {/* Gradient line accent at top */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/40 to-transparent" />
+                        
+                        {/* Header section */}
+                        <div className="p-5 sm:p-8 border-b border-white/5">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 flex-shrink-0 border border-neon-iris/20 flex items-center justify-center">
+                              <Key className="w-4 h-4 text-neon-iris/80" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[10px] tracking-[0.2em] uppercase text-neon-iris/80 mb-1">
+                                Purchase Keys
+                              </div>
+                              <p className="text-lg font-extralight text-white">
+                                Unlock Access
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-moon-grey-dark uppercase tracking-wider mb-1">
-                              Supply
-                            </p>
-                            <p className="text-xl font-semibold text-white tabular-nums">
-                              {profile.keys_supply || 0}
-                            </p>
+                          
+                          <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                            <div className="min-w-0">
+                              <p className="text-[10px] text-moon-grey/50 uppercase tracking-[0.2em] mb-2">
+                                Price per Key
+                              </p>
+                              <p className="text-xl sm:text-3xl font-extralight text-white tabular-nums">
+                                ${keyPrice.toFixed(4)}
+                              </p>
+                            </div>
+                            <div className="text-right min-w-0">
+                              <p className="text-[10px] text-moon-grey/50 uppercase tracking-[0.2em] mb-2">
+                                Total Supply
+                              </p>
+                              <p className="text-xl sm:text-3xl font-extralight text-white tabular-nums">
+                                {profile.keys_supply || 0}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex gap-2 mb-6">
+                        
+                        {/* Quantity section */}
+                        <div className="p-5 sm:p-8">
+                          <label className="block text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 mb-4">
+                            Quantity
+                          </label>
+                          <div className="flex gap-2 mb-6 min-w-0">
+                            <button
+                              onClick={() =>
+                                setKeyPurchaseQuantity(
+                                  Math.max(1, keyPurchaseQuantity - 1)
+                                )
+                              }
+                              className="w-11 sm:w-12 flex-shrink-0 py-3 border border-white/10 text-white hover:bg-white/5 transition-colors font-light flex items-center justify-center"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={keyPurchaseQuantity}
+                              onChange={(e) =>
+                                setKeyPurchaseQuantity(
+                                  Math.max(1, parseInt(e.target.value) || 1)
+                                )
+                              }
+                              className="flex-1 min-w-0 px-2 sm:px-4 py-3 bg-transparent border border-white/10 text-white text-center placeholder-moon-grey/30 focus:outline-none focus:border-neon-iris/50 text-xl font-extralight tabular-nums transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button
+                              onClick={() =>
+                                setKeyPurchaseQuantity(keyPurchaseQuantity + 1)
+                              }
+                              className="w-11 sm:w-12 flex-shrink-0 py-3 border border-white/10 text-white hover:bg-white/5 transition-colors font-light flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                          
+                          {/* Estimated cost */}
+                          <div className="border border-white/5 p-4 mb-6">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50">
+                                Estimated Cost
+                              </span>
+                              <span className="text-xl font-extralight text-white tabular-nums">
+                                ${(keyPrice * keyPurchaseQuantity).toFixed(4)}
+                              </span>
+                            </div>
+                          </div>
+                          
                           <button
-                            onClick={() =>
-                              setKeyPurchaseQuantity(
-                                Math.max(1, keyPurchaseQuantity - 1)
-                              )
-                            }
-                            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors font-medium min-w-[48px]"
+                            onClick={handleBuyKeys}
+                            disabled={isBuyingKeys || isLoadingKeys}
+                            className="w-full py-4 bg-white text-ink-black font-medium tracking-wide uppercase text-sm hover:bg-moon-grey-light transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                           >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            value={keyPurchaseQuantity}
-                            onChange={(e) =>
-                              setKeyPurchaseQuantity(
-                                Math.max(1, parseInt(e.target.value) || 1)
-                              )
-                            }
-                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-neon-iris/50 focus:border-neon-iris font-medium"
-                          />
-                          <button
-                            onClick={() =>
-                              setKeyPurchaseQuantity(keyPurchaseQuantity + 1)
-                            }
-                            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors font-medium min-w-[48px]"
-                          >
-                            +
+                            {isBuyingKeys ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-ink-black/30 border-t-ink-black rounded-full animate-spin" />
+                                Purchasing...
+                              </>
+                            ) : (
+                              <>
+                                <Key className="w-4 h-4" />
+                                Buy {keyPurchaseQuantity} Key
+                                {keyPurchaseQuantity !== 1 ? "s" : ""}
+                              </>
+                            )}
                           </button>
                         </div>
-                        <button
-                          onClick={handleBuyKeys}
-                          disabled={isBuyingKeys || isLoadingKeys}
-                          className="w-full py-3.5 bg-neon-iris hover:bg-neon-iris-light text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-neon-iris/20"
-                        >
-                          {isBuyingKeys ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              Purchasing...
-                            </>
-                          ) : (
-                            <>
-                              <Key className="w-4 h-4" />
-                              Buy {keyPurchaseQuantity} Key
-                              {keyPurchaseQuantity !== 1 ? "s" : ""}
-                            </>
-                          )}
-                        </button>
-                        <div className="mt-5 pt-5 border-t border-white/5 text-center space-y-1.5">
+                        
+                        {/* Footer info */}
+                        <div className="px-5 sm:px-8 pb-5 sm:pb-8 pt-0 text-center space-y-3">
                           {keyOwnership > 0 && (
-                            <p className="text-sm text-gray-400">
-                              You own{" "}
-                              <span className="text-white font-medium">
+                            <div className="flex items-center justify-center gap-2 text-sm text-moon-grey/50 font-light">
+                              <span>You own</span>
+                              <span className="text-white tabular-nums">
                                 {keyOwnership.toFixed(2)}
-                              </span>{" "}
-                              key
-                              {keyOwnership !== 1 ? "s" : ""}
-                            </p>
+                              </span>
+                              <span>key{keyOwnership !== 1 ? "s" : ""}</span>
+                            </div>
                           )}
-                          <p className="text-xs text-gray-500">
+                          <p className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/30">
                             {profile?.required_keys_to_follow || 1} key
-                            {(profile?.required_keys_to_follow || 1) > 1
-                              ? "s"
-                              : ""}{" "}
-                            required to follow
+                            {(profile?.required_keys_to_follow || 1) > 1 ? "s" : ""}{" "}
+                            required to follow • Bonding curve pricing
                           </p>
                         </div>
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ) : isLoadingTrades ? (
-                <div className="border-t border-white/10">
+                <div>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div
                       key={i}
-                      className="px-4 py-3 border-b border-white/5 animate-pulse"
+                      className="p-5 sm:p-6 border-b border-white/5 animate-pulse"
                     >
-                      <div className="flex gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-24 bg-white/10 rounded" />
-                          <div className="h-4 w-full bg-white/10 rounded" />
-                          <div className="h-3 w-32 bg-white/10 rounded" />
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 bg-white/5 flex-shrink-0" />
+                        <div className="flex-1 space-y-3">
+                          <div className="h-3 w-24 bg-white/5" />
+                          <div className="h-4 w-full bg-white/5" />
+                          <div className="h-3 w-40 bg-white/5" />
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : trades.length === 0 ? (
-                <div className="border-t border-white/10 py-16">
-                  <EmptySection
-                    icon={TrendingUp}
-                    title="No trades yet"
-                    subtitle={
-                      isOwnProfile
-                        ? "Start trading to see your activity here"
-                        : "This user hasn't made any trades yet"
-                    }
-                  />
-                </div>
+                <EmptySection
+                  icon={TrendingUp}
+                  title="No trades yet"
+                  subtitle={
+                    isOwnProfile
+                      ? "Start trading to see your activity here"
+                      : "This user hasn't made any trades yet"
+                  }
+                />
               ) : (
-                <div className="border-t border-white/10">
+                <motion.div
+                  variants={staggerContainer}
+                  initial="initial"
+                  animate="animate"
+                >
                   {trades.map((trade, index) => (
-                    <div
+                    <motion.div
                       key={trade.id}
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                      className="animate-fade-in-up"
+                      variants={fadeInUp}
+                      custom={index}
                     >
                       <TradeCard trade={trade} />
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               )}
             </>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Image Modal */}

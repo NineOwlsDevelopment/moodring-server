@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { motion } from "framer-motion";
 import { Market, MarketOption } from "@/types/market";
 import { TradeForm } from "@/components/TradeForm";
 import { CommentSection } from "@/components/CommentSection";
@@ -95,37 +96,37 @@ const OptionRow = ({
     <div>
       <div
         onClick={() => !resolved && onSelectOption(option.id, "yes")}
-        className={`relative rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 transition-all ${
+        className={`relative p-3 sm:p-4 flex items-center gap-3 sm:gap-4 transition-all duration-300 border ${
           resolved
-            ? "opacity-60 cursor-default"
+            ? "opacity-60 cursor-default border-white/[0.04] bg-white/[0.01]"
             : sel
-            ? "bg-white/[0.08] ring-1 ring-neon-iris/50 cursor-pointer"
-            : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer"
+            ? "border-neon-iris/30 bg-neon-iris/5 cursor-pointer"
+            : "border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.08] cursor-pointer"
         }`}
       >
-        {/* Progress Bar */}
-        <div className="absolute inset-0 rounded-xl overflow-visible">
+        {/* Progress Bar - Refined */}
+        <div className="absolute inset-0 overflow-hidden">
           <div
-            className={`h-full transition-all ${
+            className={`h-full transition-all duration-500 ${
               parseFloat(yc) >= 50
-                ? "bg-muted-green/[0.08]"
+                ? "bg-gradient-to-r from-muted-green/[0.06] to-transparent"
                 : parseFloat(yc) >= 25
-                ? "bg-amber-500/[0.08]"
-                : "bg-rose-500/[0.08]"
+                ? "bg-gradient-to-r from-amber-500/[0.06] to-transparent"
+                : "bg-gradient-to-r from-rose-500/[0.06] to-transparent"
             }`}
             style={{ width: `${yc}%` }}
           />
         </div>
 
-        {/* Rank/Image */}
+        {/* Rank/Image - Refined */}
         {option.option_image_url ? (
           <img
             src={option.option_image_url}
             alt=""
-            className="relative w-9 h-9 rounded-lg object-cover flex-shrink-0"
+            className="relative w-10 h-10 object-cover flex-shrink-0 ring-1 ring-white/10"
           />
         ) : (
-          <div className="relative w-9 h-9 rounded-lg bg-white/[0.06] flex items-center justify-center text-xs font-bold text-moon-grey flex-shrink-0">
+          <div className="relative w-10 h-10 border border-white/[0.08] flex items-center justify-center text-xs font-light text-moon-grey/60 flex-shrink-0">
             {idx + 1}
           </div>
         )}
@@ -133,23 +134,23 @@ const OptionRow = ({
         {/* Label */}
         <div className="relative flex-1 min-w-0 pr-2">
           <div>
-            <span className="text-sm text-white font-medium break-words line-clamp-2">
+            <span className="text-sm text-white font-light break-words line-clamp-2">
               {option.option_label}
             </span>
             {option.option_sub_label && (
-              <div className="text-gray-300 text-xs mt-0.5 break-words">
+              <div className="text-moon-grey/60 text-xs mt-0.5 break-words font-light">
                 {option.option_sub_label}
               </div>
             )}
           </div>
           {!resolved && (
-            <div className="mt-1 flex items-center gap-1.5">
-              <span className="text-[10px] text-moon-grey-dark tabular-nums">
-                <span className="text-muted-green/70">
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="text-[10px] text-moon-grey/50 tabular-nums tracking-wide">
+                <span className="text-muted-green/60">
                   {formatShares(option.yes_quantity || 0)}
                 </span>
                 {" / "}
-                <span className="text-rose-400/70">
+                <span className="text-rose-400/60">
                   {formatShares(option.no_quantity || 0)}
                 </span>
               </span>
@@ -157,9 +158,9 @@ const OptionRow = ({
           )}
         </div>
 
-        {/* Percentage */}
+        {/* Percentage - Refined */}
         <span
-          className={`relative text-sm sm:text-base font-bold tabular-nums mr-2 flex-shrink-0 ${
+          className={`relative text-base sm:text-lg font-light tabular-nums mr-3 flex-shrink-0 ${
             parseFloat(yc) >= 50
               ? "text-muted-green"
               : parseFloat(yc) >= 25
@@ -170,18 +171,18 @@ const OptionRow = ({
           {yc}%
         </span>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Refined */}
         {!resolved && (
-          <div className="relative hidden sm:flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          <div className="relative hidden sm:flex items-center gap-2 flex-shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectOption(option.id, "yes");
               }}
-              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 text-[10px] tracking-wide uppercase font-medium transition-all whitespace-nowrap ${
                 sel && selectedSide === "yes"
-                  ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
-                  : "bg-muted-green/15 text-muted-green hover:bg-muted-green/25"
+                  ? "bg-muted-green text-white"
+                  : "bg-muted-green/10 text-muted-green border border-muted-green/30 hover:bg-muted-green/20"
               }`}
             >
               Yes {yc}¢
@@ -191,10 +192,10 @@ const OptionRow = ({
                 e.stopPropagation();
                 onSelectOption(option.id, "no");
               }}
-              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 text-[10px] tracking-wide uppercase font-medium transition-all whitespace-nowrap ${
                 sel && selectedSide === "no"
-                  ? "bg-rose-500 text-white shadow-lg shadow-rose-500/25"
-                  : "bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+                  ? "bg-rose-500 text-white"
+                  : "bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20"
               }`}
             >
               No {nc}¢
@@ -207,10 +208,10 @@ const OptionRow = ({
           </div>
         )}
 
-        {/* Resolved state - show dispute button in action area if dispute period active */}
+        {/* Resolved state */}
         {resolved && (
-          <div className="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-wrap">
-            <span className="relative px-2 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-[11px] font-semibold">
+          <div className="relative flex items-center gap-2 flex-shrink-0 flex-wrap">
+            <span className="relative px-2.5 py-1 text-[10px] tracking-wide uppercase font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
               {winner === 1 ? "YES" : "NO"} Won
             </span>
             {disputePeriodActive && (
@@ -225,7 +226,7 @@ const OptionRow = ({
               </div>
             )}
             {disputePeriodEnded && (
-              <span className="relative px-2 py-1 rounded-lg bg-neon-iris/15 text-neon-iris text-[11px] font-semibold flex items-center gap-1 ml-auto">
+              <span className="relative px-2.5 py-1 text-[10px] tracking-wide uppercase font-medium bg-neon-iris/10 text-neon-iris border border-neon-iris/20 flex items-center gap-1 ml-auto">
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -235,7 +236,7 @@ const OptionRow = ({
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
@@ -247,7 +248,7 @@ const OptionRow = ({
       </div>
 
       {resolved && (
-        <div className="mt-2 ml-0 sm:ml-12">
+        <div className="mt-3 ml-0 sm:ml-14">
           <ClaimWinnings
             market={market}
             option={option}
@@ -308,53 +309,51 @@ const BinaryOptionRow = ({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <button
           onClick={() => !resolved && onSelectOption(option?.id || "", "yes")}
-          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
+          className={`relative p-4 sm:p-5 lg:p-6 text-center transition-all duration-300 border ${
             resolved
               ? winner === 1
-                ? "ring-2 ring-muted-green/50"
-                : "opacity-40"
+                ? "border-muted-green/40 bg-muted-green/10"
+                : "opacity-40 border-white/[0.04]"
               : selectedSide === "yes"
-              ? "ring-2 ring-muted-green/50"
-              : "hover:bg-muted-green/10"
+              ? "border-muted-green/40 bg-muted-green/10"
+              : "border-white/[0.06] bg-white/[0.02] hover:bg-muted-green/5 hover:border-muted-green/20"
           }`}
         >
-          <div className="absolute inset-0 bg-muted-green/10" />
           <div className="relative">
-            <div className="text-muted-green text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
+            <div className="text-muted-green text-[10px] tracking-[0.15em] uppercase font-medium mb-2">
               Yes {resolved && winner === 1 && "✓"}
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-muted-green tabular-nums">
+            <div className="text-3xl sm:text-4xl font-light text-muted-green tabular-nums">
               {resolved && winner === 1 ? "$1" : `${yc}¢`}
             </div>
-            <div className="text-muted-green/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
+            <div className="text-muted-green/40 text-[10px] tracking-wide mt-2 break-words">
               {formatShares(option?.yes_quantity || 0)} shares
             </div>
           </div>
         </button>
         <button
           onClick={() => !resolved && onSelectOption(option?.id || "", "no")}
-          className={`relative rounded-xl p-3 sm:p-4 lg:p-5 text-center transition-all overflow-visible ${
+          className={`relative p-4 sm:p-5 lg:p-6 text-center transition-all duration-300 border ${
             resolved
               ? winner === 2
-                ? "ring-2 ring-rose-500/50"
-                : "opacity-40"
+                ? "border-rose-500/40 bg-rose-500/10"
+                : "opacity-40 border-white/[0.04]"
               : selectedSide === "no"
-              ? "ring-2 ring-rose-500/50"
-              : "hover:bg-rose-500/10"
+              ? "border-rose-500/40 bg-rose-500/10"
+              : "border-white/[0.06] bg-white/[0.02] hover:bg-rose-500/5 hover:border-rose-500/20"
           }`}
         >
-          <div className="absolute inset-0 bg-rose-500/10" />
           <div className="relative">
-            <div className="text-rose-400 text-[10px] sm:text-xs font-semibold mb-1 sm:mb-1.5 uppercase tracking-wider">
+            <div className="text-rose-400 text-[10px] tracking-[0.15em] uppercase font-medium mb-2">
               No {resolved && winner === 2 && "✓"}
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-rose-400 tabular-nums">
+            <div className="text-3xl sm:text-4xl font-light text-rose-400 tabular-nums">
               {resolved && winner === 2 ? "$1" : `${nc}¢`}
             </div>
-            <div className="text-rose-400/50 text-[10px] sm:text-[11px] mt-1 sm:mt-1.5 break-words">
+            <div className="text-rose-400/40 text-[10px] tracking-wide mt-2 break-words">
               {formatShares(option?.no_quantity || 0)} shares
             </div>
           </div>
@@ -363,7 +362,7 @@ const BinaryOptionRow = ({
 
       {/* Binary Resolve Button */}
       {!resolved && option && (
-        <div className="mt-3 flex justify-end">
+        <div className="mt-4 flex justify-end">
           <ResolveButton
             market={market}
             option={option}
@@ -374,8 +373,8 @@ const BinaryOptionRow = ({
 
       {/* Resolved state with integrated dispute period info */}
       {resolved && option && (
-        <div className="mt-3 space-y-2">
-          {/* Dispute period active - show countdown and dispute button */}
+        <div className="mt-4 space-y-3">
+          {/* Dispute period active */}
           {disputePeriodActive && (
             <div className="flex items-center justify-end gap-2">
               <DisputeResolution
@@ -388,12 +387,12 @@ const BinaryOptionRow = ({
             </div>
           )}
 
-          {/* Dispute period ended - show final indicator */}
+          {/* Dispute period ended */}
           {disputePeriodEnded && (
-            <div className="px-3 py-2 bg-neon-iris/10 border border-neon-iris/30 rounded-lg">
+            <div className="px-4 py-3 bg-neon-iris/5 border border-neon-iris/20">
               <div className="flex items-center gap-2 text-xs text-neon-iris">
                 <svg
-                  className="w-3 h-3"
+                  className="w-3.5 h-3.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -401,12 +400,12 @@ const BinaryOptionRow = ({
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <span className="font-medium">
-                  Dispute period ended - Resolution is final
+                <span className="font-light tracking-wide">
+                  Dispute period ended — Resolution is final
                 </span>
               </div>
             </div>
@@ -893,11 +892,23 @@ export const MarketDetail = () => {
 
   if (!market) {
     return (
-      <div className="min-h-screen bg-ink-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-neon-iris border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-moon-grey text-sm">Loading...</p>
+      <div className="min-h-screen bg-ink-black flex items-center justify-center relative overflow-hidden">
+        {/* Atmospheric background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_-10%,rgba(124,77,255,0.12),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_30%_at_80%_100%,rgba(33,246,210,0.06),transparent_40%)]" />
         </div>
+        <motion.div
+          className="text-center relative z-10"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="w-10 h-10 border-2 border-neon-iris/60 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-moon-grey/70 text-sm font-light tracking-wide">
+            Loading market...
+          </p>
+        </motion.div>
       </div>
     );
   }
@@ -1001,7 +1012,25 @@ export const MarketDetail = () => {
   const marketTitle = `${market.question} | Moodring`;
 
   return (
-    <div className="min-h-screen bg-ink-black">
+    <div className="min-h-screen bg-ink-black relative overflow-hidden">
+      {/* Atmospheric background matching Home */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_90%_100%,rgba(33,246,210,0.06),transparent_40%)]" />
+        {/* Subtle grid */}
+        <div
+          className="absolute inset-0 opacity-[0.02] hidden sm:block"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)`,
+            backgroundSize: "60px 60px",
+          }}
+        />
+      </div>
+
+      {/* Gradient line accent at top */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/20 to-transparent z-10" />
+
       <Helmet>
         {/* Primary Meta Tags */}
         <title>{marketTitle}</title>
@@ -1035,18 +1064,22 @@ export const MarketDetail = () => {
         <meta name="twitter:image" content={marketImage} />
       </Helmet>
       <div
-        className="mx-auto max-w-6xl px-4 py-10 pb-24 lg:pb-10"
+        className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-12 pb-24 lg:pb-12"
         data-market-detail-container
       >
-        {/* Breadcrumb - Positioned absolutely to stay above content but below navbar */}
-        <div className="relative z-40 mb-4">
+        {/* Breadcrumb - Refined styling */}
+        <motion.div
+          className="relative z-40 mb-6"
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+        >
           <Link
             to="/markets"
-            className="inline-flex items-center gap-1.5 text-moon-grey hover:text-white text-sm transition-colors bg-ink-black backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-lg"
-            style={{ position: "relative", zIndex: 40 }}
+            className="group inline-flex items-center gap-2 text-moon-grey/70 hover:text-white text-xs tracking-wide uppercase transition-all duration-300"
           >
             <svg
-              className="w-3 h-3 flex-shrink-0"
+              className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:-translate-x-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1054,26 +1087,30 @@ export const MarketDetail = () => {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
+                strokeWidth={1.5}
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Markets
+            <span>Back to Markets</span>
           </Link>
-        </div>
+        </motion.div>
 
-        {/* Resolution Mode - Clean, Minimal Display */}
+        {/* Resolution Mode - Refined minimal display */}
         {(market as any).resolution_mode && (
-          <div className="relative group mb-4">
-            <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <span className="uppercase tracking-wider text-amber-400/70">
-                Resolution Mode:
-              </span>
+          <motion.div
+            className="relative group mb-5"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <div className="inline-flex items-center gap-2.5 text-[10px] tracking-[0.15em] uppercase">
+              <div className="h-px w-6 bg-gradient-to-r from-transparent to-amber-400/40" />
+              <span className="text-amber-400/60 font-medium">Resolution:</span>
               <span className="text-amber-400 font-medium">
                 {(market as any).resolution_mode}
               </span>
               <svg
-                className="w-3 h-3 text-amber-400/60"
+                className="w-3 h-3 text-amber-400/40 cursor-help"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1088,8 +1125,8 @@ export const MarketDetail = () => {
             </div>
             {/* Tooltip */}
             <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
-              <div className="bg-graphite-light border border-amber-500/30 rounded-lg p-3 shadow-xl min-w-[200px] max-w-[300px]">
-                <div className="text-xs text-white font-medium mb-1">
+              <div className="bg-graphite-deep/95 backdrop-blur-sm border border-white/10 rounded-lg p-4 shadow-2xl min-w-[200px] max-w-[300px]">
+                <div className="text-xs text-white font-medium mb-1.5">
                   {(market as any).resolution_mode === "ORACLE" &&
                     "Oracle Mode"}
                   {(market as any).resolution_mode === "AUTHORITY" &&
@@ -1097,7 +1134,7 @@ export const MarketDetail = () => {
                   {(market as any).resolution_mode === "OPINION" &&
                     "Opinion Mode"}
                 </div>
-                <div className="text-xs text-moon-grey">
+                <div className="text-xs text-moon-grey/70 font-light leading-relaxed">
                   {(market as any).resolution_mode === "ORACLE" &&
                     "Resolved by Oracles"}
                   {(market as any).resolution_mode === "AUTHORITY" &&
@@ -1107,15 +1144,15 @@ export const MarketDetail = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Sticky Header - Shows when scrolled */}
+        {/* Sticky Header - Refined minimal styling */}
         <div
-          className={`hidden lg:block fixed top-16 z-40 transition-all duration-300 ${
+          className={`hidden lg:block fixed top-16 z-40 transition-all duration-500 ${
             isScrolled
               ? "opacity-100 translate-y-0"
-              : "opacity-0 -translate-y-full pointer-events-none"
+              : "opacity-0 -translate-y-4 pointer-events-none"
           }`}
           style={{
             left: heroLeft !== null ? `${heroLeft}px` : undefined,
@@ -1123,42 +1160,46 @@ export const MarketDetail = () => {
             maxWidth: heroWidth ? `${heroWidth}px` : undefined,
           }}
         >
-          <div className="w-full">
-            <div className="bg-graphite-light/95 backdrop-blur-md border-b border-white/10 shadow-lg rounded-2xl">
-              <div className="flex items-center justify-between py-3 px-4">
+          <div className="w-full relative">
+            {/* Gradient accent lines */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+            <div className="bg-graphite-deep/90 backdrop-blur-xl border border-white/5 shadow-2xl">
+              <div className="flex items-center justify-between py-3 px-5">
                 {/* Title and Option Info */}
-                <div className="flex-1 min-w-0 gap-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0 flex items-center gap-4">
                   {market.image_url && (
                     <img
                       src={market.image_url}
                       alt=""
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0 ring-1 ring-white/10"
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <h1 className="text-sm sm:text-base font-bold mb-2 text-white leading-tight truncate min-w-0 mb-0.5">
+                    <h1 className="text-sm font-medium text-white leading-tight truncate min-w-0 tracking-tight">
                       {market.question}
                     </h1>
 
                     {!allOptionsResolved && highestLikelihoodOption && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mt-1">
                         {isMultipleChoice &&
                           highestLikelihoodOption.option_image_url && (
                             <img
                               src={highestLikelihoodOption.option_image_url}
                               alt=""
-                              className="w-8 h-8 rounded object-cover flex-shrink-0"
+                              className="w-5 h-5 rounded object-cover flex-shrink-0"
                             />
                           )}
 
-                        <span className="text-s font-medium text-moon-grey truncate">
+                        <span className="text-xs font-light text-moon-grey/70 truncate">
                           {highestLikelihoodOption.option_label}
                         </span>
 
                         <span
-                          className={`text-xs font-bold tabular-nums ${
+                          className={`text-xs font-medium tabular-nums ${
                             highestLikelihoodPrice >= 0.5
-                              ? "text-muted-green"
+                              ? "text-neon-iris"
                               : "text-rose-400"
                           }`}
                         >
@@ -1167,10 +1208,10 @@ export const MarketDetail = () => {
                       </div>
                     )}
                   </div>
-                  {/* Share Button in Sticky Header - Far Right */}
+                  {/* Share Button */}
                   <button
                     onClick={() => setShowShareModal(true)}
-                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.1] transition-colors text-moon-grey hover:text-white ml-auto"
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-neon-iris/30 transition-all duration-300 text-moon-grey/60 hover:text-white ml-auto"
                     title="Share market"
                   >
                     <svg
@@ -1182,7 +1223,7 @@ export const MarketDetail = () => {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
+                        strokeWidth={1.5}
                         d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                       />
                     </svg>
@@ -1194,13 +1235,21 @@ export const MarketDetail = () => {
         </div>
 
         {/* Main Layout */}
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8">
           {/* Left Column */}
-          <section className="space-y-6">
+          <motion.section
+            className="space-y-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
             {/* Hero Card */}
-            <div
+            <motion.div
               ref={heroRef}
-              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-graphite-light via-graphite-light to-graphite-hover"
+              className="relative overflow-hidden bg-graphite-deep/60 border border-white/[0.06]"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
             >
               {/* Market Image Background */}
               {market.image_url && (
@@ -1209,33 +1258,35 @@ export const MarketDetail = () => {
                     src={market.image_url}
                     alt=""
                     loading="lazy"
-                    className="w-full h-full object-cover max-w-full max-h-full"
+                    className="w-full h-full object-cover max-w-full max-h-full opacity-40"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-br from-graphite-light/95 via-graphite-light/90 to-graphite-hover/85" />
-                  {/* Vignette overlay to darken corners */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-ink-black/95 via-graphite-deep/90 to-graphite-deep/95" />
+                  {/* Vignette overlay */}
                   <div
                     className="absolute inset-0"
                     style={{
                       backgroundImage:
-                        "radial-gradient(ellipse at center, transparent 0%, transparent 40%, #0a0a0d 100%)",
+                        "radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(10,10,13,0.9) 100%)",
                     }}
                   />
                 </div>
               )}
 
-              {/* Gradient Accent Lines */}
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent z-10" />
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent z-10" />
+              {/* Gradient Accent Lines - Premium styling */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/40 to-transparent z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/20 to-transparent z-10" />
+              <div className="absolute top-0 left-0 w-px h-24 bg-gradient-to-b from-neon-iris/30 to-transparent z-10" />
+              <div className="absolute top-0 right-0 w-px h-24 bg-gradient-to-b from-neon-iris/30 to-transparent z-10" />
 
-              <div className="relative z-10 p-4 sm:p-6">
-                {/* Tags */}
-                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <div className="flex items-center gap-2">
+              <div className="relative z-10 p-5 sm:p-7 lg:p-8">
+                {/* Top Bar - Creator & Actions */}
+                <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                  <div className="flex items-center gap-3">
                     <WatchlistButton marketId={market.id} />
-                    {/* Creator Info */}
+                    {/* Creator Info - Refined */}
                     {(market.creator_username ||
                       market.creator_display_name) && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/[0.06]">
+                      <div className="flex items-center gap-2">
                         <UserAvatar
                           name={
                             market.creator_display_name ||
@@ -1245,34 +1296,36 @@ export const MarketDetail = () => {
                           imageUrl={market.creator_avatar_url}
                           size="sm"
                         />
-                        <Link
-                          to={getUserProfileUrl(
-                            market.creator_username || market.creator_id
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            to={getUserProfileUrl(
+                              market.creator_username || market.creator_id
+                            )}
+                            className="text-xs text-moon-grey/70 font-light hover:text-white transition-colors cursor-pointer"
+                          >
+                            {market.creator_display_name ||
+                              (market.creator_username
+                                ? `@${market.creator_username}`
+                                : "User")}
+                          </Link>
+                          {market.is_admin_creator && (
+                            <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-gradient-to-br from-neon-iris to-aqua-pulse flex-shrink-0">
+                              <svg
+                                className="w-2 h-2 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={3}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
                           )}
-                          className="text-[11px] text-moon-grey font-medium hover:text-neon-iris transition-colors cursor-pointer"
-                        >
-                          {market.creator_display_name ||
-                            (market.creator_username
-                              ? `@${market.creator_username}`
-                              : "User")}
-                        </Link>
-                        {market.is_admin_creator && (
-                          <div className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-neon-iris flex-shrink-0">
-                            <svg
-                              className="w-2.5 h-2.5 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1280,20 +1333,19 @@ export const MarketDetail = () => {
                     {categories.slice(0, 2).map((cat) => (
                       <span
                         key={cat.id}
-                        className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]"
+                        className="px-2.5 py-1 text-[10px] tracking-[0.1em] uppercase font-medium text-moon-grey/60 border border-white/[0.06]"
                       >
-                        {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
+                        {cat.name}
                       </span>
                     ))}
                     {categories.length === 0 && (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/[0.06] text-moon-grey border border-white/[0.06]">
-                        {primaryCategory.charAt(0).toUpperCase() +
-                          primaryCategory.slice(1)}
+                      <span className="px-2.5 py-1 text-[10px] tracking-[0.1em] uppercase font-medium text-moon-grey/60 border border-white/[0.06]">
+                        {primaryCategory}
                       </span>
                     )}
                     {market.is_resolved && (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neon-iris/15 text-neon-iris border border-neon-iris/20">
-                        ✓ Resolved
+                      <span className="px-2.5 py-1 text-[10px] tracking-[0.15em] uppercase font-medium bg-neon-iris/10 text-neon-iris border border-neon-iris/20">
+                        Resolved
                       </span>
                     )}
                     {/* Trending Badge */}
@@ -1309,10 +1361,10 @@ export const MarketDetail = () => {
                           <TrendingBadge type={trendingStatus} size="sm" />
                         ) : null;
                       })()}
-                    {/* Share Button */}
+                    {/* Share Button - Refined */}
                     <button
                       onClick={() => setShowShareModal(true)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] hover:border-white/[0.1] transition-colors text-moon-grey hover:text-white"
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-neon-iris/30 transition-all duration-300 text-moon-grey/60 hover:text-white"
                       title="Share market"
                     >
                       <svg
@@ -1324,18 +1376,20 @@ export const MarketDetail = () => {
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={2}
+                          strokeWidth={1.5}
                           d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                         />
                       </svg>
-                      <span className="text-[11px] font-medium">Share</span>
+                      <span className="text-[10px] tracking-wide uppercase font-medium">
+                        Share
+                      </span>
                     </button>
                   </div>
                 </div>
 
-                {/* Title & Probability */}
-                <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-5">
-                  <h1 className="flex-1 text-xl sm:text-2xl lg:text-[28px] font-bold text-white leading-tight tracking-tight break-words min-w-0">
+                {/* Title & Probability - Premium typography */}
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-5 mb-6">
+                  <h1 className="flex-1 text-2xl sm:text-3xl lg:text-4xl font-light text-white leading-[1.15] tracking-tight break-words min-w-0">
                     {market.question}
                   </h1>
 
@@ -1452,70 +1506,65 @@ export const MarketDetail = () => {
                   </div>
                 </div>
 
-                {/* Stats Bar */}
-                <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs sm:text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-moon-grey-dark">Volume</span>
-                    <span className="text-white font-semibold tabular-nums">
+                {/* Stats Bar - Refined with better spacing */}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-8 pt-5 border-t border-white/[0.06]">
+                  <div>
+                    <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-1">
+                      Volume
+                    </div>
+                    <div className="text-lg font-light text-white tabular-nums">
                       {formatUSDC(market.total_volume)}
-                    </span>
+                    </div>
                   </div>
-                  <div className="w-px h-4 bg-white/10 hidden sm:block" />
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-moon-grey-dark">Liquidity</span>
-                    <span className="text-white font-semibold tabular-nums">
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/10 to-transparent hidden sm:block" />
+                  <div>
+                    <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-1">
+                      Liquidity
+                    </div>
+                    <div className="text-lg font-light text-white tabular-nums">
                       {formatUSDC(
                         Number((market as any).shared_pool_liquidity || 0) +
                           Number((market as any).accumulated_lp_fees || 0)
                       )}
-                    </span>
-                    {Number((market as any).accumulated_lp_fees || 0) > 0 && (
-                      <span className="text-moon-grey-dark text-[10px]">
-                        (pool:{" "}
-                        {formatUSDC(
-                          Number((market as any).shared_pool_liquidity || 0)
-                        )}{" "}
-                        + fees:{" "}
-                        {formatUSDC(
-                          Number((market as any).accumulated_lp_fees || 0)
-                        )}
-                        )
-                      </span>
-                    )}
+                    </div>
                   </div>
-                  <div className="w-px h-4 bg-white/10 hidden sm:block" />
-                  <div className="flex items-center gap-1.5">
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-white/10 to-transparent hidden sm:block" />
+                  <div>
+                    <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-1">
+                      {market.is_resolved ? "Status" : "Ends"}
+                    </div>
                     {market.is_resolved ? (
-                      <span className="text-neon-iris font-medium">Ended</span>
+                      <div className="text-lg font-light text-neon-iris">
+                        Ended
+                      </div>
                     ) : (
-                      <>
-                        <span className="text-moon-grey-dark">Ends</span>
-                        <span className="text-white font-medium text-xs sm:text-sm">
-                          {formatTimeRemaining(market.expiration_timestamp)}
-                        </span>
-                      </>
+                      <div className="text-lg font-light text-white">
+                        {formatTimeRemaining(market.expiration_timestamp)}
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Social Proof */}
                 {!market.is_resolved && (
-                  <div className="mt-4">
-                    <SocialProof
-                      marketId={market.id}
-                      recentActivity={[]} // TODO: Add real recent activity
-                    />
+                  <div className="mt-5 pt-5 border-t border-white/[0.04]">
+                    <SocialProof marketId={market.id} recentActivity={[]} />
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* Price Chart */}
             {id && market.options && (
-              <div className="relative overflow-visible rounded-2xl bg-graphite-light/40">
+              <motion.div
+                className="relative overflow-visible bg-graphite-deep/40 border border-white/[0.04]"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
                 {/* Gradient Accent Lines */}
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent z-10" />
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent z-10" />
                 <PriceChart
                   marketId={id}
                   options={market.options.map((option: MarketOption) => ({
@@ -1538,20 +1587,29 @@ export const MarketDetail = () => {
                       | string
                   }
                 />
-              </div>
+              </motion.div>
             )}
 
             {/* Outcomes */}
-            <div className="relative overflow-visible rounded-2xl bg-graphite-light/60 p-4 sm:p-5">
+            <motion.div
+              className="relative overflow-visible bg-graphite-deep/40 border border-white/[0.04] p-5 sm:p-6"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+            >
               {/* Gradient Accent Lines */}
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-white">
-                  {isMultipleChoice ? `Outcomes` : "Outcome"}
-                </h2>
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent z-10" />
+
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-px w-6 bg-gradient-to-r from-neon-iris/50 to-transparent" />
+                  <h2 className="text-[10px] tracking-[0.2em] uppercase font-medium text-moon-grey/70">
+                    {isMultipleChoice ? `Outcomes` : "Outcome"}
+                  </h2>
+                </div>
                 {isMultipleChoice && (
-                  <span className="text-xs text-moon-grey-dark">
+                  <span className="text-[10px] tracking-wider uppercase text-moon-grey/50">
                     {market.options?.length} options
                   </span>
                 )}
@@ -1617,44 +1675,57 @@ export const MarketDetail = () => {
                   />
                 )
               )}
-            </div>
+            </motion.div>
 
             {/* Tabs Section */}
-            <div className="relative rounded-2xl bg-graphite-light/60 overflow-visible">
+            <motion.div
+              className="relative bg-graphite-deep/40 border border-white/[0.04] overflow-visible"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
               {/* Gradient Accent Lines */}
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent z-10" />
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent z-10" />
-              {/* Tab Headers */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent z-10" />
+
+              {/* Tab Headers - Refined */}
               <div className="flex border-b border-white/[0.04]">
                 {tabs.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setActiveTab(t.id)}
-                    className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${
+                    className={`relative flex items-center gap-2 px-5 py-4 text-xs tracking-wide uppercase font-medium transition-all duration-300 ${
                       activeTab === t.id
-                        ? "text-white border-neon-iris"
-                        : "text-moon-grey hover:text-white border-transparent"
+                        ? "text-white"
+                        : "text-moon-grey/60 hover:text-white"
                     }`}
                   >
                     {t.label}
+                    {activeTab === t.id && (
+                      <motion.div
+                        className="absolute bottom-0 left-2 right-2 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent"
+                        layoutId="activeTab"
+                        transition={{ duration: 0.3 }}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
 
               {/* Tab Content */}
-              <div className="p-5">
+              <div className="p-5 sm:p-6">
                 {activeTab === "about" && (
-                  <div className="space-y-5">
+                  <div className="space-y-6">
                     {market.market_description && (
-                      <p className="text-moon-grey text-sm leading-relaxed">
+                      <p className="text-moon-grey/80 text-sm leading-relaxed font-light">
                         {market.market_description}
                       </p>
                     )}
-                    {/* Creator Section */}
+                    {/* Creator Section - Refined */}
                     {(market.creator_username ||
                       market.creator_display_name) && (
-                      <div className="bg-white/[0.03] rounded-xl p-4 mb-5">
-                        <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-3">
+                      <div className="border border-white/[0.04] p-5">
+                        <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-4">
                           Created By
                         </div>
                         <div className="flex items-center gap-3">
@@ -1668,12 +1739,12 @@ export const MarketDetail = () => {
                             size="md"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-2">
                               <Link
                                 to={getUserProfileUrl(
                                   market.creator_username || market.creator_id
                                 )}
-                                className="text-white font-semibold text-sm hover:text-neon-iris transition-colors cursor-pointer"
+                                className="text-white font-medium text-sm hover:text-neon-iris transition-colors cursor-pointer"
                               >
                                 {market.creator_display_name ||
                                   (market.creator_username
@@ -1681,9 +1752,9 @@ export const MarketDetail = () => {
                                     : "User")}
                               </Link>
                               {market.is_admin_creator && (
-                                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-neon-iris flex-shrink-0">
+                                <div className="flex items-center justify-center w-4 h-4 rounded-full bg-gradient-to-br from-neon-iris to-aqua-pulse flex-shrink-0">
                                   <svg
-                                    className="w-3 h-3 text-white"
+                                    className="w-2.5 h-2.5 text-white"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -1703,34 +1774,34 @@ export const MarketDetail = () => {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white/[0.03] rounded-xl p-4">
-                        <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/[0.04]">
+                      <div className="bg-ink-black p-4">
+                        <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2">
                           Status
                         </div>
                         <div
-                          className={
+                          className={`text-base font-light ${
                             market.is_resolved
-                              ? "text-neon-iris font-semibold"
-                              : "text-neon-iris font-semibold"
-                          }
+                              ? "text-neon-iris"
+                              : "text-aqua-pulse"
+                          }`}
                         >
                           {market.is_resolved ? "Resolved" : "Active"}
                         </div>
                       </div>
-                      <div className="bg-white/[0.03] rounded-xl p-4">
-                        <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-1.5">
+                      <div className="bg-ink-black p-4">
+                        <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2">
                           Resolution
                         </div>
-                        <div className="text-white font-semibold">
+                        <div className="text-base font-light text-white">
                           {formatDate(market.expiration_timestamp)}
                         </div>
                       </div>
-                      <div className="bg-white/[0.03] rounded-xl p-4">
-                        <div className="text-moon-grey-dark text-xs uppercase tracking-wider mb-1.5">
+                      <div className="bg-ink-black p-4 col-span-2 sm:col-span-1">
+                        <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2">
                           Created
                         </div>
-                        <div className="text-white font-semibold">
+                        <div className="text-base font-light text-white">
                           {formatDate(market.created_at)}
                         </div>
                       </div>
@@ -1755,19 +1826,19 @@ export const MarketDetail = () => {
                 {activeTab === "activity" && (
                   <div>
                     {isLoadingActivities ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
                           <div
                             key={i}
-                            className="h-14 bg-white/[0.03] rounded-xl animate-pulse"
+                            className="h-16 bg-white/[0.02] border border-white/[0.04] animate-pulse"
                           />
                         ))}
                       </div>
                     ) : activities.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <div className="w-12 h-12 rounded-full bg-white/[0.03] flex items-center justify-center mx-auto mb-3">
+                      <div className="py-16 text-center">
+                        <div className="w-14 h-14 border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
                           <svg
-                            className="w-5 h-5 text-moon-grey-dark"
+                            className="w-6 h-6 text-moon-grey/40"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1780,7 +1851,7 @@ export const MarketDetail = () => {
                             />
                           </svg>
                         </div>
-                        <p className="text-moon-grey-dark text-sm">
+                        <p className="text-moon-grey/50 text-xs tracking-wide uppercase">
                           No activity yet
                         </p>
                       </div>
@@ -1801,29 +1872,34 @@ export const MarketDetail = () => {
                               type === "trade"
                                 ? side === "yes"
                                   ? {
-                                      bg: "bg-muted-green/15",
+                                      bg: "bg-muted-green/10",
+                                      border: "border-muted-green/20",
                                       text: "text-muted-green",
                                       icon: "↑",
                                     }
                                   : {
-                                      bg: "bg-rose-500/15",
+                                      bg: "bg-rose-500/10",
+                                      border: "border-rose-500/20",
                                       text: "text-rose-400",
                                       icon: "↓",
                                     }
                                 : type === "market_created"
                                 ? {
-                                    bg: "bg-neon-iris/15",
+                                    bg: "bg-neon-iris/10",
+                                    border: "border-neon-iris/20",
                                     text: "text-neon-iris",
                                     icon: "✦",
                                   }
                                 : type === "market_resolved"
                                 ? {
-                                    bg: "bg-amber-500/15",
+                                    bg: "bg-amber-500/10",
+                                    border: "border-amber-500/20",
                                     text: "text-amber-400",
                                     icon: "✓",
                                   }
                                 : {
-                                    bg: "bg-white/5",
+                                    bg: "bg-white/[0.02]",
+                                    border: "border-white/[0.06]",
                                     text: "text-moon-grey",
                                     icon: "•",
                                   };
@@ -1846,18 +1922,18 @@ export const MarketDetail = () => {
                             return (
                               <div
                                 key={a.id}
-                                className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-xl"
+                                className={`flex items-center gap-4 p-4 border ${style.border} ${style.bg} transition-colors`}
                               >
                                 <div
-                                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold ${style.bg} ${style.text}`}
+                                  className={`w-9 h-9 flex items-center justify-center text-sm font-light ${style.text}`}
                                 >
                                   {style.icon}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-white text-sm font-medium truncate">
+                                  <p className="text-white text-sm font-light truncate">
                                     {desc}
                                   </p>
-                                  <p className="text-moon-grey-dark text-[11px]">
+                                  <p className="text-moon-grey/50 text-[11px] mt-0.5">
                                     @
                                     {a.username ||
                                       (a as any).display_name ||
@@ -1866,11 +1942,11 @@ export const MarketDetail = () => {
                                 </div>
                                 <div className="text-right">
                                   {amt && (
-                                    <p className="text-white text-sm font-semibold tabular-nums">
+                                    <p className="text-white text-sm font-light tabular-nums">
                                       ${(Number(amt) / 1e6).toFixed(2)}
                                     </p>
                                   )}
-                                  <p className="text-moon-grey-dark text-[11px]">
+                                  <p className="text-moon-grey/50 text-[10px] mt-0.5">
                                     {formatDistanceToNow(Number(a.created_at))}
                                   </p>
                                 </div>
@@ -1878,17 +1954,17 @@ export const MarketDetail = () => {
                             );
                           })}
                         </div>
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/[0.04]">
+                        <div className="flex justify-between items-center mt-5 pt-5 border-t border-white/[0.04]">
                           <button
                             onClick={() =>
                               currentPage > 1 && loadActivities(currentPage - 1)
                             }
                             disabled={currentPage === 1}
-                            className="text-xs text-moon-grey hover:text-white disabled:opacity-30 transition-colors"
+                            className="text-[10px] tracking-wide uppercase text-moon-grey/60 hover:text-white disabled:opacity-30 transition-colors"
                           >
                             ← Previous
                           </button>
-                          <span className="text-xs text-moon-grey-dark tabular-nums">
+                          <span className="text-[10px] tracking-wide text-moon-grey/40 tabular-nums">
                             Page {currentPage}
                           </span>
                           <button
@@ -1897,7 +1973,7 @@ export const MarketDetail = () => {
                               loadActivities(currentPage + 1)
                             }
                             disabled={!hasMoreActivities}
-                            className="text-xs text-moon-grey hover:text-white disabled:opacity-30 transition-colors"
+                            className="text-[10px] tracking-wide uppercase text-moon-grey/60 hover:text-white disabled:opacity-30 transition-colors"
                           >
                             Next →
                           </button>
@@ -1911,34 +1987,46 @@ export const MarketDetail = () => {
                   <CommentSection marketId={id} market={market} />
                 )}
               </div>
-            </div>
-          </section>
+            </motion.div>
+          </motion.section>
 
-          <aside className="lg:w-[380px] lg:sticky lg:top-20">
-            <div className="overflow-visible" ref={tradeFormRef}>
-              {/* LP Rewards Claim - Prominent Display */}
+          <motion.aside
+            className="lg:w-[400px] lg:sticky lg:top-20"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <div className="overflow-visible space-y-4" ref={tradeFormRef}>
+              {/* LP Rewards Claim - Refined Display */}
               {market.is_resolved && id && hasLpShares && (
-                <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-success-500/20 via-success-500/10 to-success-500/5 border border-success-500/30">
-                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-success-400/50 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-success-400/30 to-transparent" />
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <svg
-                        className="w-5 h-5 text-success-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <h3 className="text-sm font-semibold text-white">
-                        Claim LP Rewards
-                      </h3>
+                <div className="relative overflow-visible bg-aqua-pulse/5 border border-aqua-pulse/20">
+                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/40 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/20 to-transparent" />
+                  <div className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 flex items-center justify-center border border-aqua-pulse/30">
+                        <svg
+                          className="w-4 h-4 text-aqua-pulse"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-white">
+                          Claim LP Rewards
+                        </h3>
+                        <p className="text-[10px] text-aqua-pulse/70 tracking-wide">
+                          Available to claim
+                        </p>
+                      </div>
                     </div>
                     <ClaimLpRewards
                       marketId={id}
@@ -1952,42 +2040,49 @@ export const MarketDetail = () => {
                 </div>
               )}
 
-              {/* Market Resolved - Show when market is fully resolved and user doesn't have LP or has already claimed */}
+              {/* Market Resolved - Refined styling */}
               {market.is_resolved &&
                 allOptionsResolved &&
                 id &&
                 !hasLpShares && (
-                  <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-neon-iris/20 via-neon-iris/10 to-neon-iris/5 border border-neon-iris/30">
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <svg
-                          className="w-5 h-5 text-neon-iris"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <h3 className="text-sm font-semibold text-white">
-                          Market Resolved
-                        </h3>
+                  <div className="relative overflow-visible bg-neon-iris/5 border border-neon-iris/20">
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/40 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/20 to-transparent" />
+                    <div className="p-5">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 flex items-center justify-center border border-neon-iris/30">
+                          <svg
+                            className="w-4 h-4 text-neon-iris"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-white">
+                            Market Resolved
+                          </h3>
+                          <p className="text-[10px] text-neon-iris/60 tracking-wide uppercase">
+                            Final outcome
+                          </p>
+                        </div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="pt-4 border-t border-neon-iris/10">
                         {hasResolvedOption ? (
-                          <div className="text-sm text-neon-iris/80">
+                          <div>
                             {isMultipleChoice ? (
                               <div>
-                                <div className="font-medium text-white mb-1">
-                                  Winning Option:
+                                <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2">
+                                  Winning Option
                                 </div>
-                                <div className="text-neon-iris">
+                                <div className="text-lg font-light text-neon-iris">
                                   {winningOptions[0]
                                     ? winningOptions[0].option_label
                                     : "N/A"}
@@ -1995,15 +2090,15 @@ export const MarketDetail = () => {
                               </div>
                             ) : (
                               <div>
-                                <div className="font-medium text-white mb-1">
-                                  Winner:
+                                <div className="text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2">
+                                  Winner
                                 </div>
                                 <div
-                                  className={
+                                  className={`text-2xl font-light ${
                                     primaryOption?.winning_side === 1
                                       ? "text-muted-green"
                                       : "text-rose-400"
-                                  }
+                                  }`}
                                 >
                                   {primaryOption?.winning_side === 1
                                     ? "YES"
@@ -2013,7 +2108,7 @@ export const MarketDetail = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="text-sm text-neon-iris/80">
+                          <div className="text-sm text-neon-iris/70 font-light">
                             All options have been resolved.
                           </div>
                         )}
@@ -2027,51 +2122,62 @@ export const MarketDetail = () => {
                 selectedOptionData &&
                 isMultipleChoice && <> </>}
 
-              {/* Trade Form */}
+              {/* Trade Form - Wrapped with styling */}
               {!market.is_resolved && (
-                <TradeForm
-                  key={`${selectedOption || "def"}-${
-                    selectedOptionData?.yes_quantity
-                  }-${selectedOptionData?.no_quantity}`}
-                  market={market}
-                  selectedOption={selectedOptionData}
-                  preSelectedSide={selectedSide}
-                  onTradeComplete={() => id && fetchMarketData(id)}
-                />
+                <div className="relative bg-graphite-deep/60 border border-white/[0.06]">
+                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  <TradeForm
+                    key={`${selectedOption || "def"}-${
+                      selectedOptionData?.yes_quantity
+                    }-${selectedOptionData?.no_quantity}`}
+                    market={market}
+                    selectedOption={selectedOptionData}
+                    preSelectedSide={selectedSide}
+                    onTradeComplete={() => id && fetchMarketData(id)}
+                  />
+                </div>
               )}
             </div>
-          </aside>
+          </motion.aside>
         </div>
       </div>
 
-      {/* Mobile LP Rewards Claim - Prominent Display */}
+      {/* Mobile LP Rewards Claim - Refined */}
       {market.is_resolved && id && hasLpShares && (
-        <div className="lg:hidden fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40">
-          <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-success-500/20 via-success-500/10 to-success-500/5 border border-success-500/30 p-4 mb-2">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-success-400/50 to-transparent" />
-            <div className="flex items-center gap-2 mb-3">
-              <svg
-                className="w-5 h-5 text-success-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <h3 className="text-sm font-semibold text-white">
-                Claim LP Rewards
-              </h3>
+        <div className="lg:hidden fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-ink-black via-ink-black/95 to-transparent z-40">
+          <div className="relative bg-aqua-pulse/5 border border-aqua-pulse/20 p-4">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/40 to-transparent" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 flex items-center justify-center border border-aqua-pulse/30">
+                <svg
+                  className="w-4 h-4 text-aqua-pulse"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-white">
+                  Claim LP Rewards
+                </h3>
+                <p className="text-[10px] text-aqua-pulse/70 tracking-wide">
+                  Available to claim
+                </p>
+              </div>
             </div>
             <ClaimLpRewards
               marketId={id}
               onClaimed={() => {
                 if (id) fetchMarketData(id);
-                setHasLpShares(false); // Reset after claiming
+                setHasLpShares(false);
               }}
               compact={true}
             />
@@ -2079,105 +2185,99 @@ export const MarketDetail = () => {
         </div>
       )}
 
-      {/* Mobile Market Resolved - Show when market is fully resolved and user doesn't have LP or has already claimed */}
+      {/* Mobile Market Resolved - Refined */}
       {market.is_resolved && allOptionsResolved && id && !hasLpShares && (
-        <div className="lg:hidden fixed bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-ink-black via-ink-black to-transparent z-40">
-          <div className="relative overflow-visible rounded-xl bg-gradient-to-br from-neon-iris/20 via-neon-iris/10 to-neon-iris/5 border border-neon-iris/30 p-3 sm:p-4 mb-2">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-neon-iris flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <h3 className="text-xs sm:text-sm font-semibold text-white">
-                Market Resolved
-              </h3>
+        <div className="lg:hidden fixed bottom-0 inset-x-0 p-4 bg-gradient-to-t from-ink-black via-ink-black/95 to-transparent z-40">
+          <div className="relative bg-neon-iris/5 border border-neon-iris/20 p-4">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/40 to-transparent" />
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 flex items-center justify-center border border-neon-iris/30">
+                <svg
+                  className="w-4 h-4 text-neon-iris flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-white">
+                  Market Resolved
+                </h3>
+                <p className="text-[10px] text-neon-iris/60 tracking-wide uppercase">
+                  Final outcome
+                </p>
+              </div>
             </div>
-            <div className="space-y-1.5 sm:space-y-2">
-              {hasResolvedOption ? (
-                <div className="text-xs sm:text-sm text-neon-iris/80">
-                  {isMultipleChoice ? (
-                    <div>
-                      <div className="font-medium text-white mb-1 text-xs sm:text-sm">
-                        Winning Option:
-                      </div>
-                      <div className="text-neon-iris break-words line-clamp-2 text-xs sm:text-sm">
-                        {winningOptions[0]
-                          ? winningOptions[0].option_label
-                          : "N/A"}
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="font-medium text-white mb-1 text-xs sm:text-sm">
-                        Winner:
-                      </div>
-                      <div
-                        className={`text-xs sm:text-sm ${
-                          primaryOption?.winning_side === 1
-                            ? "text-muted-green"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {primaryOption?.winning_side === 1 ? "YES" : "NO"}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs sm:text-sm text-neon-iris/80">
-                  All options have been resolved.
-                </div>
-              )}
-            </div>
+            {hasResolvedOption ? (
+              <div>
+                {isMultipleChoice ? (
+                  <div className="text-sm font-light text-neon-iris break-words line-clamp-2">
+                    {winningOptions[0] ? winningOptions[0].option_label : "N/A"}
+                  </div>
+                ) : (
+                  <div
+                    className={`text-xl font-light ${
+                      primaryOption?.winning_side === 1
+                        ? "text-muted-green"
+                        : "text-rose-400"
+                    }`}
+                  >
+                    {primaryOption?.winning_side === 1 ? "YES" : "NO"}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-neon-iris/70 font-light">
+                All options have been resolved.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Mobile Sticky Trade Panel - Shows when scrolled */}
+      {/* Mobile Sticky Trade Panel - Refined styling */}
       {!market.is_resolved && (
         <div
-          className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 transition-all duration-300 ${
+          className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 transition-all duration-500 ${
             isScrolled
               ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-full pointer-events-none"
+              : "opacity-0 translate-y-4 pointer-events-none"
           }`}
         >
-          <div className="bg-graphite-light/95 backdrop-blur-md border-t border-white/10 shadow-lg">
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
+          <div className="relative bg-graphite-deep/95 backdrop-blur-xl border-t border-white/[0.06]">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+            <div className="px-4 py-3.5">
+              <div className="flex items-center justify-between gap-4">
                 {/* Market Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-moon-grey-dark truncate mb-0.5">
+                  <p className="text-[10px] tracking-wide uppercase text-moon-grey/50 truncate mb-1">
                     {isMultipleChoice && selectedOptionData
                       ? selectedOptionData.option_label
-                      : market.question}
+                      : "Trade"}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`text-lg font-bold tabular-nums ${
+                      className={`text-lg font-light tabular-nums ${
                         primaryYesPrice >= 0.5
                           ? "text-neon-iris"
-                          : "text-rose-400"
+                          : "text-moon-grey"
                       }`}
                     >
                       {(primaryYesPrice * 100).toFixed(1)}%
                     </div>
-                    <span className="text-xs text-moon-grey-dark">/</span>
+                    <div className="w-px h-4 bg-white/10" />
                     <div
-                      className={`text-lg font-bold tabular-nums ${
-                        primaryYesPrice >= 0.5
+                      className={`text-lg font-light tabular-nums ${
+                        primaryYesPrice < 0.5
                           ? "text-rose-400"
-                          : "text-neon-iris"
+                          : "text-moon-grey"
                       }`}
                     >
                       {((1 - primaryYesPrice) * 100).toFixed(1)}%
@@ -2185,33 +2285,33 @@ export const MarketDetail = () => {
                   </div>
                 </div>
 
-                {/* Quick Trade Buttons */}
+                {/* Quick Trade Buttons - Refined */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => {
                       setSelectedSide("yes");
                       setShowMobileTradePanel(true);
                     }}
-                    className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+                    className={`px-4 py-2.5 text-xs tracking-wide uppercase font-medium transition-all ${
                       selectedSide === "yes"
-                        ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
-                        : "bg-muted-green/15 text-muted-green"
+                        ? "bg-muted-green text-white"
+                        : "bg-muted-green/10 text-muted-green border border-muted-green/30"
                     }`}
                   >
-                    YES {(primaryYesPrice * 100).toFixed(1)}¢
+                    YES {(primaryYesPrice * 100).toFixed(0)}¢
                   </button>
                   <button
                     onClick={() => {
                       setSelectedSide("no");
                       setShowMobileTradePanel(true);
                     }}
-                    className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+                    className={`px-4 py-2.5 text-xs tracking-wide uppercase font-medium transition-all ${
                       selectedSide === "no"
-                        ? "bg-rose-500 text-white shadow-lg shadow-rose-500/25"
-                        : "bg-rose-500/15 text-rose-400"
+                        ? "bg-rose-500 text-white"
+                        : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
                     }`}
                   >
-                    NO {((1 - primaryYesPrice) * 100).toFixed(1)}¢
+                    NO {((1 - primaryYesPrice) * 100).toFixed(0)}¢
                   </button>
                 </div>
               </div>
@@ -2220,34 +2320,46 @@ export const MarketDetail = () => {
         </div>
       )}
 
-      {/* Mobile Trade Panel - Full screen slide from right */}
+      {/* Mobile Trade Panel - Full screen refined */}
       {showMobileTradePanel && (
         <div className="lg:hidden fixed inset-0 z-[60]">
-          <div
-            className="absolute inset-0 bg-graphite-light overflow-y-auto animate-slide-in-right"
+          <motion.div
+            className="absolute inset-0 bg-ink-black overflow-y-auto"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             style={{
               paddingTop: "env(safe-area-inset-top, 0px)",
               paddingBottom: "env(safe-area-inset-bottom, 0px)",
             }}
           >
-            {/* Header with close button */}
-            <div className="sticky top-0 bg-graphite-light pt-4 pb-3 px-4 border-b border-white/[0.04] z-10">
+            {/* Atmospheric background */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(124,77,255,0.08),transparent_50%)]" />
+            </div>
+
+            {/* Header */}
+            <div className="sticky top-0 bg-graphite-deep/95 backdrop-blur-xl pt-5 pb-4 px-5 border-b border-white/[0.04] z-10 relative">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Trade</h2>
+                  <h2 className="text-lg font-light text-white tracking-tight">
+                    Trade
+                  </h2>
                   {selectedOptionData && isMultipleChoice && (
-                    <p className="text-sm text-moon-grey-dark mt-1">
+                    <p className="text-xs text-moon-grey/60 mt-1 font-light">
                       {selectedOptionData.option_label}
                     </p>
                   )}
                 </div>
                 <button
                   onClick={() => setShowMobileTradePanel(false)}
-                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                  className="w-10 h-10 flex items-center justify-center text-moon-grey/60 hover:text-white transition-colors"
                   aria-label="Close trade panel"
                 >
                   <svg
-                    className="w-6 h-6"
+                    className="w-5 h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -2255,7 +2367,7 @@ export const MarketDetail = () => {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
@@ -2263,25 +2375,25 @@ export const MarketDetail = () => {
               </div>
             </div>
 
-            {/* Side Selection */}
-            <div className="p-4 border-b border-white/[0.04]">
+            {/* Side Selection - Refined */}
+            <div className="p-5 border-b border-white/[0.04] relative">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setSelectedSide("yes")}
-                  className={`py-3.5 rounded-xl font-semibold transition-all ${
+                  className={`py-4 text-sm tracking-wide uppercase font-medium transition-all ${
                     selectedSide === "yes"
-                      ? "bg-muted-green text-white shadow-lg shadow-muted-green/25"
-                      : "bg-muted-green/15 text-muted-green"
+                      ? "bg-muted-green text-white"
+                      : "bg-muted-green/10 text-muted-green border border-muted-green/30"
                   }`}
                 >
                   YES {(primaryYesPrice * 100).toFixed(1)}¢
                 </button>
                 <button
                   onClick={() => setSelectedSide("no")}
-                  className={`py-3.5 rounded-xl font-semibold transition-all ${
+                  className={`py-4 text-sm tracking-wide uppercase font-medium transition-all ${
                     selectedSide === "no"
-                      ? "bg-rose-500 text-white shadow-lg shadow-rose-500/25"
-                      : "bg-rose-500/15 text-rose-400"
+                      ? "bg-rose-500 text-white"
+                      : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
                   }`}
                 >
                   NO {((1 - primaryYesPrice) * 100).toFixed(1)}¢
@@ -2290,7 +2402,7 @@ export const MarketDetail = () => {
             </div>
 
             {/* Trade Form */}
-            <div className="px-4 pt-4 pb-8">
+            <div className="px-5 pt-5 pb-10 relative">
               <TradeForm
                 key={`m-${selectedOption}-${selectedOptionData?.yes_quantity}-${selectedOptionData?.no_quantity}`}
                 market={market}
@@ -2302,7 +2414,7 @@ export const MarketDetail = () => {
                 }}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

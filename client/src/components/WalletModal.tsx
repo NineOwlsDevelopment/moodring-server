@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import {
   X,
@@ -105,325 +106,367 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="absolute inset-0 bg-ink-black/90 backdrop-blur-md"
+          onClick={onClose}
+        />
 
-      {/* Modal */}
-      <div className="relative overflow-hidden bg-graphite-deep rounded-3xl shadow-2xl w-full max-w-lg animate-scale-in border border-white/5">
-        {/* Animated gradient borders */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/40 to-transparent" />
-
-        {/* Subtle mesh background */}
-        <div className="absolute inset-0 bg-mesh opacity-50 pointer-events-none" />
-
-        {/* Header */}
-        <div className="relative px-6 pt-6 pb-4 border-b border-white/[0.06]">
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2 text-moon-grey hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 group"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
-          </button>
-
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-gradient-to-br from-neon-iris/20 to-aqua-pulse/20 rounded-xl border border-neon-iris/30">
-              <Wallet className="w-5 h-5 text-neon-iris" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">Wallet</h2>
-              <p className="text-xs text-moon-grey mt-0.5">Manage your funds</p>
-            </div>
+        {/* Modal */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.98 }}
+          transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+          className="relative overflow-hidden bg-graphite-deep w-full max-w-lg border border-white/5"
+        >
+          {/* Top gradient accent */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/50 to-transparent" />
+          
+          {/* Subtle atmospheric background */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-neon-iris/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-aqua-pulse/5 rounded-full blur-3xl" />
           </div>
 
-          {/* Balance Card */}
-          <div className="relative bg-gradient-to-br from-graphite-light to-graphite-deep rounded-xl p-4 border border-white/5 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-neon-iris/5 rounded-full blur-3xl" />
-            <div className="relative">
-              <p className="text-xs text-moon-grey mb-1.5 uppercase tracking-wider font-medium">
-                Total Balance
-              </p>
-              <p className="text-3xl font-bold text-white tabular-nums">
-                {displayBalance}
-              </p>
-              <p className="text-xs text-moon-grey mt-1.5">USDC</p>
-            </div>
-          </div>
-        </div>
+          {/* Header */}
+          <div className="relative px-6 pt-6 pb-5 border-b border-white/5">
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 w-10 h-10 flex items-center justify-center text-moon-grey/60 hover:text-white transition-colors duration-300"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-        {/* Tabs */}
-        <div className="flex border-b border-white/[0.06] bg-graphite-deep/50">
-          <button
-            onClick={() => setActiveTab("deposit")}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative group ${
-              activeTab === "deposit"
-                ? "text-white"
-                : "text-moon-grey hover:text-white"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <ArrowDownToLine
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  activeTab === "deposit" ? "text-neon-iris" : ""
-                }`}
-              />
-              <span>Deposit</span>
-            </div>
-            {activeTab === "deposit" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris" />
-            )}
-            {activeTab !== "deposit" && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-neon-iris group-hover:w-full transition-all duration-200" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("withdraw")}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 relative group ${
-              activeTab === "withdraw"
-                ? "text-white"
-                : "text-moon-grey hover:text-white"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <ArrowUpToLine
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  activeTab === "withdraw" ? "text-neon-iris" : ""
-                }`}
-              />
-              <span>Withdraw</span>
-            </div>
-            {activeTab === "withdraw" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris" />
-            )}
-            {activeTab !== "withdraw" && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-neon-iris group-hover:w-full transition-all duration-200" />
-            )}
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 relative">
-          {activeTab === "deposit" ? (
-            <div className="space-y-6">
-              <div className="text-center">
-                <p className="text-sm text-moon-grey leading-relaxed">
-                  <span className="font-bold">
-                    ONLY SEND SOLANA-NATIVE USDC TO THIS ADDRESS.
-                  </span>
-                  <br />
-                </p>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 border border-neon-iris/20 flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-neon-iris" />
               </div>
+              <div>
+                <h2 className="text-2xl font-extralight tracking-tight text-white">Wallet</h2>
+                <p className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 mt-1">Manage your funds</p>
+              </div>
+            </div>
 
-              {depositAddress ? (
-                <div className="space-y-5">
-                  {/* QR Code - Enhanced Design */}
-                  <div className="flex justify-center">
-                    <div className="relative group">
-                      {/* Outer glow ring */}
-                      <div className="absolute -inset-1 bg-gradient-to-r from-neon-iris via-aqua-pulse to-neon-iris rounded-2xl opacity-20 group-hover:opacity-40 blur-sm transition-opacity duration-300" />
+            {/* Balance Card */}
+            <div className="relative bg-ink-black border border-white/5 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 mb-2">
+                    Total Balance
+                  </p>
+                  <p className="text-3xl font-extralight text-white tabular-nums tracking-tight">
+                    {displayBalance}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50">USDC</div>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-aqua-pulse" />
+                    <span className="text-[10px] text-aqua-pulse/80 tracking-wider">Active</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                      {/* Gradient border container */}
-                      <div className="relative p-1 bg-gradient-to-br from-neon-iris/30 via-aqua-pulse/20 to-neon-iris/30 rounded-2xl">
-                        {/* Inner white container */}
-                        <div className="bg-white rounded-xl p-5 shadow-2xl">
+          {/* Tabs */}
+          <div className="flex border-b border-white/5">
+            <button
+              onClick={() => setActiveTab("deposit")}
+              className={`flex-1 px-6 py-4 text-xs tracking-[0.15em] uppercase font-medium transition-all duration-300 relative ${
+                activeTab === "deposit"
+                  ? "text-white"
+                  : "text-moon-grey/50 hover:text-white"
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2.5">
+                <ArrowDownToLine
+                  className={`w-4 h-4 ${
+                    activeTab === "deposit" ? "text-neon-iris" : ""
+                  }`}
+                />
+                <span>Deposit</span>
+              </div>
+              {activeTab === "deposit" && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent"
+                />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("withdraw")}
+              className={`flex-1 px-6 py-4 text-xs tracking-[0.15em] uppercase font-medium transition-all duration-300 relative ${
+                activeTab === "withdraw"
+                  ? "text-white"
+                  : "text-moon-grey/50 hover:text-white"
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2.5">
+                <ArrowUpToLine
+                  className={`w-4 h-4 ${
+                    activeTab === "withdraw" ? "text-neon-iris" : ""
+                  }`}
+                />
+                <span>Withdraw</span>
+              </div>
+              {activeTab === "withdraw" && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent"
+                />
+              )}
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 relative">
+            {activeTab === "deposit" ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <p className="text-sm text-moon-grey/70 font-light leading-relaxed">
+                    <span className="text-white font-medium">
+                      Only send Solana-native USDC to this address.
+                    </span>
+                  </p>
+                </div>
+
+                {depositAddress ? (
+                  <div className="space-y-6">
+                    {/* QR Code */}
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        {/* Corner accents */}
+                        <div className="absolute -top-2 -left-2 w-6 h-6 border-t border-l border-neon-iris/30" />
+                        <div className="absolute -top-2 -right-2 w-6 h-6 border-t border-r border-aqua-pulse/30" />
+                        <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b border-l border-aqua-pulse/30" />
+                        <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b border-r border-neon-iris/30" />
+                        
+                        {/* QR Container */}
+                        <div className="bg-white p-5">
                           <QRCodeSVG
                             value={depositAddress}
-                            size={220}
+                            size={200}
                             level="M"
                             includeMargin={false}
                           />
                         </div>
                       </div>
-
-                      {/* Decorative corner accents */}
-                      <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-neon-iris/50 rounded-tl-lg" />
-                      <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-aqua-pulse/50 rounded-tr-lg" />
-                      <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-aqua-pulse/50 rounded-bl-lg" />
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-neon-iris/50 rounded-br-lg" />
-                    </div>
-                  </div>
-
-                  {/* Address Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-moon-grey font-semibold uppercase tracking-wider">
-                        Deposit Address
-                      </span>
-                      <button
-                        onClick={handleCopyAddress}
-                        className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                          copied
-                            ? "bg-aqua-pulse/20 text-aqua-pulse border border-aqua-pulse/30"
-                            : "bg-white/5 text-moon-grey hover:text-white hover:bg-white/10 border border-white/10 hover:border-neon-iris/30"
-                        }`}
-                        title="Copy address"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
                     </div>
 
-                    <div className="relative bg-graphite-light rounded-xl p-4 border border-white/5 overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-neon-iris/5 rounded-full blur-2xl" />
-                      <code className="relative text-xs font-mono text-white break-all select-all leading-relaxed">
-                        {depositAddress}
-                      </code>
+                    {/* Address Section */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 font-medium">
+                          Deposit Address
+                        </span>
+                        <button
+                          onClick={handleCopyAddress}
+                          className={`flex items-center gap-2 px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase font-medium transition-all duration-300 border ${
+                            copied
+                              ? "bg-aqua-pulse/10 text-aqua-pulse border-aqua-pulse/30"
+                              : "bg-transparent text-moon-grey/60 border-white/10 hover:border-white/20 hover:text-white"
+                          }`}
+                          title="Copy address"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="bg-ink-black border border-white/5 p-4">
+                        <code className="text-xs font-mono text-white/80 break-all select-all leading-relaxed">
+                          {depositAddress}
+                        </code>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="inline-flex p-4 bg-graphite-light rounded-2xl mb-4 border border-white/5">
-                    <Wallet className="w-8 h-8 text-moon-grey" />
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="inline-flex w-16 h-16 border border-white/10 items-center justify-center mb-6">
+                      <Wallet className="w-7 h-7 text-moon-grey/40" />
+                    </div>
+                    <p className="text-sm text-moon-grey/60 font-light">
+                      Please connect your wallet to see your deposit address.
+                    </p>
                   </div>
-                  <p className="text-sm text-moon-grey">
-                    Please connect your wallet to see your deposit address.
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <form onSubmit={handleWithdraw} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-moon-grey mb-2.5">
-                  Destination Address
-                </label>
-                <input
-                  type="text"
-                  value={destinationAddress}
-                  onChange={(e) => setDestinationAddress(e.target.value)}
-                  placeholder="Enter Solana wallet address"
-                  className="input w-full"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-moon-grey mb-2.5">
-                  Amount (USDC)
-                </label>
-                <div className="relative">
+                )}
+              </motion.div>
+            ) : (
+              <motion.form
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                onSubmit={handleWithdraw}
+                className="space-y-5"
+              >
+                <div>
+                  <label className="block text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 font-medium mb-3">
+                    Destination Address
+                  </label>
                   <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="input w-full pr-28 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    type="text"
+                    value={destinationAddress}
+                    onChange={(e) => setDestinationAddress(e.target.value)}
+                    placeholder="Enter Solana wallet address"
+                    className="w-full bg-ink-black border border-white/10 px-4 py-3.5 text-sm text-white placeholder-moon-grey/40 focus:outline-none focus:border-neon-iris/50 transition-colors duration-300"
                     required
                     disabled={isSubmitting}
                   />
-                  <div className="absolute right-20 top-1/2 -translate-y-1/2 flex flex-col border border-white/10 rounded-md overflow-hidden bg-graphite-deep/80 backdrop-blur-sm">
+                </div>
+
+                <div>
+                  <label className="block text-[10px] tracking-[0.2em] uppercase text-moon-grey/50 font-medium mb-3">
+                    Amount (USDC)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-ink-black border border-white/10 px-4 py-3.5 pr-28 text-sm text-white placeholder-moon-grey/40 focus:outline-none focus:border-neon-iris/50 transition-colors duration-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      required
+                      disabled={isSubmitting}
+                    />
+                    <div className="absolute right-20 top-1/2 -translate-y-1/2 flex flex-col border border-white/10 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = parseFloat(withdrawAmount) || 0;
+                          const newValue = Math.max(0, current + 1.0);
+                          setWithdrawAmount(newValue.toFixed(2));
+                        }}
+                        disabled={isSubmitting}
+                        className="w-7 h-6 flex items-center justify-center bg-ink-black hover:bg-white/5 text-moon-grey/50 hover:text-white transition-all duration-200 border-b border-white/10 disabled:opacity-40"
+                        aria-label="Increment"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 15l7-7 7 7"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = parseFloat(withdrawAmount) || 0;
+                          const newValue = Math.max(0, current - 1.0);
+                          setWithdrawAmount(newValue.toFixed(2));
+                        }}
+                        disabled={isSubmitting}
+                        className="w-7 h-6 flex items-center justify-center bg-ink-black hover:bg-white/5 text-moon-grey/50 hover:text-white transition-all duration-200 disabled:opacity-40"
+                        aria-label="Decrement"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        const current = parseFloat(withdrawAmount) || 0;
-                        const newValue = Math.max(0, current + 1.0);
-                        setWithdrawAmount(newValue.toFixed(2));
+                        const maxAmount = balance / 1_000_000;
+                        setWithdrawAmount(maxAmount.toFixed(2));
                       }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase font-medium text-neon-iris hover:text-white border border-neon-iris/30 hover:border-neon-iris/50 hover:bg-neon-iris/10 transition-all duration-300"
                       disabled={isSubmitting}
-                      className="w-7 h-6 flex items-center justify-center bg-graphite-deep hover:bg-neon-iris/20 hover:border-neon-iris/50 text-moon-grey hover:text-neon-iris-light active:bg-neon-iris/30 transition-all duration-200 border-b border-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-graphite-deep disabled:hover:text-moon-grey group"
-                      aria-label="Increment"
                     >
-                      <svg
-                        className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M5 15l7-7 7 7"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const current = parseFloat(withdrawAmount) || 0;
-                        const newValue = Math.max(0, current - 1.0);
-                        setWithdrawAmount(newValue.toFixed(2));
-                      }}
-                      disabled={isSubmitting}
-                      className="w-7 h-6 flex items-center justify-center bg-graphite-deep hover:bg-neon-iris/20 hover:border-neon-iris/50 text-moon-grey hover:text-neon-iris-light active:bg-neon-iris/30 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-graphite-deep disabled:hover:text-moon-grey group"
-                      aria-label="Decrement"
-                    >
-                      <svg
-                        className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
+                      Max
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const maxAmount = balance / 1_000_000;
-                      setWithdrawAmount(maxAmount.toFixed(2));
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-semibold text-neon-iris hover:text-neon-iris-light bg-neon-iris/10 hover:bg-neon-iris/20 rounded-lg transition-all duration-200 border border-neon-iris/20 hover:border-neon-iris/40"
-                    disabled={isSubmitting}
-                  >
-                    Max
-                  </button>
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-[10px] tracking-[0.1em] uppercase text-moon-grey/50">
+                      Available:{" "}
+                      <span className="text-white font-medium">
+                        {displayBalance}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="text-xs text-moon-grey">
-                    Available:{" "}
-                    <span className="text-white font-medium">
-                      {displayBalance}
-                    </span>
-                  </p>
-                </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={
-                  isSubmitting || !withdrawAmount || !destinationAddress
-                }
-                className="btn btn-primary w-full py-3.5 text-base font-semibold shadow-lg shadow-neon-iris/20 hover:shadow-neon-iris/30 transition-all duration-200"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Processing...
-                  </span>
-                ) : (
-                  "Withdraw USDC"
-                )}
-              </button>
-            </form>
-          )}
-        </div>
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmitting || !withdrawAmount || !destinationAddress
+                  }
+                  className="w-full py-4 text-sm font-medium tracking-wide uppercase bg-white text-ink-black hover:bg-moon-grey-light disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-ink-black/30 border-t-ink-black rounded-full animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Withdraw USDC</span>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </motion.form>
+            )}
+          </div>
+          
+          {/* Bottom gradient accent */}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aqua-pulse/30 to-transparent" />
+        </motion.div>
       </div>
-    </div>,
+    </AnimatePresence>,
     document.body
   );
 };

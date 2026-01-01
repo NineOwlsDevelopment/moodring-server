@@ -11,6 +11,8 @@ export interface Wallet {
   balance_sol: number;
   balance_usdc: number;
   circle_wallet_id: string; // Circle wallet ID (required)
+  last_signature: string | null; // Last processed transaction signature for deposit polling
+  last_signature_slot: number | null; // Slot of the last processed signature
   created_at: number;
   updated_at: number;
 }
@@ -260,6 +262,28 @@ export class WalletModel {
     );
 
     return result.rows;
+  }
+
+  /**
+   * Update the last processed signature for a wallet (used by deposit listener)
+   * @param id - Wallet ID
+   * @param signature - Last processed transaction signature
+   * @param slot - Slot of the signature
+   * @param client - Optional database client for transaction support
+   */
+  static async updateLastSignature(
+    id: UUID | string,
+    signature: string,
+    slot: number,
+    client?: QueryClient
+  ): Promise<void> {
+    const db = client || pool;
+    await db.query(
+      `UPDATE wallets 
+       SET last_signature = $1, last_signature_slot = $2, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
+       WHERE id = $3`,
+      [signature, slot, id]
+    );
   }
 
   /**

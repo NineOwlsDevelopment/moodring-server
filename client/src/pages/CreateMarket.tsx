@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Keypair } from "@solana/web3.js";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { useUserStore } from "@/stores/userStore";
 import {
   createMarket,
@@ -12,7 +13,7 @@ import {
   initializeMarket,
   fetchCategories,
   fetchMarket,
-  getMarketCreationFee,
+  invalidateMarketCache,
   Category,
 } from "@/api/api";
 import { formatUSDC } from "@/utils/format";
@@ -24,6 +25,21 @@ import {
   compressOptionImage,
 } from "@/utils/imageCompression";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+
+// Animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
 
 type Step = "details" | "options" | "review";
 
@@ -70,12 +86,15 @@ export const CreateMarket = () => {
   >([]);
   const [newOptionLabel, setNewOptionLabel] = useState("");
   const [newOptionSubLabel, setNewOptionSubLabel] = useState("");
+  const [showSubLabelInput, setShowSubLabelInput] = useState(false);
   const [newOptionImage, setNewOptionImage] = useState<File | null>(null);
   const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(
     null
   );
   const [editingOptionLabel, setEditingOptionLabel] = useState("");
   const [editingOptionSubLabel, setEditingOptionSubLabel] = useState("");
+  const [showEditingSubLabelInput, setShowEditingSubLabelInput] =
+    useState(false);
   const [editingOptionImage, setEditingOptionImage] = useState<File | null>(
     null
   );
@@ -91,8 +110,6 @@ export const CreateMarket = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [creationFee, setCreationFee] = useState<number>(0);
-  const [isLoadingFee, setIsLoadingFee] = useState(false);
 
   // Validation errors for banned words
   const [questionError, setQuestionError] = useState<string | null>(null);
@@ -107,8 +124,27 @@ export const CreateMarket = () => {
   useEffect(() => {
     if (editMarketId) {
       loadExistingMarket(editMarketId);
+    } else {
+      // Clear form state when creating a new market
+      setSelectedCategory([]);
     }
   }, [editMarketId]);
+
+  // Auto-select Politics category when creating a new market
+  useEffect(() => {
+    if (
+      !editMarketId &&
+      categories.length > 0 &&
+      selectedCategory.length === 0
+    ) {
+      const politicsCategory = categories.find(
+        (cat) => cat.name.toLowerCase() === "politics"
+      );
+      if (politicsCategory) {
+        setSelectedCategory([politicsCategory.id]);
+      }
+    }
+  }, [categories, editMarketId, selectedCategory.length]);
 
   const loadExistingMarket = async (marketId: string) => {
     setIsLoadingMarket(true);
@@ -169,7 +205,7 @@ export const CreateMarket = () => {
         Array.isArray((market as any).categories) &&
         (market as any).categories.length > 0
       ) {
-        setSelectedCategory((market as any).categories[0].id);
+        setSelectedCategory([(market as any).categories[0].id]);
       }
 
       // Load resolution mode and config if available
@@ -212,22 +248,7 @@ export const CreateMarket = () => {
 
   useEffect(() => {
     loadCategories();
-    loadCreationFee();
   }, []);
-
-  const loadCreationFee = async () => {
-    setIsLoadingFee(true);
-    try {
-      const feeData = await getMarketCreationFee();
-      setCreationFee(feeData.creation_fee_display);
-    } catch (error) {
-      console.error("Failed to load creation fee:", error);
-      // Default to 0 if we can't fetch it
-      setCreationFee(0);
-    } finally {
-      setIsLoadingFee(false);
-    }
-  };
 
   useEffect(() => {
     if (image) {
@@ -267,7 +288,7 @@ export const CreateMarket = () => {
     }
   }, [resolutionMode, user]);
 
-  // Prefill option label with question for binary markets when entering options step
+  // Prefill option label with "binary" for binary markets when entering options step
   const prevStepRef = useRef<Step>("details");
   useEffect(() => {
     // Only prefill when transitioning TO the options step (not on every render)
@@ -275,14 +296,13 @@ export const CreateMarket = () => {
       currentStep === "options" &&
       prevStepRef.current !== "options" &&
       isBinary &&
-      question &&
       !newOptionLabel &&
       options.length === 0
     ) {
-      setNewOptionLabel(question);
+      setNewOptionLabel("binary");
     }
     prevStepRef.current = currentStep;
-  }, [currentStep, isBinary, question, newOptionLabel, options.length]);
+  }, [currentStep, isBinary, newOptionLabel, options.length]);
 
   const loadCategories = async () => {
     try {
@@ -386,18 +406,16 @@ export const CreateMarket = () => {
       return;
     }
 
-    // Check if user has sufficient balance for creation fee
-    if (user?.wallet?.balance_usdc !== undefined && creationFee > 0) {
+    // Check if user has sufficient balance for minimum liquidity requirement
+    const requiredLiquidity = parseInt(initialLiquidity) || 100;
+    if (user?.wallet?.balance_usdc !== undefined) {
       const userBalanceDisplay = user.wallet.balance_usdc / 1_000_000; // Convert microUSDC to USDC
-      if (userBalanceDisplay < creationFee) {
+      if (userBalanceDisplay < requiredLiquidity) {
         const formattedBalance = formatUSDC(user.wallet.balance_usdc).replace(
           "$",
           ""
         );
-        const errorMsg = `Insufficient balance. Market creation fee is ${creationFee.toLocaleString(
-          undefined,
-          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-        )} USDC, but you have ${formattedBalance} USDC`;
+        const errorMsg = `Insufficient balance. You need at least ${requiredLiquidity} USDC for initial liquidity, but you have ${formattedBalance} USDC`;
         setError(errorMsg);
         toast.error(errorMsg);
         return;
@@ -415,7 +433,7 @@ export const CreateMarket = () => {
         new Date(expirationDate).getTime() / 1000
       );
 
-      const { market, creation_fee_display } = await createMarket({
+      const { market } = await createMarket({
         base: baseKeypair.publicKey.toBase58(),
         marketQuestion: question,
         marketDescription: description,
@@ -428,17 +446,38 @@ export const CreateMarket = () => {
       });
 
       setCreatedMarketKey(market);
-      setSuccessMessage(
-        `Market created successfully! ${
-          creation_fee_display > 0
-            ? `Creation fee of ${Number(
-                creation_fee_display / 1_000_000
-              ).toFixed(2)} USDC charged.`
-            : ""
-        }`
-      );
+      setSuccessMessage("Market created successfully!");
       setTimeout(() => setSuccessMessage(null), 3000);
-      setCurrentStep("options");
+
+      // For binary markets, automatically created option is already on the backend
+      // Fetch the market to get the automatically created option and skip options step
+      if (isBinary) {
+        try {
+          // Invalidate cache to ensure we get fresh data with the automatically created option
+          invalidateMarketCache(market);
+          const { market: createdMarket } = await fetchMarket(market);
+          if (createdMarket.options && createdMarket.options.length > 0) {
+            setOptions(
+              createdMarket.options.map((opt: any) => ({
+                id: opt.id,
+                label: opt.option_label,
+                subLabel: opt.option_sub_label || null,
+                image: null,
+                imageUrl: opt.option_image_url || null,
+              }))
+            );
+          }
+          // Skip options step and go directly to review for binary markets
+          setCurrentStep("review");
+        } catch (error) {
+          console.error("Failed to fetch created market:", error);
+          // Fallback to options step if fetch fails
+          setCurrentStep("options");
+        }
+      } else {
+        // For non-binary markets, go to options step as before
+        setCurrentStep("options");
+      }
     } catch (error: any) {
       console.error("Failed to create market:", error);
       const errorMessage =
@@ -491,6 +530,7 @@ export const CreateMarket = () => {
       ]);
       setNewOptionLabel("");
       setNewOptionSubLabel("");
+      setShowSubLabelInput(false);
       setNewOptionImage(null);
       setSuccessMessage("Option added!");
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -510,7 +550,9 @@ export const CreateMarket = () => {
     const option = options[index];
     setEditingOptionIndex(index);
     setEditingOptionLabel(option.label);
-    setEditingOptionSubLabel(option.subLabel || "");
+    const subLabel = option.subLabel || "";
+    setEditingOptionSubLabel(subLabel);
+    setShowEditingSubLabelInput(!!subLabel);
     setEditingOptionImage(null);
   };
 
@@ -557,6 +599,7 @@ export const CreateMarket = () => {
       setEditingOptionIndex(null);
       setEditingOptionLabel("");
       setEditingOptionSubLabel("");
+      setShowEditingSubLabelInput(false);
       setEditingOptionImage(null);
       setSuccessMessage("Option updated!");
       setTimeout(() => setSuccessMessage(null), 2000);
@@ -665,11 +708,16 @@ export const CreateMarket = () => {
 
   if (!user) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary-500/20 to-primary-700/20 flex items-center justify-center">
+      <div className="min-h-[80vh] flex items-center justify-center bg-ink-black">
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <div className="w-20 h-20 mx-auto mb-8 border border-white/10 flex items-center justify-center">
             <svg
-              className="w-12 h-12 text-primary-400"
+              className="w-10 h-10 text-neon-iris/60"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -682,44 +730,32 @@ export const CreateMarket = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3">
+          <h1 className="text-4xl sm:text-5xl font-extralight tracking-tight text-white mb-4">
             Create a Market
           </h1>
-          <p className="text-gray-400 mb-6 max-w-md">
+          <p className="text-moon-grey/60 mb-8 max-w-md font-light">
             Connect your wallet to create prediction markets and earn creator
             fees on every trade.
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   if (isLoadingMarket) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
+      <div className="min-h-[80vh] flex items-center justify-center bg-ink-black">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4">
-            <svg
-              className="animate-spin w-full h-full text-primary-500"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
+          <div className="w-12 h-12 mx-auto mb-6 border border-white/10 flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              className="w-6 h-6 border-2 border-neon-iris/30 border-t-neon-iris rounded-full"
+            />
           </div>
-          <p className="text-gray-400">Loading market...</p>
+          <p className="text-moon-grey/50 text-sm tracking-wide uppercase">
+            Loading market...
+          </p>
         </div>
       </div>
     );
@@ -730,40 +766,73 @@ export const CreateMarket = () => {
     { id: "options" as const, label: "Add Options", number: 2 },
     {
       id: "review" as const,
-      label: "Add Liquidity & Go Live",
+      label: "Review & Go Live",
       number: 3,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-900/20 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary-500/5 blur-[120px] rounded-full" />
+    <div className="min-h-screen bg-ink-black overflow-hidden">
+      {/* Atmospheric background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.12),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_100%,rgba(33,246,210,0.06),transparent_50%)]" />
+        <div
+          className="absolute inset-0 opacity-[0.02] hidden sm:block"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+            backgroundSize: "80px 80px",
+          }}
+        />
+      </div>
 
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3 tracking-tight">
+      {/* Top gradient line */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris/30 to-transparent" />
+
+      {/* Hero Section */}
+      <section className="relative pt-12 sm:pt-16 lg:pt-20 pb-8 sm:pb-12 border-b border-white/5">
+        <div className="section-container">
+          <motion.div
+            className="text-center mb-10 sm:mb-14"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent to-neon-iris/60" />
+              <span className="text-[10px] sm:text-xs tracking-[0.25em] uppercase text-moon-grey/70 font-medium">
+                Market Creator
+              </span>
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-l from-transparent to-neon-iris/60" />
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extralight tracking-tight text-white mb-4 sm:mb-6">
               Create Your Market
             </h1>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-moon-grey/60 max-w-xl mx-auto font-light">
               Launch a prediction market and earn fees on every trade
             </p>
-          </div>
+          </motion.div>
 
           {/* Progress Steps */}
-          <div className="flex items-center justify-center gap-3 sm:gap-6">
+          <motion.div
+            className="flex items-center justify-center gap-4 sm:gap-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          >
             {steps.map((step, idx) => (
               <div key={step.id} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-base transition-all ${
+                    className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center font-light text-base transition-all duration-300 ${
                       currentStep === step.id
-                        ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30"
+                        ? "bg-neon-iris/20 text-neon-iris border border-neon-iris/50"
                         : steps.findIndex((s) => s.id === currentStep) > idx
-                        ? "bg-success-500/20 text-success-400 border border-success-500/50"
-                        : "bg-dark-800 text-gray-500 border border-dark-700"
+                        ? "bg-aqua-pulse/10 text-aqua-pulse border border-aqua-pulse/30"
+                        : "bg-white/[0.02] text-moon-grey/50 border border-white/10"
                     }`}
                   >
                     {steps.findIndex((s) => s.id === currentStep) > idx ? (
@@ -779,14 +848,14 @@ export const CreateMarket = () => {
                         />
                       </svg>
                     ) : (
-                      step.number
+                      <span className="text-lg">{step.number}</span>
                     )}
                   </div>
                   <span
-                    className={`mt-1.5 text-xs font-medium hidden sm:block ${
+                    className={`mt-2 sm:mt-3 text-[10px] sm:text-xs tracking-[0.15em] uppercase hidden sm:block transition-colors ${
                       currentStep === step.id
-                        ? "text-primary-400"
-                        : "text-gray-500"
+                        ? "text-neon-iris/80"
+                        : "text-moon-grey/40"
                     }`}
                   >
                     {step.label}
@@ -794,194 +863,60 @@ export const CreateMarket = () => {
                 </div>
                 {idx < steps.length - 1 && (
                   <div
-                    className={`w-8 sm:w-16 h-0.5 mx-2 sm:mx-3 rounded-full transition-colors ${
+                    className={`w-12 sm:w-20 h-px mx-3 sm:mx-4 transition-colors ${
                       steps.findIndex((s) => s.id === currentStep) > idx
-                        ? "bg-success-500/50"
-                        : "bg-dark-700"
+                        ? "bg-aqua-pulse/40"
+                        : "bg-white/10"
                     }`}
                   />
                 )}
               </div>
             ))}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        {/* Messages */}
-        {successMessage && (
-          <div className="mb-6 px-5 py-4 bg-success-500/10 border border-success-500/30 rounded-2xl backdrop-blur-sm animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-success-500/20 flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-success-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <span className="text-success-300 font-medium">
-                {successMessage}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-6 px-5 py-4 bg-danger-500/10 border border-danger-500/30 rounded-2xl backdrop-blur-sm animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-danger-500/20 flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-danger-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <span className="text-danger-300">{error}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Step 1: Market Details */}
-        {currentStep === "details" && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Image Upload */}
-            <div className="relative group">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  Cover Image <span className="text-danger-400">*</span>
-                </label>
-              </div>
-              <div
-                className={`relative aspect-[21/9] rounded-2xl border-2 border-dashed overflow-hidden transition-all duration-300 ${
-                  imagePreview
-                    ? "border-transparent"
-                    : "border-dark-600 hover:border-primary-500/50 bg-dark-900/50"
-                }`}
-              >
-                {imagePreview ? (
-                  <>
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      loading="lazy"
-                      className="w-full h-full object-cover max-w-full max-h-full"
+      <section className="relative py-10 sm:py-16">
+        <div className="section-container max-w-4xl">
+          {/* Messages */}
+          {successMessage && (
+            <motion.div
+              className="mb-8 px-6 py-4 bg-aqua-pulse/5 border border-aqua-pulse/20"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 border border-aqua-pulse/30 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4 text-aqua-pulse"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark-950/80 via-transparent to-transparent" />
-                    <button
-                      onClick={() => {
-                        setImage(null);
-                        setImagePreview(null);
-                      }}
-                      className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-dark-900/80 backdrop-blur-sm text-white hover:bg-danger-500 transition-colors flex items-center justify-center"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </>
-                ) : (
-                  <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer px-4 sm:px-6 py-4">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-dark-800 flex items-center justify-center mb-3 sm:mb-4 group-hover:bg-primary-500/20 transition-colors flex-shrink-0">
-                      <svg
-                        className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 group-hover:text-primary-400 transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </div>
-                    <span className="text-sm sm:text-base md:text-lg font-medium text-gray-400 group-hover:text-white transition-colors text-center break-words w-full px-2">
-                      Upload Cover Image{" "}
-                      <span className="text-danger-400">*</span>
-                    </span>
-                    <span className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2 text-center break-words w-full px-2 sm:px-4">
-                      PNG, JPG, or GIF (Recommended: 1200×514) - Required
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
-
-            {/* Question */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  Market Question
-                </label>
-                <span
-                  className={`text-xs ${
-                    question.length > MAX_QUESTION_LENGTH
-                      ? "text-danger-400"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {question.length}/{MAX_QUESTION_LENGTH}
+                  </svg>
+                </div>
+                <span className="text-aqua-pulse/90 font-light">
+                  {successMessage}
                 </span>
               </div>
-              <input
-                type="text"
-                value={question}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setQuestion(value);
-                  // Check for banned words
-                  const validation = validateTextContent(
-                    value,
-                    "Market question"
-                  );
-                  if (!validation.isValid) {
-                    setQuestionError(validation.error || null);
-                  } else {
-                    setQuestionError(null);
-                  }
-                }}
-                maxLength={MAX_QUESTION_LENGTH}
-                className={`w-full px-5 py-3.5 bg-dark-900/50 border-2 rounded-xl text-white text-lg placeholder-gray-600 focus:ring-0 transition-colors ${
-                  questionError
-                    ? "border-danger-500 focus:border-danger-500"
-                    : "border-dark-700 focus:border-primary-500"
-                }`}
-                placeholder="Will Bitcoin reach $100,000 by December 2025?"
-              />
-              {questionError && (
-                <p className="text-sm text-danger-400 flex items-center gap-1.5">
+            </motion.div>
+          )}
+
+          {error && (
+            <motion.div
+              className="mb-8 px-6 py-4 bg-red-500/5 border border-red-500/20"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 border border-red-500/30 flex items-center justify-center">
                   <svg
-                    className="w-4 h-4"
+                    className="w-4 h-4 text-red-400"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -991,668 +926,70 @@ export const CreateMarket = () => {
                       clipRule="evenodd"
                     />
                   </svg>
-                  {questionError}
-                </p>
-              )}
-            </div>
-
-            {/* Description */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                Description & Resolution Criteria
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setDescription(value);
-                  // Check for banned words
-                  const validation = validateTextContent(
-                    value,
-                    "Market description"
-                  );
-                  if (!validation.isValid) {
-                    setDescriptionError(validation.error || null);
-                  } else {
-                    setDescriptionError(null);
-                  }
-                }}
-                rows={4}
-                className={`w-full px-5 py-3.5 bg-dark-900/50 border-2 rounded-xl text-white placeholder-gray-600 focus:ring-0 transition-colors resize-none ${
-                  descriptionError
-                    ? "border-danger-500 focus:border-danger-500"
-                    : "border-dark-700 focus:border-primary-500"
-                }`}
-                placeholder="Provide context for traders and explain how this market will be resolved..."
-              />
-              {descriptionError && (
-                <p className="text-sm text-danger-400 flex items-center gap-1.5">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {descriptionError}
-                </p>
-              )}
-            </div>
-
-            {/* Two Column Layout */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              {/* Expiration */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  Expiration Date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full px-5 py-3.5 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white focus:border-primary-500 focus:ring-0 transition-colors"
-                />
-              </div>
-
-              {/* Market Type */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  Market Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setIsBinary(true)}
-                    className={`px-5 py-3 rounded-xl font-medium transition-all ${
-                      isBinary
-                        ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
-                        : "bg-dark-800 text-gray-400 border-2 border-dark-700 hover:border-primary-500/50"
-                    }`}
-                  >
-                    Yes / No
-                  </button>
-                  <button
-                    onClick={() => setIsBinary(false)}
-                    className={`px-5 py-3 rounded-xl font-medium transition-all ${
-                      !isBinary
-                        ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25"
-                        : "bg-dark-800 text-gray-400 border-2 border-dark-700 hover:border-primary-500/50"
-                    }`}
-                  >
-                    Multiple Choice
-                  </button>
                 </div>
+                <span className="text-red-400/90 font-light">{error}</span>
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            {/* Categories */}
-            {categories.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                    Category <span className="text-danger-400">*</span>
+          {/* Step 1: Market Details */}
+          {currentStep === "details" && (
+            <motion.div
+              className="space-y-10"
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+            >
+              {/* Image Upload */}
+              <motion.div className="relative group" variants={fadeInUp}>
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    Cover Image <span className="text-red-400">*</span>
                   </label>
-                  <span
-                    className={`text-xs ${
-                      selectedCategory ? "text-primary-400" : "text-gray-500"
-                    }`}
-                  >
-                    {selectedCategory ? "1/1 selected" : "0/1 selected"}
-                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => {
-                    const isSelected = selectedCategory.includes(cat.id);
-
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedCategory([]);
-                          } else {
-                            setSelectedCategory([cat.id]);
-                          }
-                        }}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                          isSelected
-                            ? "bg-primary-500/20 text-primary-300 border border-primary-500/50"
-                            : "bg-dark-800 text-gray-400 border border-dark-700 hover:border-primary-500/30 hover:text-white"
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                {!selectedCategory && (
-                  <p className="text-xs text-amber-400 flex items-center gap-1.5">
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clipRule="evenodd"
+                <div
+                  className={`relative aspect-[21/9] border overflow-hidden transition-all duration-300 ${
+                    imagePreview
+                      ? "border-white/10"
+                      : "border-dashed border-white/20 hover:border-neon-iris/40 bg-white/[0.02]"
+                  }`}
+                >
+                  {imagePreview ? (
+                    <>
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        loading="lazy"
+                        className="w-full h-full object-cover max-w-full max-h-full"
                       />
-                    </svg>
-                    Please select a category (required)
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Resolution Mode Selection */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 uppercase tracking-wide mb-1">
-                  Resolution Mode
-                </label>
-                <p className="text-xs text-gray-500">
-                  How this market will be resolved (cannot be changed)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  ResolutionMode.ORACLE,
-                  ResolutionMode.AUTHORITY,
-                  ResolutionMode.OPINION,
-                ].map((mode) => {
-                  const modeLabels: Record<ResolutionMode, string> = {
-                    [ResolutionMode.ORACLE]: "Oracle",
-                    [ResolutionMode.AUTHORITY]: "Authority",
-                    [ResolutionMode.OPINION]: "Opinion",
-                  };
-
-                  const modeDescriptions: Record<ResolutionMode, string> = {
-                    [ResolutionMode.ORACLE]: "Platform admins resolve",
-                    [ResolutionMode.AUTHORITY]: "You resolve the outcome",
-                    [ResolutionMode.OPINION]: "Market price determines",
-                  };
-
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setResolutionMode(mode)}
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
-                        resolutionMode === mode
-                          ? "border-primary-500 bg-primary-500/20"
-                          : "border-dark-700 bg-dark-800/50 hover:border-primary-500/50"
-                      }`}
-                    >
-                      <div className="font-semibold text-white mb-1 text-sm">
-                        {modeLabels[mode]}
-                        {mode === ResolutionMode.ORACLE && (
-                          <span className="ml-2 text-xs text-primary-400">
-                            (Recommended)
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {modeDescriptions[mode]}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Resolution Config Fields - Only for AUTHORITY mode */}
-              {resolutionMode === ResolutionMode.AUTHORITY && (
-                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                  <p className="text-xs text-blue-200/90 font-semibold mb-2">
-                    About Disputes
-                  </p>
-                  <p className="text-xs text-blue-200/70">
-                    After you resolve, there's a 2-hour dispute window. Users
-                    can dispute by posting a bond, which will be reviewed by
-                    platform admins.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Market Creation Cost */}
-            {creationFee > 0 && (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-amber-300">
-                      Creation Fee
-                    </p>
-                    {user?.wallet?.balance_usdc !== undefined && (
-                      <p
-                        className={`text-xs mt-0.5 ${
-                          user.wallet.balance_usdc / 1_000_000 >= creationFee
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                      <div className="absolute inset-0 bg-gradient-to-t from-ink-black/80 via-transparent to-transparent" />
+                      <button
+                        onClick={() => {
+                          setImage(null);
+                          setImagePreview(null);
+                        }}
+                        className="absolute top-4 right-4 w-10 h-10 bg-ink-black/80 backdrop-blur-sm text-white/70 hover:text-white hover:bg-red-500/80 transition-all flex items-center justify-center border border-white/10"
                       >
-                        Balance: {formatUSDC(user.wallet.balance_usdc)} USDC
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-lg font-bold text-amber-300">
-                    {isLoadingFee ? "..." : `${creationFee.toFixed(2)} USDC`}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Continue Button */}
-            <div className="pt-6">
-              {(() => {
-                const userBalanceDisplay =
-                  user?.wallet?.balance_usdc !== undefined
-                    ? user.wallet.balance_usdc / 1_000_000
-                    : 0;
-                const hasEnoughBalance =
-                  creationFee === 0 || userBalanceDisplay >= creationFee;
-                const isButtonDisabled =
-                  !canProceedToOptions || isCreatingMarket || !hasEnoughBalance;
-
-                return (
-                  <>
-                    <button
-                      onClick={handleCreateMarket}
-                      disabled={isButtonDisabled}
-                      className={`w-full py-4 rounded-xl font-semibold text-base transition-all ${
-                        !isButtonDisabled
-                          ? "bg-primary-500 text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600"
-                          : "bg-dark-800 text-gray-500 cursor-not-allowed"
-                      }`}
-                    >
-                      {isCreatingMarket ? (
-                        <span className="flex items-center justify-center gap-3">
-                          <svg
-                            className="animate-spin h-6 w-6"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              fill="none"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          {createdMarketKey
-                            ? "Updating Market..."
-                            : "Creating Market..."}
-                        </span>
-                      ) : (
-                        `${
-                          createdMarketKey ? "Update" : "Create"
-                        } Market & Add Options${
-                          creationFee > 0 && !createdMarketKey
-                            ? ` (${creationFee.toFixed(2)} USDC)`
-                            : ""
-                        } →`
-                      )}
-                    </button>
-                    {!hasEnoughBalance &&
-                      creationFee > 0 &&
-                      !createdMarketKey && (
-                        <p className="mt-3 text-center text-sm text-danger-400">
-                          You need {creationFee.toFixed(2)} USDC to create a
-                          market
-                        </p>
-                      )}
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Add Options */}
-        {currentStep === "options" && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Market Preview Card */}
-            <div className="relative rounded-2xl overflow-hidden border border-dark-700 bg-dark-900/50 backdrop-blur-sm">
-              <div className="aspect-[21/9] relative bg-dark-800">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Market"
-                    loading="lazy"
-                    className="w-full h-full object-cover max-w-full max-h-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/1200x514/1a1a2e/6366f1?text=Market+Image";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-gray-500">No image</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-dark-950/50 to-transparent" />
-              </div>
-              <div className="p-6 -mt-20 relative">
-                <h2 className="text-2xl font-bold text-white mb-2">
-                  {question}
-                </h2>
-                <p className="text-gray-400 text-sm">
-                  {description || "No description provided"}
-                </p>
-              </div>
-            </div>
-
-            {/* Binary Market Info */}
-            {isBinary && (
-              <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/30">
-                <p className="text-sm text-primary-200/90">
-                  <span className="font-semibold text-primary-300">
-                    Binary Market:
-                  </span>{" "}
-                  Add one option. Traders will bet Yes or No on it.
-                </p>
-              </div>
-            )}
-
-            {/* Added Options */}
-            {options.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                  {isBinary ? "Option" : `Options Added (${options.length})`}
-                </h3>
-                <div className="grid gap-3">
-                  {options.map((opt, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-4 px-5 py-4 bg-dark-800/50 rounded-2xl border border-dark-700"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-primary-700/20 flex items-center justify-center text-primary-400 font-bold">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1">
-                        {editingOptionIndex === idx ? (
-                          <div className="space-y-3">
-                            <input
-                              type="text"
-                              value={editingOptionLabel}
-                              onChange={(e) =>
-                                setEditingOptionLabel(e.target.value)
-                              }
-                              maxLength={MAX_OPTION_LABEL_LENGTH}
-                              className="w-full px-3 py-2 bg-dark-900/50 border-2 border-primary-500 rounded-lg text-white placeholder-gray-600 focus:ring-0"
-                              placeholder="Option label"
-                            />
-                            <input
-                              type="text"
-                              value={editingOptionSubLabel}
-                              onChange={(e) =>
-                                setEditingOptionSubLabel(e.target.value)
-                              }
-                              maxLength={100}
-                              className="w-full px-3 py-2 bg-dark-900/50 border-2 border-dark-700 rounded-lg text-white placeholder-gray-600 focus:ring-0 focus:border-primary-500"
-                              placeholder="Sub-label (optional, e.g., Republican, Democratic)"
-                            />
-                            <div className="space-y-2">
-                              {(editingOptionImage || opt.imageUrl) && (
-                                <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-dark-700">
-                                  <img
-                                    src={
-                                      editingOptionImage
-                                        ? URL.createObjectURL(
-                                            editingOptionImage
-                                          )
-                                        : opt.imageUrl || ""
-                                    }
-                                    alt="Option preview"
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              )}
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <div className="flex items-center gap-2 px-3 py-2 bg-dark-800 rounded-lg border border-dark-700 hover:border-primary-500/50 transition-colors">
-                                  <svg
-                                    className="w-4 h-4 text-gray-500"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={1.5}
-                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                  <span className="text-gray-400 text-sm">
-                                    {editingOptionImage
-                                      ? editingOptionImage.name
-                                      : opt.imageUrl
-                                      ? "Change image"
-                                      : "Option image (optional)"}
-                                  </span>
-                                </div>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const compressedFile =
-                                          await compressOptionImage(file);
-                                        setEditingOptionImage(compressedFile);
-                                      } catch (error) {
-                                        console.error(
-                                          "Failed to compress image:",
-                                          error
-                                        );
-                                        toast.error(
-                                          "Failed to process image. Using original file."
-                                        );
-                                        setEditingOptionImage(file);
-                                      }
-                                    } else {
-                                      setEditingOptionImage(null);
-                                    }
-                                  }}
-                                  className="hidden"
-                                />
-                              </label>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={handleSaveOption}
-                                disabled={isCreatingOption}
-                                className="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {isCreatingOption ? "Saving..." : "Save"}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingOptionIndex(null);
-                                  setEditingOptionLabel("");
-                                  setEditingOptionSubLabel("");
-                                  setEditingOptionImage(null);
-                                }}
-                                disabled={isCreatingOption}
-                                className="px-3 py-1.5 bg-dark-700 text-gray-400 rounded-lg text-sm font-medium hover:bg-dark-600 disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div>
-                              <span className="text-white font-medium">
-                                {opt.label}
-                              </span>
-                              {opt.subLabel && (
-                                <div className="text-gray-300 text-sm mt-0.5">
-                                  {opt.subLabel}
-                                </div>
-                              )}
-                            </div>
-                            {isBinary && (
-                              <p className="text-gray-500 text-sm mt-0.5">
-                                Traders will bet Yes or No
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {editingOptionIndex !== idx && (
-                        <div className="ml-auto flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditOption(idx)}
-                            className="p-2 rounded-lg bg-dark-700 text-gray-400 hover:text-primary-400 hover:bg-dark-600 transition-colors"
-                            title="Edit option"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteOption(idx)}
-                            className="p-2 rounded-lg bg-dark-700 text-gray-400 hover:text-danger-400 hover:bg-dark-600 transition-colors"
-                            title="Delete option"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Add New Option - hide for binary markets that already have an option */}
-            {canAddMoreOptions && (
-              <div className="p-5 rounded-2xl bg-dark-800/30 border-2 border-dashed border-dark-700">
-                <h3 className="text-base font-semibold text-white mb-4">
-                  {isBinary ? "Add Your Option" : "Add Option"}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-400">
-                        Option Label
-                      </span>
-                      <span
-                        className={`text-xs ${
-                          newOptionLabel.length > MAX_OPTION_LABEL_LENGTH
-                            ? "text-danger-400"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {newOptionLabel.length}/{MAX_OPTION_LABEL_LENGTH}
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={newOptionLabel}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setNewOptionLabel(value);
-                        // Check for banned words
-                        const validation = validateTextContent(
-                          value,
-                          "Option label"
-                        );
-                        if (!validation.isValid) {
-                          setOptionLabelError(validation.error || null);
-                        } else {
-                          setOptionLabelError(null);
-                        }
-                      }}
-                      maxLength={MAX_OPTION_LABEL_LENGTH}
-                      className={`w-full px-5 py-3.5 bg-dark-900/50 border-2 rounded-xl text-white placeholder-gray-600 focus:ring-0 transition-colors ${
-                        optionLabelError
-                          ? "border-danger-500 focus:border-danger-500"
-                          : "border-dark-700 focus:border-primary-500"
-                      }`}
-                      placeholder={
-                        isBinary
-                          ? "e.g., Bitcoin $100k, Trump wins, Lakers championship..."
-                          : "e.g., Team A, Team B, Draw..."
-                      }
-                    />
-                    {optionLabelError && (
-                      <p className="text-sm text-danger-400 flex items-center gap-1.5 mt-2">
                         <svg
-                          className="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
                           <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M6 18L18 6M6 6l12 12"
                           />
                         </svg>
-                        {optionLabelError}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-400">
-                        Sub-label (Optional)
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {newOptionSubLabel.length}/100
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={newOptionSubLabel}
-                      onChange={(e) => setNewOptionSubLabel(e.target.value)}
-                      maxLength={100}
-                      className="w-full px-5 py-3.5 bg-dark-900/50 border-2 border-dark-700 rounded-xl text-white placeholder-gray-600 focus:ring-0 focus:border-primary-500 transition-colors"
-                      placeholder="e.g., Republican, Democratic, Independent..."
-                    />
-                    <p className="text-xs text-gray-500 mt-1.5">
-                      Add additional context to help identify this option
-                    </p>
-                  </div>
-                  <div className="flex gap-4">
-                    <label className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-3 px-5 py-3 bg-dark-800 rounded-xl border border-dark-700 hover:border-primary-500/50 transition-colors">
+                      </button>
+                    </>
+                  ) : (
+                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer px-4 sm:px-6 py-4">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 border border-white/10 flex items-center justify-center mb-4 sm:mb-5 group-hover:border-neon-iris/40 group-hover:bg-neon-iris/5 transition-all flex-shrink-0">
                         <svg
-                          className="w-5 h-5 text-gray-500"
+                          className="w-7 h-7 sm:w-8 sm:h-8 text-moon-grey/40 group-hover:text-neon-iris/70 transition-colors"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1664,39 +1001,1005 @@ export const CreateMarket = () => {
                             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                           />
                         </svg>
-                        <span className="text-gray-400 text-sm">
-                          {newOptionImage
-                            ? newOptionImage.name
-                            : "Option image (optional)"}
-                        </span>
                       </div>
+                      <span className="text-sm sm:text-base font-light text-moon-grey/60 group-hover:text-white transition-colors text-center">
+                        Upload Cover Image
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-moon-grey/40 mt-2 text-center">
+                        PNG, JPG, or GIF • 1200×514 recommended
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            try {
-                              // Compress image before setting it
-                              const compressedFile = await compressOptionImage(
-                                file
-                              );
-                              setNewOptionImage(compressedFile);
-                            } catch (error) {
-                              console.error("Failed to compress image:", error);
-                              toast.error(
-                                "Failed to process image. Using original file."
-                              );
-                              // Fallback to original file if compression fails
-                              setNewOptionImage(file);
-                            }
-                          } else {
-                            setNewOptionImage(null);
-                          }
-                        }}
+                        onChange={handleImageChange}
                         className="hidden"
                       />
                     </label>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* Question */}
+              <motion.div className="space-y-4" variants={fadeInUp}>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    Market Question
+                  </label>
+                  <span
+                    className={`text-[10px] sm:text-xs ${
+                      question.length > MAX_QUESTION_LENGTH
+                        ? "text-red-400"
+                        : "text-moon-grey/40"
+                    }`}
+                  >
+                    {question.length}/{MAX_QUESTION_LENGTH}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={question}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setQuestion(value);
+                    const validation = validateTextContent(
+                      value,
+                      "Market question"
+                    );
+                    if (!validation.isValid) {
+                      setQuestionError(validation.error || null);
+                    } else {
+                      setQuestionError(null);
+                    }
+                  }}
+                  maxLength={MAX_QUESTION_LENGTH}
+                  className={`w-full px-5 py-4 bg-white/[0.02] border text-white text-base sm:text-lg font-light placeholder-moon-grey/30 focus:ring-0 focus:outline-none transition-colors ${
+                    questionError
+                      ? "border-red-500/50 focus:border-red-500"
+                      : "border-white/10 focus:border-neon-iris/50"
+                  }`}
+                  placeholder="Will Bitcoin reach $100,000 by December 2025?"
+                />
+                {questionError && (
+                  <p className="text-xs text-red-400 flex items-center gap-2">
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {questionError}
+                  </p>
+                )}
+              </motion.div>
+
+              {/* Description */}
+              <motion.div className="space-y-4" variants={fadeInUp}>
+                <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                  Description & Resolution Criteria
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setDescription(value);
+                    const validation = validateTextContent(
+                      value,
+                      "Market description"
+                    );
+                    if (!validation.isValid) {
+                      setDescriptionError(validation.error || null);
+                    } else {
+                      setDescriptionError(null);
+                    }
+                  }}
+                  rows={4}
+                  className={`w-full px-5 py-4 bg-white/[0.02] border text-white font-light placeholder-moon-grey/30 focus:ring-0 focus:outline-none transition-colors resize-none ${
+                    descriptionError
+                      ? "border-red-500/50 focus:border-red-500"
+                      : "border-white/10 focus:border-neon-iris/50"
+                  }`}
+                  placeholder="Provide context for traders and explain how this market will be resolved..."
+                />
+                {descriptionError && (
+                  <p className="text-xs text-red-400 flex items-center gap-2">
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {descriptionError}
+                  </p>
+                )}
+              </motion.div>
+
+              {/* Two Column Layout */}
+              <motion.div
+                className="grid sm:grid-cols-2 gap-8"
+                variants={fadeInUp}
+              >
+                {/* Expiration */}
+                <div className="space-y-4">
+                  <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    Expiration Date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                    className="w-full px-5 py-4 bg-white/[0.02] border border-white/10 text-white focus:border-neon-iris/50 focus:ring-0 focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Market Type */}
+                <div className="space-y-4">
+                  <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    Market Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setIsBinary(true)}
+                      className={`px-5 py-3.5 font-light text-sm transition-all ${
+                        isBinary
+                          ? "bg-neon-iris/20 text-neon-iris border border-neon-iris/50"
+                          : "bg-white/[0.02] text-moon-grey/60 border border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      Yes / No
+                    </button>
+                    <button
+                      onClick={() => setIsBinary(false)}
+                      className={`px-5 py-3.5 font-light text-sm transition-all ${
+                        !isBinary
+                          ? "bg-neon-iris/20 text-neon-iris border border-neon-iris/50"
+                          : "bg-white/[0.02] text-moon-grey/60 border border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      Multiple Choice
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Categories */}
+              {categories.length > 0 && (
+                <motion.div className="space-y-4" variants={fadeInUp}>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                      Category <span className="text-red-400">*</span>
+                    </label>
+                    <span
+                      className={`text-[10px] sm:text-xs ${
+                        selectedCategory.length > 0
+                          ? "text-neon-iris/70"
+                          : "text-moon-grey/40"
+                      }`}
+                    >
+                      {selectedCategory.length > 0
+                        ? "1/1 selected"
+                        : "0/1 selected"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                    {categories.map((cat) => {
+                      const isSelected = selectedCategory.includes(cat.id);
+
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCategory([]);
+                            } else {
+                              setSelectedCategory([cat.id]);
+                            }
+                          }}
+                          className={`px-4 py-2.5 text-sm font-light transition-all ${
+                            isSelected
+                              ? "bg-neon-iris/15 text-neon-iris border border-neon-iris/40"
+                              : "bg-white/[0.02] text-moon-grey/60 border border-white/10 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedCategory.length === 0 && (
+                    <p className="text-[10px] sm:text-xs text-amber-400/70 flex items-center gap-2">
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Please select a category (required)
+                    </p>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Resolution Mode Selection */}
+              <motion.div className="space-y-4" variants={fadeInUp}>
+                <div>
+                  <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    Resolution Mode
+                  </label>
+                  <p className="text-[10px] sm:text-xs text-moon-grey/40 mt-1">
+                    How this market will be resolved (cannot be changed)
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    ResolutionMode.ORACLE,
+                    ResolutionMode.AUTHORITY,
+                    ResolutionMode.OPINION,
+                  ].map((mode) => {
+                    const modeLabels: Record<ResolutionMode, string> = {
+                      [ResolutionMode.ORACLE]: "Oracle",
+                      [ResolutionMode.AUTHORITY]: "Authority",
+                      [ResolutionMode.OPINION]: "Opinion",
+                    };
+
+                    const modeDescriptions: Record<ResolutionMode, string> = {
+                      [ResolutionMode.ORACLE]: "Platform admins resolve",
+                      [ResolutionMode.AUTHORITY]: "You resolve the outcome",
+                      [ResolutionMode.OPINION]: "Market price determines",
+                    };
+
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setResolutionMode(mode)}
+                        className={`p-4 sm:p-5 border text-left transition-all ${
+                          resolutionMode === mode
+                            ? "border-neon-iris/50 bg-neon-iris/10"
+                            : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                        }`}
+                      >
+                        <div className="font-light text-white mb-1 text-sm">
+                          {modeLabels[mode]}
+                          {mode === ResolutionMode.ORACLE && (
+                            <span className="ml-2 text-[10px] text-neon-iris/70">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-moon-grey/50">
+                          {modeDescriptions[mode]}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Resolution Config Fields - Only for AUTHORITY mode */}
+                {resolutionMode === ResolutionMode.AUTHORITY && (
+                  <div className="mt-4 p-5 bg-blue-500/5 border border-blue-500/20">
+                    <p className="text-xs text-blue-300/80 font-medium mb-2">
+                      About Disputes
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-blue-200/50 font-light">
+                      After you resolve, there's a 2-hour dispute window. Users
+                      can dispute by posting a bond, which will be reviewed by
+                      platform admins.
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Initial Liquidity */}
+              <motion.div
+                className="p-6 sm:p-8 bg-neon-iris/5 border border-neon-iris/20"
+                variants={fadeInUp}
+              >
+                <h3 className="text-lg sm:text-xl font-light text-white mb-3">
+                  Initial Liquidity
+                </h3>
+                <p className="text-sm text-moon-grey/60 mb-6 font-light">
+                  Seed the market with liquidity to launch it. You'll receive LP
+                  shares and earn fees from all trades. Minimum: 100 USDC
+                </p>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={initialLiquidity}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setInitialLiquidity(value);
+                    }}
+                    min="100"
+                    step="1"
+                    className="w-full px-5 py-4 pr-28 bg-white/[0.02] border border-white/10 text-white text-lg sm:text-xl font-light placeholder-moon-grey/30 focus:border-neon-iris/50 focus:ring-0 focus:outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="100"
+                  />
+                  <span className="absolute right-20 top-1/2 -translate-y-1/2 text-moon-grey/50 font-light">
+                    USDC
+                  </span>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col border border-white/10 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = parseInt(initialLiquidity) || 100;
+                        const newValue = Math.max(100, current + 1);
+                        setInitialLiquidity(String(newValue));
+                      }}
+                      className="w-7 h-6 flex items-center justify-center bg-white/[0.02] hover:bg-neon-iris/10 text-moon-grey/50 hover:text-neon-iris transition-all border-b border-white/10"
+                      aria-label="Increment"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 15l7-7 7 7"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = parseInt(initialLiquidity) || 100;
+                        const newValue = Math.max(100, current - 1);
+                        setInitialLiquidity(String(newValue));
+                      }}
+                      className="w-7 h-6 flex items-center justify-center bg-white/[0.02] hover:bg-neon-iris/10 text-moon-grey/50 hover:text-neon-iris transition-all"
+                      aria-label="Decrement"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                {user?.wallet?.balance_usdc !== undefined && (
+                  <p
+                    className={`text-xs mt-3 ${
+                      user.wallet.balance_usdc / 1_000_000 >=
+                      (parseInt(initialLiquidity) || 100)
+                        ? "text-aqua-pulse/80"
+                        : "text-red-400/80"
+                    }`}
+                  >
+                    Your balance: {formatUSDC(user.wallet.balance_usdc)} USDC
+                  </p>
+                )}
+              </motion.div>
+
+              {/* Continue Button */}
+              <motion.div className="pt-8" variants={fadeInUp}>
+                {(() => {
+                  const userBalanceDisplay =
+                    user?.wallet?.balance_usdc !== undefined
+                      ? user.wallet.balance_usdc / 1_000_000
+                      : 0;
+                  const requiredLiquidity = parseInt(initialLiquidity) || 100;
+                  const hasEnoughBalance =
+                    userBalanceDisplay >= requiredLiquidity;
+                  const isLiquidityValid = requiredLiquidity >= 100;
+                  const isButtonDisabled =
+                    !canProceedToOptions ||
+                    isCreatingMarket ||
+                    !hasEnoughBalance ||
+                    !isLiquidityValid;
+
+                  return (
+                    <>
+                      <button
+                        onClick={handleCreateMarket}
+                        disabled={isButtonDisabled}
+                        className={`group w-full py-4 sm:py-5 text-sm font-medium tracking-wide uppercase transition-all duration-300 inline-flex items-center justify-center gap-3 ${
+                          !isButtonDisabled
+                            ? "bg-white text-ink-black hover:bg-moon-grey-light"
+                            : "bg-white/10 text-moon-grey/40 cursor-not-allowed"
+                        }`}
+                      >
+                        {isCreatingMarket ? (
+                          <span className="flex items-center justify-center gap-3">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              className="w-5 h-5 border-2 border-ink-black/30 border-t-ink-black rounded-full"
+                            />
+                            {createdMarketKey
+                              ? "Updating Market..."
+                              : "Creating Market..."}
+                          </span>
+                        ) : (
+                          <>
+                            <span>
+                              {createdMarketKey ? "Update" : "Create"} Market &
+                              Add Options
+                            </span>
+                            <svg
+                              className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M17 8l4 4m0 0l-4 4m4-4H3"
+                              />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                      {!hasEnoughBalance && !createdMarketKey && (
+                        <p className="mt-4 text-center text-xs text-red-400/80">
+                          You need at least {requiredLiquidity} USDC for initial
+                          liquidity
+                        </p>
+                      )}
+                      {!isLiquidityValid && (
+                        <p className="mt-4 text-center text-xs text-red-400/80">
+                          Minimum initial liquidity is 100 USDC
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Step 2: Add Options */}
+          {currentStep === "options" && (
+            <motion.div
+              className="space-y-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              {/* Market Preview Card */}
+              <div className="relative overflow-hidden border border-white/10 bg-graphite-deep/50">
+                <div className="aspect-[21/9] relative bg-ink-black">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Market"
+                      loading="lazy"
+                      className="w-full h-full object-cover max-w-full max-h-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://placehold.co/1200x514/0a0a0f/7c4dff?text=Market+Image";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-moon-grey/30">No image</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-black via-ink-black/60 to-transparent" />
+                </div>
+                <div className="p-6 sm:p-8 -mt-20 relative">
+                  <h2 className="text-xl sm:text-2xl font-light text-white mb-3">
+                    {question}
+                  </h2>
+                  <p className="text-moon-grey/50 text-sm font-light">
+                    {description || "No description provided"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Binary Market Info */}
+              {isBinary && (
+                <div className="p-5 bg-neon-iris/5 border border-neon-iris/20">
+                  <p className="text-sm text-moon-grey/70 font-light">
+                    <span className="text-neon-iris/80">Binary Market:</span>{" "}
+                    Add one option. Traders will bet Yes or No on it.
+                  </p>
+                </div>
+              )}
+
+              {/* Added Options */}
+              {options.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                    {isBinary ? "Option" : `Options Added (${options.length})`}
+                  </h3>
+                  <div className="grid gap-3">
+                    {options.map((opt, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-4 px-5 sm:px-6 py-4 sm:py-5 bg-white/[0.02] border border-white/10"
+                      >
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 border border-neon-iris/30 bg-neon-iris/5 flex items-center justify-center text-neon-iris/80 font-light text-lg">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          {editingOptionIndex === idx ? (
+                            <div className="space-y-4">
+                              <input
+                                type="text"
+                                value={editingOptionLabel}
+                                onChange={(e) =>
+                                  setEditingOptionLabel(e.target.value)
+                                }
+                                maxLength={MAX_OPTION_LABEL_LENGTH}
+                                className="w-full px-4 py-3 bg-white/[0.02] border border-neon-iris/50 text-white placeholder-moon-grey/30 focus:ring-0 focus:outline-none"
+                                placeholder="Option label"
+                              />
+                              <div className="border border-white/10 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowEditingSubLabelInput(
+                                      !showEditingSubLabelInput
+                                    )
+                                  }
+                                  className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-light text-moon-grey/70">
+                                      Sub-label
+                                    </span>
+                                    <span className="text-[10px] text-moon-grey/40">
+                                      (Optional)
+                                    </span>
+                                  </div>
+                                  <svg
+                                    className={`w-4 h-4 text-moon-grey/40 transition-transform ${
+                                      showEditingSubLabelInput
+                                        ? "rotate-180"
+                                        : ""
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={1.5}
+                                      d="M19 9l-7 7-7-7"
+                                    />
+                                  </svg>
+                                </button>
+                                {showEditingSubLabelInput && (
+                                  <div className="p-4 bg-white/[0.01] border-t border-white/10">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <label className="text-[10px] text-moon-grey/50">
+                                        Add additional context
+                                      </label>
+                                      <span className="text-[10px] text-moon-grey/40">
+                                        {editingOptionSubLabel.length}/100
+                                      </span>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={editingOptionSubLabel}
+                                      onChange={(e) =>
+                                        setEditingOptionSubLabel(e.target.value)
+                                      }
+                                      maxLength={100}
+                                      className="w-full px-4 py-2.5 bg-white/[0.02] border border-white/10 text-white placeholder-moon-grey/30 focus:ring-0 focus:outline-none focus:border-neon-iris/50 transition-colors"
+                                      placeholder="e.g., Republican, Democratic, Independent..."
+                                      autoFocus
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="space-y-3">
+                                {(editingOptionImage || opt.imageUrl) && (
+                                  <div className="relative w-28 h-28 overflow-hidden border border-white/10">
+                                    <img
+                                      src={
+                                        editingOptionImage
+                                          ? URL.createObjectURL(
+                                              editingOptionImage
+                                            )
+                                          : opt.imageUrl || ""
+                                      }
+                                      alt="Option preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] border border-white/10 hover:border-white/20 transition-colors">
+                                    <svg
+                                      className="w-4 h-4 text-moon-grey/40"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1.5}
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
+                                    </svg>
+                                    <span className="text-moon-grey/50 text-sm font-light">
+                                      {editingOptionImage
+                                        ? editingOptionImage.name
+                                        : opt.imageUrl
+                                        ? "Change image"
+                                        : "Option image (optional)"}
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        try {
+                                          const compressedFile =
+                                            await compressOptionImage(file);
+                                          setEditingOptionImage(compressedFile);
+                                        } catch (error) {
+                                          console.error(
+                                            "Failed to compress image:",
+                                            error
+                                          );
+                                          toast.error(
+                                            "Failed to process image. Using original file."
+                                          );
+                                          setEditingOptionImage(file);
+                                        }
+                                      } else {
+                                        setEditingOptionImage(null);
+                                      }
+                                    }}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={handleSaveOption}
+                                  disabled={isCreatingOption}
+                                  className="px-4 py-2 bg-white text-ink-black text-sm font-medium hover:bg-moon-grey-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isCreatingOption ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingOptionIndex(null);
+                                    setEditingOptionLabel("");
+                                    setEditingOptionSubLabel("");
+                                    setShowEditingSubLabelInput(false);
+                                    setEditingOptionImage(null);
+                                  }}
+                                  disabled={isCreatingOption}
+                                  className="px-4 py-2 bg-white/[0.02] text-moon-grey/60 border border-white/10 text-sm font-light hover:border-white/20 transition-colors disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-4">
+                              {(opt.image || opt.imageUrl) && (
+                                <div className="relative w-14 h-14 overflow-hidden border border-white/10 flex-shrink-0">
+                                  <img
+                                    src={
+                                      opt.image
+                                        ? URL.createObjectURL(opt.image)
+                                        : opt.imageUrl || ""
+                                    }
+                                    alt={opt.label}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (
+                                        e.target as HTMLImageElement
+                                      ).style.display = "none";
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <span className="text-white font-light">
+                                  {opt.label}
+                                </span>
+                                {opt.subLabel && (
+                                  <div className="text-moon-grey/50 text-sm mt-1 font-light">
+                                    {opt.subLabel}
+                                  </div>
+                                )}
+                                {isBinary && (
+                                  <p className="text-moon-grey/40 text-xs mt-1">
+                                    Traders will bet Yes or No
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {editingOptionIndex !== idx && (
+                          <div className="ml-auto flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditOption(idx)}
+                              className="p-2.5 bg-white/[0.02] border border-white/10 text-moon-grey/50 hover:text-neon-iris hover:border-neon-iris/30 transition-all"
+                              title="Edit option"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteOption(idx)}
+                              className="p-2.5 bg-white/[0.02] border border-white/10 text-moon-grey/50 hover:text-red-400 hover:border-red-500/30 transition-all"
+                              title="Delete option"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Option - hide for binary markets that already have an option */}
+              {canAddMoreOptions && (
+                <div className="p-6 sm:p-8 bg-graphite-deep/50 border border-white/10">
+                  <h3 className="text-lg sm:text-xl font-light text-white mb-6">
+                    {isBinary ? "Add Your Option" : "Add New Option"}
+                  </h3>
+                  <div className="space-y-6">
+                    {/* Option Label */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                          Option Label <span className="text-red-400">*</span>
+                        </label>
+                        <span
+                          className={`text-[10px] sm:text-xs ${
+                            newOptionLabel.length > MAX_OPTION_LABEL_LENGTH
+                              ? "text-red-400"
+                              : "text-moon-grey/40"
+                          }`}
+                        >
+                          {newOptionLabel.length}/{MAX_OPTION_LABEL_LENGTH}
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={newOptionLabel}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewOptionLabel(value);
+                          const validation = validateTextContent(
+                            value,
+                            "Option label"
+                          );
+                          if (!validation.isValid) {
+                            setOptionLabelError(validation.error || null);
+                          } else {
+                            setOptionLabelError(null);
+                          }
+                        }}
+                        maxLength={MAX_OPTION_LABEL_LENGTH}
+                        className={`w-full px-5 py-4 bg-white/[0.02] border text-white font-light placeholder-moon-grey/30 focus:ring-0 focus:outline-none transition-colors ${
+                          optionLabelError
+                            ? "border-red-500/50 focus:border-red-500"
+                            : "border-white/10 focus:border-neon-iris/50"
+                        }`}
+                        placeholder={
+                          isBinary
+                            ? "e.g., Bitcoin $100k, Trump wins, Lakers championship..."
+                            : "e.g., Gavin Newsom, JD Vance, ..."
+                        }
+                      />
+                      {optionLabelError && (
+                        <p className="text-xs text-red-400 flex items-center gap-2 mt-2">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {optionLabelError}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Sub-label Accordion */}
+                    <div className="border border-white/10 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setShowSubLabelInput(!showSubLabelInput)}
+                        className="w-full flex items-center justify-between px-5 py-4 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-light text-moon-grey/70">
+                            Sub-label
+                          </span>
+                          <span className="text-[10px] text-moon-grey/40">
+                            (Optional)
+                          </span>
+                        </div>
+                        <svg
+                          className={`w-4 h-4 text-moon-grey/40 transition-transform ${
+                            showSubLabelInput ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {showSubLabelInput && (
+                        <div className="p-5 bg-white/[0.01] border-t border-white/10">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-[10px] text-moon-grey/50">
+                              Add additional context
+                            </label>
+                            <span className="text-[10px] text-moon-grey/40">
+                              {newOptionSubLabel.length}/100
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            value={newOptionSubLabel}
+                            onChange={(e) =>
+                              setNewOptionSubLabel(e.target.value)
+                            }
+                            maxLength={100}
+                            className="w-full px-4 py-3 bg-white/[0.02] border border-white/10 text-white placeholder-moon-grey/30 focus:ring-0 focus:outline-none focus:border-neon-iris/50 transition-colors"
+                            placeholder="e.g., Republican, Democratic, Independent..."
+                            autoFocus
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Image Upload */}
+                    <div>
+                      {newOptionImage && (
+                        <div className="relative w-full mb-4 overflow-hidden border border-white/10">
+                          <img
+                            src={URL.createObjectURL(newOptionImage)}
+                            alt="Option preview"
+                            className="w-full h-40 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setNewOptionImage(null)}
+                            className="absolute top-3 right-3 p-2 bg-ink-black/80 backdrop-blur-sm text-white/70 hover:text-white hover:bg-red-500/80 transition-all border border-white/10"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      <label className="cursor-pointer block">
+                        <div className="flex items-center gap-3 px-5 py-4 bg-white/[0.02] border border-white/10 hover:border-white/20 transition-colors">
+                          <svg
+                            className="w-5 h-5 text-moon-grey/40"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span className="text-sm text-moon-grey/50 font-light">
+                            {newOptionImage
+                              ? "Change image"
+                              : "Option image (optional)"}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const compressedFile =
+                                  await compressOptionImage(file);
+                                setNewOptionImage(compressedFile);
+                              } catch (error) {
+                                console.error(
+                                  "Failed to compress image:",
+                                  error
+                                );
+                                toast.error(
+                                  "Failed to process image. Using original file."
+                                );
+                                setNewOptionImage(file);
+                              }
+                            } else {
+                              setNewOptionImage(null);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Add Button */}
                     <button
                       onClick={handleAddOption}
                       disabled={
@@ -1704,341 +2007,316 @@ export const CreateMarket = () => {
                         isCreatingOption ||
                         !!optionLabelError
                       }
-                      className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                      className={`w-full py-4 text-sm font-medium tracking-wide uppercase transition-all ${
                         newOptionLabel && !isCreatingOption && !optionLabelError
-                          ? "bg-primary-500 text-white hover:bg-primary-600"
-                          : "bg-dark-700 text-gray-500 cursor-not-allowed"
+                          ? "bg-neon-iris/20 text-neon-iris border border-neon-iris/40 hover:bg-neon-iris/30"
+                          : "bg-white/[0.02] text-moon-grey/30 border border-white/10 cursor-not-allowed"
                       }`}
                     >
-                      {isCreatingOption ? "Adding..." : "Add"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation Buttons */}
-            <div className="pt-4 space-y-3">
-              <button
-                onClick={() => setCurrentStep("details")}
-                className="w-full py-3 rounded-xl font-medium text-gray-400 bg-dark-800 border border-dark-700 hover:text-white hover:border-primary-500/50 transition-all"
-              >
-                ← Back to Market Details
-              </button>
-              {!canInitialize && (
-                <p className="text-center text-amber-400 mb-4 flex items-center justify-center gap-2">
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  {isBinary
-                    ? "Add 1 option to launch your binary market"
-                    : "Add at least 2 options to launch your market"}
-                </p>
-              )}
-              <button
-                onClick={() => setCurrentStep("review")}
-                disabled={!canInitialize}
-                className={`w-full py-4 rounded-xl font-semibold text-base transition-all ${
-                  canInitialize
-                    ? "bg-success-500 text-white shadow-lg shadow-success-500/25 hover:bg-success-600"
-                    : "bg-dark-800 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                Review & Launch →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Review & Launch */}
-        {currentStep === "review" && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Final Preview */}
-            <div className="rounded-2xl overflow-hidden border border-dark-700 bg-dark-900/50 backdrop-blur-sm">
-              <div className="aspect-[21/9] relative bg-dark-800">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Market"
-                    loading="lazy"
-                    className="w-full h-full object-cover max-w-full max-h-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://placehold.co/1200x514/1a1a2e/6366f1?text=Market+Image";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-gray-500">No image</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-dark-950/50 to-transparent" />
-              </div>
-              <div className="p-6 -mt-20 relative">
-                <h2 className="text-2xl font-bold text-white mb-2">
-                  {question}
-                </h2>
-                <p className="text-gray-400 mb-4">
-                  {description || "No description provided"}
-                </p>
-
-                <div className="grid sm:grid-cols-3 gap-4 pt-4 border-t border-dark-700">
-                  <div>
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">
-                      Type
-                    </span>
-                    <p className="text-white font-medium mt-1">
-                      {isBinary ? "Yes / No" : "Multiple Choice"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">
-                      Options
-                    </span>
-                    <p className="text-white font-medium mt-1">
-                      {options.length} options
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">
-                      Expires
-                    </span>
-                    <p className="text-white font-medium mt-1">
-                      {new Date(expirationDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Options List */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
-                Market Options
-              </h3>
-              <div className="grid gap-3">
-                {options.map((opt, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-4 px-5 py-4 bg-dark-800/50 rounded-2xl border border-dark-700"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-lg">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <span className="text-white font-semibold text-lg">
-                        {opt.label}
-                      </span>
-                      {opt.subLabel && (
-                        <div className="text-gray-300 text-sm mt-0.5">
-                          {opt.subLabel}
-                        </div>
-                      )}
-                    </div>
-                    <span className="ml-auto text-gray-500 text-sm">
-                      50% starting odds
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Initial Liquidity */}
-            <div className="p-5 rounded-2xl bg-primary-500/10 border border-primary-500/30">
-              <h3 className="text-base font-semibold text-white mb-3">
-                Initial Liquidity
-              </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Seed the market with liquidity. You'll receive LP shares and
-                earn fees from all trades.
-              </p>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={initialLiquidity}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Allow free editing - validation happens on submit
-                    setInitialLiquidity(value);
-                  }}
-                  min="100"
-                  step="1"
-                  className="w-full px-5 py-3 pr-24 bg-dark-900/50 border-2 border-dark-600 rounded-xl text-white text-lg font-semibold placeholder-gray-600 focus:border-primary-500 focus:ring-0 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  placeholder="100"
-                />
-                <span className="absolute right-20 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                  USDC
-                </span>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col border border-dark-600 rounded-md overflow-hidden bg-dark-800/50 backdrop-blur-sm">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const current = parseInt(initialLiquidity) || 100;
-                      const newValue = Math.max(100, current + 1);
-                      setInitialLiquidity(String(newValue));
-                    }}
-                    className="w-7 h-6 flex items-center justify-center bg-dark-800/80 hover:bg-primary-500/20 hover:border-primary-500/50 text-gray-400 hover:text-primary-400 active:bg-primary-500/30 transition-all duration-200 border-b border-dark-600/50 group"
-                    aria-label="Increment"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const current = parseInt(initialLiquidity) || 100;
-                      const newValue = Math.max(100, current - 1);
-                      setInitialLiquidity(String(newValue));
-                    }}
-                    className="w-7 h-6 flex items-center justify-center bg-dark-800/80 hover:bg-primary-500/20 hover:border-primary-500/50 text-gray-400 hover:text-primary-400 active:bg-primary-500/30 transition-all duration-200 group"
-                    aria-label="Decrement"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5 group-hover:scale-110 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Minimum: 100 USDC</p>
-            </div>
-
-            {/* Launch Button */}
-            <div className="pt-6 space-y-4">
-              <button
-                onClick={() => setCurrentStep("options")}
-                className="w-full py-3 rounded-xl font-medium text-gray-400 bg-dark-800 border border-dark-700 hover:text-white hover:border-primary-500/50 transition-all"
-              >
-                ← Back to Edit Options
-              </button>
-              {(() => {
-                const requiredAmount = parseInt(initialLiquidity) || 0;
-                const userBalance = user?.wallet?.balance_usdc ?? 0;
-                // balance_usdc is stored in micro-units (USDC * 1_000_000), convert to display
-                const userBalanceDisplay = userBalance / 1_000_000;
-                const hasEnoughBalance = userBalanceDisplay >= requiredAmount;
-                const isButtonDisabled =
-                  isInitializing ||
-                  !initialLiquidity ||
-                  requiredAmount < 100 ||
-                  !hasEnoughBalance;
-
-                return (
-                  <>
-                    <button
-                      onClick={handleInitializeMarket}
-                      disabled={isButtonDisabled || isInitializing}
-                      className={`w-full py-4 rounded-xl font-semibold text-base transition-all ${
-                        isInitializing
-                          ? "bg-success-500/70 text-white cursor-wait"
-                          : !isButtonDisabled
-                          ? "bg-success-500 text-white shadow-lg shadow-success-500/25 hover:bg-success-600"
-                          : "bg-dark-800 text-gray-500 cursor-not-allowed"
-                      }`}
-                    >
-                      {isInitializing ? (
+                      {isCreatingOption ? (
                         <span className="flex items-center justify-center gap-3">
-                          <svg
-                            className="animate-spin h-6 w-6"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              fill="none"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          Launching Market...
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              ease: "linear",
+                            }}
+                            className="w-4 h-4 border-2 border-neon-iris/30 border-t-neon-iris rounded-full"
+                          />
+                          Adding Option...
                         </span>
                       ) : (
-                        <>🚀 Launch Market with {initialLiquidity} USDC</>
+                        "Add Option"
                       )}
                     </button>
-                    {!hasEnoughBalance && requiredAmount >= 100 && (
-                      <div className="flex items-center justify-center gap-2 text-danger-400 text-sm">
-                        <svg
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        <span>
-                          Insufficient balance. You have{" "}
-                          <span className="font-semibold">
-                            {formatUSDC(userBalance).replace("$", "")} USDC
-                          </span>{" "}
-                          but need at{" "}
-                          <span className="font-semibold">
-                            {requiredAmount.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            USDC
-                          </span>{" "}
-                          to launch this market.
-                        </span>
-                      </div>
-                    )}
-                    {hasEnoughBalance && (
-                      <p className="text-center text-gray-500 text-sm">
-                        Your {initialLiquidity} USDC will seed the liquidity
-                        pool. You'll earn LP fees from all trades and redeem
-                        initial liquidity after the market expires.
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="pt-8 space-y-4">
+                <button
+                  onClick={() => setCurrentStep("details")}
+                  className="w-full py-3.5 font-light text-moon-grey/60 bg-white/[0.02] border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                >
+                  ← Back to Market Details
+                </button>
+                {!canInitialize && (
+                  <p className="text-center text-amber-400/70 text-sm flex items-center justify-center gap-2">
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {isBinary
+                      ? "Add 1 option to launch your binary market"
+                      : "Add at least 2 options to launch your market"}
+                  </p>
+                )}
+                <button
+                  onClick={() => setCurrentStep("review")}
+                  disabled={!canInitialize}
+                  className={`group w-full py-4 sm:py-5 text-sm font-medium tracking-wide uppercase transition-all inline-flex items-center justify-center gap-3 ${
+                    canInitialize
+                      ? "bg-aqua-pulse/20 text-aqua-pulse border border-aqua-pulse/40 hover:bg-aqua-pulse/30"
+                      : "bg-white/[0.02] text-moon-grey/30 border border-white/10 cursor-not-allowed"
+                  }`}
+                >
+                  <span>Review & Launch</span>
+                  <svg
+                    className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 3: Review & Launch */}
+          {currentStep === "review" && (
+            <motion.div
+              className="space-y-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              {/* Final Preview */}
+              <div className="overflow-hidden border border-white/10 bg-graphite-deep/50">
+                <div className="aspect-[21/9] relative bg-ink-black">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Market"
+                      loading="lazy"
+                      className="w-full h-full object-cover max-w-full max-h-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://placehold.co/1200x514/0a0a0f/7c4dff?text=Market+Image";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-moon-grey/30">No image</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-black via-ink-black/60 to-transparent" />
+                </div>
+                <div className="p-6 sm:p-8 -mt-20 relative">
+                  <h2 className="text-xl sm:text-2xl font-light text-white mb-3">
+                    {question}
+                  </h2>
+                  <p className="text-moon-grey/50 mb-6 font-light">
+                    {description || "No description provided"}
+                  </p>
+
+                  <div className="grid sm:grid-cols-3 gap-6 pt-6 border-t border-white/10">
+                    <div>
+                      <span className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/40">
+                        Type
+                      </span>
+                      <p className="text-white font-light mt-2">
+                        {isBinary ? "Yes / No" : "Multiple Choice"}
                       </p>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
-      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/40">
+                        Options
+                      </span>
+                      <p className="text-white font-light mt-2">
+                        {options.length} options
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] sm:text-xs tracking-[0.15em] uppercase text-moon-grey/40">
+                        Expires
+                      </span>
+                      <p className="text-white font-light mt-2">
+                        {new Date(expirationDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Options List */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] sm:text-xs tracking-[0.2em] uppercase text-moon-grey/70 font-medium">
+                  Market Options
+                </h3>
+                <div className="grid gap-3">
+                  {options.map((opt, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-4 sm:gap-5 px-5 sm:px-6 py-4 sm:py-5 bg-white/[0.02] border border-white/10"
+                    >
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-neon-iris/10 border border-neon-iris/30 flex items-center justify-center text-neon-iris font-light text-lg">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <span className="text-white font-light text-base sm:text-lg">
+                          {opt.label}
+                        </span>
+                        {opt.subLabel && (
+                          <div className="text-moon-grey/50 text-sm mt-1 font-light">
+                            {opt.subLabel}
+                          </div>
+                        )}
+                      </div>
+                      <span className="ml-auto text-moon-grey/40 text-xs sm:text-sm">
+                        50% starting odds
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Initial Liquidity Summary */}
+              <div className="p-6 sm:p-8 bg-neon-iris/5 border border-neon-iris/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-light text-white">
+                      Initial Liquidity
+                    </h3>
+                    <p className="text-sm text-moon-grey/50 mt-1 font-light">
+                      You'll receive LP shares and earn fees from all trades
+                    </p>
+                  </div>
+                  <p className="text-2xl sm:text-3xl font-light text-neon-iris">
+                    {initialLiquidity} USDC
+                  </p>
+                </div>
+              </div>
+
+              {/* Launch Button */}
+              <div className="pt-8 space-y-4">
+                <button
+                  onClick={() => setCurrentStep("options")}
+                  className="w-full py-3.5 font-light text-moon-grey/60 bg-white/[0.02] border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                >
+                  ← Back to Edit Options
+                </button>
+                {(() => {
+                  const requiredAmount = parseInt(initialLiquidity) || 0;
+                  const userBalance = user?.wallet?.balance_usdc ?? 0;
+                  const userBalanceDisplay = userBalance / 1_000_000;
+                  const hasEnoughBalance = userBalanceDisplay >= requiredAmount;
+                  const isButtonDisabled =
+                    isInitializing ||
+                    !initialLiquidity ||
+                    requiredAmount < 100 ||
+                    !hasEnoughBalance;
+
+                  return (
+                    <>
+                      <button
+                        onClick={handleInitializeMarket}
+                        disabled={isButtonDisabled || isInitializing}
+                        className={`group w-full py-4 sm:py-5 text-sm font-medium tracking-wide uppercase transition-all duration-300 inline-flex items-center justify-center gap-3 ${
+                          isInitializing
+                            ? "bg-aqua-pulse/20 text-aqua-pulse border border-aqua-pulse/30 cursor-wait"
+                            : !isButtonDisabled
+                            ? "bg-white text-ink-black hover:bg-moon-grey-light"
+                            : "bg-white/10 text-moon-grey/40 cursor-not-allowed"
+                        }`}
+                      >
+                        {isInitializing ? (
+                          <span className="flex items-center justify-center gap-3">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              className="w-5 h-5 border-2 border-aqua-pulse/30 border-t-aqua-pulse rounded-full"
+                            />
+                            Launching Market...
+                          </span>
+                        ) : (
+                          <>
+                            <span>
+                              Launch Market with {initialLiquidity} USDC
+                            </span>
+                            <svg
+                              className="w-4 h-4 transition-transform group-hover:translate-x-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M17 8l4 4m0 0l-4 4m4-4H3"
+                              />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                      {!hasEnoughBalance && requiredAmount >= 100 && (
+                        <div className="flex items-center justify-center gap-2 text-red-400/80 text-xs sm:text-sm">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span>
+                            Insufficient balance. You have{" "}
+                            <span className="font-medium">
+                              {formatUSDC(userBalance).replace("$", "")} USDC
+                            </span>{" "}
+                            but need{" "}
+                            <span className="font-medium">
+                              {requiredAmount.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              USDC
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      {hasEnoughBalance && (
+                        <p className="text-center text-moon-grey/40 text-xs sm:text-sm font-light">
+                          Your {initialLiquidity} USDC will seed the liquidity
+                          pool. You'll earn LP fees from all trades and redeem
+                          initial liquidity after the market expires.
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </section>
 
       {/* Delete Option Confirmation Modal */}
       <ConfirmationModal

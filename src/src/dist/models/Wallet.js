@@ -167,6 +167,19 @@ class WalletModel {
         return result.rows;
     }
     /**
+     * Update the last processed signature for a wallet (used by deposit listener)
+     * @param id - Wallet ID
+     * @param signature - Last processed transaction signature
+     * @param slot - Slot of the signature
+     * @param client - Optional database client for transaction support
+     */
+    static async updateLastSignature(id, signature, slot, client) {
+        const db = client || db_1.pool;
+        await db.query(`UPDATE wallets 
+       SET last_signature = $1, last_signature_slot = $2, updated_at = EXTRACT(EPOCH FROM NOW())::BIGINT 
+       WHERE id = $3`, [signature, slot, id]);
+    }
+    /**
      * Update wallet balances
      * @param id - Wallet ID
      * @param balances - Partial balance updates

@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
  * Footer Component
  *
  * Clean, minimal footer for desktop view only
- * Mobile uses MobileNav component instead
  */
 export const Footer = () => {
   const currentYear = new Date().getFullYear();

@@ -30,7 +30,7 @@ class CommentModel {
     static async findByIdWithUser(id, currentUserId, client) {
         const db = client || db_1.pool;
         const result = await db.query(`
-      SELECT c.*, u.username, u.display_name,
+      SELECT c.*, u.username, u.display_name, u.avatar_url,
         cv.vote_type as user_vote,
         COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
       FROM comments c
@@ -57,7 +57,7 @@ class CommentModel {
             : "c.created_at DESC";
         const [commentsResult, countResult] = await Promise.all([
             db.query(`
-        SELECT c.*, u.username, u.display_name,
+        SELECT c.*, u.username, u.display_name, u.avatar_url,
           cv.vote_type as user_vote,
           COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
         FROM comments c
@@ -84,7 +84,7 @@ class CommentModel {
     static async findReplies(parentId, currentUserId, limit = 50, offset = 0, client) {
         const db = client || db_1.pool;
         const result = await db.query(`
-      SELECT c.*, u.username, u.display_name,
+      SELECT c.*, u.username, u.display_name, u.avatar_url,
         cv.vote_type as user_vote,
         COALESCE((SELECT COUNT(*)::int FROM comments WHERE parent_id = c.id AND is_deleted = FALSE), 0) as reply_count
       FROM comments c

@@ -8,8 +8,6 @@ import {
   sellShares,
   claimWinnings,
   getTradeHistory,
-  getRecentTrades,
-  getMarketTrades,
   getPosition,
   getAllPositions,
   getPriceHistory,
@@ -50,8 +48,6 @@ router.get(
   validateUUID("userId"),
   typedHandler(getUserTrades)
 );
-router.get("/recent", typedHandler(getRecentTrades));
-router.get("/market/:id", typedHandler(getMarketTrades));
 
 // Price history routes (for charts)
 // Note: More specific route must come before parameterized route

@@ -37,8 +37,6 @@ import {
   GetPositionRequest,
   GetAllPositionsRequest,
   GetTradeHistoryRequest,
-  GetRecentTradesRequest,
-  GetMarketTradesRequest,
   GetPriceHistoryRequest,
   GetMarketPriceHistoryRequest,
   GetOHLCDataRequest,
@@ -783,62 +781,6 @@ export const getUserTrades = async (
   }
 };
 
-/**
- * @route GET /api/trade/recent
- * @desc Get recent public trades (DEPRECATED - trades are now private)
- * @access Public
- * @note This endpoint is kept for backward compatibility but returns empty array
- *       Trades are now private and only visible to the user who made them
- */
-export const getRecentTrades = async (
-  req: GetRecentTradesRequest,
-  res: Response
-) => {
-  try {
-    // Trades are now private - return empty array to prevent exposing other users' trades
-    return sendSuccess(res, { trades: [] });
-  } catch (error: any) {
-    console.error("Get recent trades error:", error);
-    return sendError(
-      res,
-      500,
-      error.message || "Failed to get recent trades. Please try again."
-    );
-  }
-};
-
-/**
- * @route GET /api/trade/market/:id
- * @desc Get trades for a specific market (DEPRECATED - trades are now private)
- * @access Public
- * @note This endpoint is kept for backward compatibility but returns empty array
- *       Trades are now private and only visible to the user who made them
- */
-export const getMarketTrades = async (
-  req: GetMarketTradesRequest,
-  res: Response
-) => {
-  try {
-    // Trades are now private - return empty array to prevent exposing other users' trades
-    return sendSuccess(res, {
-      trades: [],
-      pagination: {
-        page: 1,
-        limit: 20,
-        total: 0,
-        totalPages: 0,
-        hasMore: false,
-      },
-    });
-  } catch (error: any) {
-    console.error("Get market trades error:", error);
-    return sendError(
-      res,
-      500,
-      error.message || "Failed to get market trades. Please try again."
-    );
-  }
-};
 
 /**
  * @route GET /api/trade/price-history/:optionId

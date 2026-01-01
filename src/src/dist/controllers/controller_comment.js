@@ -140,15 +140,12 @@ exports.getMarketComments = getMarketComments;
 /**
  * @route GET /api/comments/:id/replies
  * @desc Get replies to a comment
- * @access Public
+ * @access Public (optional auth)
  */
 const getCommentReplies = async (req, res) => {
     try {
         const { id } = req.params;
-        const currentUserId = req.id;
-        if (!currentUserId) {
-            return (0, errors_1.sendError)(res, 401, "Unauthorized");
-        }
+        const currentUserId = req.id; // May be undefined if not authenticated
         const limit = Math.min(parseInt(req.query.limit) || 20, 50);
         const offset = parseInt(req.query.offset) || 0;
         const replies = await Comment_1.CommentModel.findReplies(id, currentUserId, limit, offset);

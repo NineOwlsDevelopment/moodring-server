@@ -32,13 +32,6 @@ function validateEvidence(evidence, resolutionMode) {
             error: "Invalid evidence format. Must be valid JSON.",
         };
     }
-    // Validate evidence structure
-    if (!evidenceData.source) {
-        return {
-            isValid: false,
-            error: "Evidence must include a 'source' field",
-        };
-    }
     // Validate source type
     const validSources = ["chainlink", "onchain", "api", "manual"];
     if (!validSources.includes(evidenceData.source)) {

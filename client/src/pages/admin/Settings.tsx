@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   fetchAdminSettings,
   updateAdminSettings,
@@ -173,7 +174,6 @@ export const AdminSettings = () => {
     try {
       setLoading(true);
       const data = await fetchAdminSettings();
-      // Convert micro-USDC to USDC for display
       setSettings(convertSettingsForDisplay(data.settings));
     } catch (error: any) {
       console.error("Failed to load settings:", error);
@@ -188,11 +188,9 @@ export const AdminSettings = () => {
 
     try {
       setSaving(true);
-      // Convert USDC back to micro-USDC before sending
       const convertedSettings = convertSettingsForBackend(settings);
       await updateAdminSettings(convertedSettings);
       toast.success("Settings updated successfully");
-      // Reload settings to get any server-side validations
       await loadSettings();
     } catch (error: any) {
       console.error("Failed to update settings:", error);
@@ -207,9 +205,7 @@ export const AdminSettings = () => {
 
     try {
       setSaving(true);
-      // Convert USDC back to micro-USDC before sending
       const convertedSettings = convertSettingsForBackend(settings);
-      // Only send the specific group being saved
       await updateAdminSettings({
         [group]: convertedSettings[group],
       } as Partial<AdminSettingsType>);
@@ -218,7 +214,6 @@ export const AdminSettings = () => {
           tabs.find((t) => t.id === group)?.label || "Settings"
         } updated successfully`
       );
-      // Reload settings to get any server-side validations
       await loadSettings();
     } catch (error: any) {
       console.error("Failed to update settings:", error);
@@ -245,17 +240,19 @@ export const AdminSettings = () => {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      <div className="min-h-screen bg-ink-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-neon-iris rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!settings) {
     return (
-      <div className="p-8">
-        <div className="card text-center py-12">
-          <p className="text-gray-400">Failed to load settings</p>
+      <div className="min-h-screen bg-ink-black p-4 sm:p-8">
+        <div className="bg-graphite-deep/30 border border-white/5 text-center py-20">
+          <p className="text-moon-grey/40 text-sm font-light">
+            Failed to load settings
+          </p>
         </div>
       </div>
     );
@@ -286,844 +283,870 @@ export const AdminSettings = () => {
   };
 
   const tabs = [
-    { id: "admin_controls", label: "Admin Controls" },
-    { id: "trading_limits", label: "Trading Limits" },
-    { id: "market_controls", label: "Market Controls" },
+    { id: "admin_controls", label: "Admin" },
+    { id: "trading_limits", label: "Trading" },
+    { id: "market_controls", label: "Markets" },
     { id: "resolution_controls", label: "Resolution" },
     { id: "liquidity_controls", label: "Liquidity" },
-    { id: "risk_controls", label: "Risk Controls" },
+    { id: "risk_controls", label: "Risk" },
     { id: "dispute_controls", label: "Disputes" },
-    { id: "feature_flags", label: "Feature Flags" },
-    { id: "platform_fees", label: "Platform Fees" },
-    { id: "circle_wallets", label: "Circle Wallets" },
+    { id: "feature_flags", label: "Features" },
+    { id: "platform_fees", label: "Fees" },
+    { id: "circle_wallets", label: "Wallets" },
   ];
 
+  // Toggle component for reuse
+  const Toggle = ({
+    checked,
+    onChange,
+  }: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+  }) => (
+    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-neon-iris"></div>
+    </label>
+  );
+
+  // Setting card component
+  const SettingCard = ({
+    label,
+    description,
+    children,
+  }: {
+    label: string;
+    description?: string;
+    children: React.ReactNode;
+  }) => (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-ink-black border border-white/5">
+      <div className="flex-1 min-w-0">
+        <label className="block text-sm font-light text-white">{label}</label>
+        {description && (
+          <p className="text-[10px] text-moon-grey/40 mt-1">{description}</p>
+        )}
+      </div>
+      <div className="flex-shrink-0">{children}</div>
+    </div>
+  );
+
+  // Input setting card
+  const InputCard = ({
+    label,
+    description,
+    value,
+    onChange,
+    step,
+  }: {
+    label: string;
+    description?: string;
+    value: number;
+    onChange: (value: number) => void;
+    step?: string;
+  }) => (
+    <div className="p-4 bg-ink-black border border-white/5">
+      <label className="block text-sm font-light text-white mb-1">{label}</label>
+      {description && (
+        <p className="text-[10px] text-moon-grey/40 mb-3">{description}</p>
+      )}
+      <input
+        type="number"
+        step={step || "1"}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full bg-graphite-deep border border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white focus:outline-none focus:border-neon-iris/50 transition-colors"
+      />
+    </div>
+  );
+
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Platform Settings</h1>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn btn-primary"
+    <div className="min-h-screen bg-ink-black">
+      {/* Atmospheric background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(124,77,255,0.08),transparent_60%)]" />
+      </div>
+
+      <div className="relative px-4 py-6 sm:p-6 lg:p-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-10"
         >
-          {saving ? "Saving..." : "Save All Settings"}
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6 border-b border-dark-700">
-        <div className="flex space-x-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "text-primary-400 border-b-2 border-primary-400"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Admin Controls */}
-      {activeTab === "admin_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Admin Controls</h2>
-            <button
-              onClick={() => handleSaveGroup("admin_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Maintenance Mode
-                </label>
-                <p className="text-xs text-gray-400">
-                  Disables all platform functionality
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.admin_controls.maintenance_mode}
-                  onChange={(e) =>
-                    updateSetting(
-                      "admin_controls",
-                      "maintenance_mode",
-                      e.target.checked
-                    )
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
+          <div>
+            <div className="text-[10px] tracking-[0.3em] uppercase text-neon-iris/80 font-medium mb-2 sm:mb-3">
+              Administration
             </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extralight tracking-tight text-white">
+              Platform Settings
+            </h1>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save All"}
+          </button>
+        </motion.div>
 
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Allow User Registration
-                </label>
-                <p className="text-xs text-gray-400">Enable new user signups</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+        {/* Tabs - Scrollable on mobile */}
+        <div className="mb-6 sm:mb-8 border-b border-white/5 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex overflow-x-auto hide-scrollbar gap-1 pb-px">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-[10px] sm:text-xs tracking-[0.1em] uppercase font-medium transition-colors whitespace-nowrap relative flex-shrink-0 ${
+                  activeTab === tab.id
+                    ? "text-white"
+                    : "text-moon-grey/50 hover:text-white"
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neon-iris to-transparent" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Admin Controls */}
+        {activeTab === "admin_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Admin Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("admin_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <SettingCard
+                label="Maintenance Mode"
+                description="Disables all platform functionality"
+              >
+                <Toggle
+                  checked={settings.admin_controls.maintenance_mode}
+                  onChange={(checked) =>
+                    updateSetting("admin_controls", "maintenance_mode", checked)
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Allow User Registration"
+                description="Enable new user signups"
+              >
+                <Toggle
                   checked={settings.admin_controls.allow_user_registration}
-                  onChange={(e) =>
+                  onChange={(checked) =>
                     updateSetting(
                       "admin_controls",
                       "allow_user_registration",
-                      e.target.checked
+                      checked
                     )
                   }
-                  className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Allow Market Creation
-                </label>
-                <p className="text-xs text-gray-400">
-                  Enable users to create new markets
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              </SettingCard>
+              <SettingCard
+                label="Allow Market Creation"
+                description="Enable users to create new markets"
+              >
+                <Toggle
                   checked={settings.admin_controls.allow_market_creation}
-                  onChange={(e) =>
+                  onChange={(checked) =>
                     updateSetting(
                       "admin_controls",
                       "allow_market_creation",
-                      e.target.checked
+                      checked
                     )
                   }
-                  className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Allow Trading
-                </label>
-                <p className="text-xs text-gray-400">
-                  Enable trading on all markets
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              </SettingCard>
+              <SettingCard
+                label="Allow Trading"
+                description="Enable trading on all markets"
+              >
+                <Toggle
                   checked={settings.admin_controls.allow_trading}
-                  onChange={(e) =>
-                    updateSetting(
-                      "admin_controls",
-                      "allow_trading",
-                      e.target.checked
-                    )
+                  onChange={(checked) =>
+                    updateSetting("admin_controls", "allow_trading", checked)
                   }
-                  className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Allow Withdrawals
-                </label>
-                <p className="text-xs text-gray-400">Enable user withdrawals</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              </SettingCard>
+              <SettingCard
+                label="Allow Withdrawals"
+                description="Enable user withdrawals"
+              >
+                <Toggle
                   checked={settings.admin_controls.allow_withdrawals}
-                  onChange={(e) =>
-                    updateSetting(
-                      "admin_controls",
-                      "allow_withdrawals",
-                      e.target.checked
-                    )
+                  onChange={(checked) =>
+                    updateSetting("admin_controls", "allow_withdrawals", checked)
                   }
-                  className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Allow Deposits
-                </label>
-                <p className="text-xs text-gray-400">Enable user deposits</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
+              </SettingCard>
+              <SettingCard
+                label="Allow Deposits"
+                description="Enable user deposits"
+              >
+                <Toggle
                   checked={settings.admin_controls.allow_deposits}
-                  onChange={(e) =>
-                    updateSetting(
-                      "admin_controls",
-                      "allow_deposits",
-                      e.target.checked
-                    )
+                  onChange={(checked) =>
+                    updateSetting("admin_controls", "allow_deposits", checked)
                   }
-                  className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-              </label>
+              </SettingCard>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
 
-      {/* Trading Limits */}
-      {activeTab === "trading_limits" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Trading Limits</h2>
-            <button
-              onClick={() => handleSaveGroup("trading_limits")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "min_trade_amount",
-                label: "Min Trade Amount (USDC)",
-                description: "Minimum amount for a single trade",
-              },
-              {
-                key: "max_trade_amount",
-                label: "Max Trade Amount (USDC)",
-                description: "Maximum amount for a single trade",
-              },
-              {
-                key: "max_position_per_market",
-                label: "Max Position Per Market (USDC)",
-                description: "Maximum position size per market",
-              },
-              {
-                key: "max_daily_user_volume",
-                label: "Max Daily User Volume (USDC)",
-                description: "Maximum daily trading volume per user",
-              },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="p-4 bg-dark-800 rounded-lg">
-                <label className="block text-sm font-medium text-white mb-1">
-                  {label}
-                </label>
-                <p className="text-xs text-gray-400 mb-2">{description}</p>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={
-                    settings.trading_limits[
-                      key as keyof typeof settings.trading_limits
-                    ]
-                  }
-                  onChange={(e) =>
-                    updateSetting(
-                      "trading_limits",
-                      key as any,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="input w-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Market Controls */}
-      {activeTab === "market_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">
-              Market Controls
-            </h2>
-            <button
-              onClick={() => handleSaveGroup("market_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "max_markets_per_user",
-                label: "Max Markets Per User",
-                description: "Maximum total markets a user can create",
-              },
-              {
-                key: "max_open_markets_per_user",
-                label: "Max Open Markets Per User",
-                description: "Maximum active markets per user",
-              },
-              {
-                key: "min_market_duration_hours",
-                label: "Min Market Duration (hours)",
-                description: "Minimum market duration",
-              },
-              {
-                key: "max_market_duration_days",
-                label: "Max Market Duration (days)",
-                description: "Maximum market duration",
-              },
-              {
-                key: "max_market_options",
-                label: "Max Market Options",
-                description: "Maximum options per market",
-              },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="p-4 bg-dark-800 rounded-lg">
-                <label className="block text-sm font-medium text-white mb-1">
-                  {label}
-                </label>
-                <p className="text-xs text-gray-400 mb-2">{description}</p>
-                <input
-                  type="number"
-                  value={
-                    settings.market_controls[
-                      key as keyof typeof settings.market_controls
-                    ]
-                  }
-                  onChange={(e) =>
-                    updateSetting(
-                      "market_controls",
-                      key as any,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="input w-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Resolution Controls */}
-      {activeTab === "resolution_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">
-              Resolution Controls
-            </h2>
-            <button
-              onClick={() => handleSaveGroup("resolution_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "auto_resolve_markets",
-                label: "Auto Resolve Markets",
-                description:
-                  "Automatically resolve markets when conditions are met",
-              },
-              {
-                key: "resolution_oracle_enabled",
-                label: "Oracle Resolution Enabled",
-                description: "Enable oracle-based resolution",
-              },
-              {
-                key: "authority_resolution_enabled",
-                label: "Authority Resolution Enabled",
-                description: "Enable authority-based resolution",
-              },
-              {
-                key: "opinion_resolution_enabled",
-                label: "Opinion Resolution Enabled",
-                description: "Enable opinion-based resolution",
-              },
-            ].map(({ key, label, description }) => (
-              <div
-                key={key}
-                className="flex items-center justify-between p-4 bg-dark-800 rounded-lg"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1">
-                    {label}
-                  </label>
-                  <p className="text-xs text-gray-400">{description}</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={
-                      settings.resolution_controls[
-                        key as keyof typeof settings.resolution_controls
-                      ] as boolean
-                    }
-                    onChange={(e) =>
-                      updateSetting(
-                        "resolution_controls",
-                        key as any,
-                        e.target.checked
-                      )
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Liquidity Controls */}
-      {activeTab === "liquidity_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">
-              Liquidity Controls
-            </h2>
-            <button
-              onClick={() => handleSaveGroup("liquidity_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            <div className="p-4 bg-dark-800 rounded-lg">
-              <label className="block text-sm font-medium text-white mb-1">
-                Min Initial Liquidity (USDC)
-              </label>
-              <p className="text-xs text-gray-400 mb-2">
-                Minimum liquidity required to initialize a market
-              </p>
-              <input
-                type="number"
-                step="0.01"
-                value={settings.liquidity_controls.min_initial_liquidity}
-                onChange={(e) =>
-                  updateSetting(
-                    "liquidity_controls",
-                    "min_initial_liquidity",
-                    Number(e.target.value)
-                  )
-                }
-                className="input w-full"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Risk Controls */}
-      {activeTab === "risk_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Risk Controls</h2>
-            <button
-              onClick={() => handleSaveGroup("risk_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "max_market_volatility_threshold",
-                label: "Max Market Volatility Threshold",
-                description: "Maximum allowed market volatility",
-              },
-              {
-                key: "suspicious_trade_threshold",
-                label: "Suspicious Trade Threshold (USDC)",
-                description: "Threshold for flagging suspicious trades",
-              },
-              {
-                key: "circuit_breaker_threshold",
-                label: "Circuit Breaker Threshold (USDC)",
-                description: "Threshold for triggering circuit breaker",
-              },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="p-4 bg-dark-800 rounded-lg">
-                <label className="block text-sm font-medium text-white mb-1">
-                  {label}
-                </label>
-                <p className="text-xs text-gray-400 mb-2">{description}</p>
-                <input
-                  type="number"
-                  step={
-                    key === "max_market_volatility_threshold"
-                      ? undefined
-                      : "0.01"
-                  }
-                  value={
-                    settings.risk_controls[
-                      key as keyof typeof settings.risk_controls
-                    ]
-                  }
-                  onChange={(e) =>
-                    updateSetting(
-                      "risk_controls",
-                      key as any,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="input w-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Dispute Controls */}
-      {activeTab === "dispute_controls" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">
-              Dispute Controls
-            </h2>
-            <button
-              onClick={() => handleSaveGroup("dispute_controls")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "default_dispute_period_hours",
-                label: "Default Dispute Period (hours)",
-                description: "Default time window for disputes",
-              },
-              {
-                key: "required_dispute_bond",
-                label: "Required Dispute Bond (USDC)",
-                description: "Bond required to file a dispute",
-              },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="p-4 bg-dark-800 rounded-lg">
-                <label className="block text-sm font-medium text-white mb-1">
-                  {label}
-                </label>
-                <p className="text-xs text-gray-400 mb-2">{description}</p>
-                <input
-                  type="number"
-                  step={
-                    key === "default_dispute_period_hours" ? undefined : "0.01"
-                  }
-                  value={
-                    settings.dispute_controls[
-                      key as keyof typeof settings.dispute_controls
-                    ]
-                  }
-                  onChange={(e) =>
-                    updateSetting(
-                      "dispute_controls",
-                      key as any,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="input w-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Feature Flags */}
-      {activeTab === "feature_flags" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Feature Flags</h2>
-            <button
-              onClick={() => handleSaveGroup("feature_flags")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "enable_copy_trading",
-                label: "Enable Copy Trading",
-                description: "Allow users to copy trades from other users",
-              },
-              {
-                key: "enable_social_feed",
-                label: "Enable Social Feed",
-                description: "Enable social feed features",
-              },
-              {
-                key: "enable_live_rooms",
-                label: "Enable Live Rooms",
-                description: "Enable live trading rooms",
-              },
-              {
-                key: "enable_referrals",
-                label: "Enable Referrals",
-                description: "Enable referral program",
-              },
-              {
-                key: "enable_notifications",
-                label: "Enable Notifications",
-                description: "Enable push and email notifications",
-              },
-            ].map(({ key, label, description }) => (
-              <div
-                key={key}
-                className="flex items-center justify-between p-4 bg-dark-800 rounded-lg"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1">
-                    {label}
-                  </label>
-                  <p className="text-xs text-gray-400">{description}</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={
-                      settings.feature_flags[
-                        key as keyof typeof settings.feature_flags
-                      ] as boolean
-                    }
-                    onChange={(e) =>
-                      updateSetting(
-                        "feature_flags",
-                        key as any,
-                        e.target.checked
-                      )
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Platform Fees */}
-      {activeTab === "platform_fees" && (
-        <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Platform Fees</h2>
-            <button
-              onClick={() => handleSaveGroup("platform_fees")}
-              disabled={saving}
-              className="btn btn-primary text-sm"
-            >
-              {saving ? "Saving..." : "Save This Section"}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {[
-              {
-                key: "lp_fee_rate",
-                label: "LP Fee Rate (%)",
-                description: "Fee rate for liquidity providers",
-              },
-              {
-                key: "protocol_fee_rate",
-                label: "Protocol Fee Rate (%)",
-                description: "Fee rate for the protocol",
-              },
-              {
-                key: "creator_fee_rate",
-                label: "Creator Fee Rate (%)",
-                description: "Fee rate for market creators",
-              },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="p-4 bg-dark-800 rounded-lg">
-                <label className="block text-sm font-medium text-white mb-1">
-                  {label}
-                </label>
-                <p className="text-xs text-gray-400 mb-2">{description}</p>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={
-                    settings.platform_fees[
-                      key as keyof typeof settings.platform_fees
-                    ]
-                  }
-                  onChange={(e) =>
-                    updateSetting(
-                      "platform_fees",
-                      key as any,
-                      Number(e.target.value)
-                    )
-                  }
-                  className="input w-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Circle Wallets */}
-      {activeTab === "circle_wallets" && (
-        <div className="card">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white mb-2">
-              Circle Hot Wallets
-            </h2>
-            <p className="text-sm text-gray-400">
-              Create new Circle hot wallets for platform use. These wallets can
-              be used for deposits, withdrawals, and other platform operations.
-            </p>
-          </div>
-
-          {/* Create Wallet Form */}
-          <div className="mb-8 p-6 bg-dark-800 rounded-lg border border-dark-700">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Create New Hot Wallet
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">
-                  Wallet Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={walletName}
-                  onChange={(e) => setWalletName(e.target.value)}
-                  placeholder="e.g., Main Hot Wallet, Withdrawal Wallet"
-                  className="input w-full"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Optional label to help identify this wallet
-                </p>
-              </div>
+        {/* Trading Limits */}
+        {activeTab === "trading_limits" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Trading Limits
+              </h2>
               <button
-                onClick={handleCreateWallet}
-                disabled={creatingWallet}
-                className="btn btn-primary"
+                onClick={() => handleSaveGroup("trading_limits")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
               >
-                {creatingWallet ? "Creating..." : "Create Hot Wallet"}
+                {saving ? "Saving..." : "Save Section"}
               </button>
             </div>
-          </div>
+            <div className="space-y-3 sm:space-y-4">
+              <InputCard
+                label="Min Trade Amount (USDC)"
+                description="Minimum amount for a single trade"
+                value={settings.trading_limits.min_trade_amount}
+                onChange={(v) =>
+                  updateSetting("trading_limits", "min_trade_amount", v)
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Max Trade Amount (USDC)"
+                description="Maximum amount for a single trade"
+                value={settings.trading_limits.max_trade_amount}
+                onChange={(v) =>
+                  updateSetting("trading_limits", "max_trade_amount", v)
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Max Position Per Market (USDC)"
+                description="Maximum position size per market"
+                value={settings.trading_limits.max_position_per_market}
+                onChange={(v) =>
+                  updateSetting("trading_limits", "max_position_per_market", v)
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Max Daily User Volume (USDC)"
+                description="Maximum daily trading volume per user"
+                value={settings.trading_limits.max_daily_user_volume}
+                onChange={(v) =>
+                  updateSetting("trading_limits", "max_daily_user_volume", v)
+                }
+                step="0.01"
+              />
+            </div>
+          </motion.div>
+        )}
 
-          {/* Created Wallets List */}
-          {createdWallets.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Recently Created Wallets
+        {/* Market Controls */}
+        {activeTab === "market_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Market Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("market_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <InputCard
+                label="Max Markets Per User"
+                description="Maximum total markets a user can create"
+                value={settings.market_controls.max_markets_per_user}
+                onChange={(v) =>
+                  updateSetting("market_controls", "max_markets_per_user", v)
+                }
+              />
+              <InputCard
+                label="Max Open Markets Per User"
+                description="Maximum active markets per user"
+                value={settings.market_controls.max_open_markets_per_user}
+                onChange={(v) =>
+                  updateSetting(
+                    "market_controls",
+                    "max_open_markets_per_user",
+                    v
+                  )
+                }
+              />
+              <InputCard
+                label="Min Market Duration (hours)"
+                description="Minimum market duration"
+                value={settings.market_controls.min_market_duration_hours}
+                onChange={(v) =>
+                  updateSetting(
+                    "market_controls",
+                    "min_market_duration_hours",
+                    v
+                  )
+                }
+              />
+              <InputCard
+                label="Max Market Duration (days)"
+                description="Maximum market duration"
+                value={settings.market_controls.max_market_duration_days}
+                onChange={(v) =>
+                  updateSetting(
+                    "market_controls",
+                    "max_market_duration_days",
+                    v
+                  )
+                }
+              />
+              <InputCard
+                label="Max Market Options"
+                description="Maximum options per market"
+                value={settings.market_controls.max_market_options}
+                onChange={(v) =>
+                  updateSetting("market_controls", "max_market_options", v)
+                }
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Resolution Controls */}
+        {activeTab === "resolution_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Resolution Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("resolution_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <SettingCard
+                label="Auto Resolve Markets"
+                description="Automatically resolve markets when conditions are met"
+              >
+                <Toggle
+                  checked={settings.resolution_controls.auto_resolve_markets}
+                  onChange={(checked) =>
+                    updateSetting(
+                      "resolution_controls",
+                      "auto_resolve_markets",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Oracle Resolution Enabled"
+                description="Enable oracle-based resolution"
+              >
+                <Toggle
+                  checked={
+                    settings.resolution_controls.resolution_oracle_enabled
+                  }
+                  onChange={(checked) =>
+                    updateSetting(
+                      "resolution_controls",
+                      "resolution_oracle_enabled",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Authority Resolution Enabled"
+                description="Enable authority-based resolution"
+              >
+                <Toggle
+                  checked={
+                    settings.resolution_controls.authority_resolution_enabled
+                  }
+                  onChange={(checked) =>
+                    updateSetting(
+                      "resolution_controls",
+                      "authority_resolution_enabled",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Opinion Resolution Enabled"
+                description="Enable opinion-based resolution"
+              >
+                <Toggle
+                  checked={
+                    settings.resolution_controls.opinion_resolution_enabled
+                  }
+                  onChange={(checked) =>
+                    updateSetting(
+                      "resolution_controls",
+                      "opinion_resolution_enabled",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Liquidity Controls */}
+        {activeTab === "liquidity_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Liquidity Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("liquidity_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <InputCard
+              label="Min Initial Liquidity (USDC)"
+              description="Minimum liquidity required to initialize a market"
+              value={settings.liquidity_controls.min_initial_liquidity}
+              onChange={(v) =>
+                updateSetting(
+                  "liquidity_controls",
+                  "min_initial_liquidity",
+                  v
+                )
+              }
+              step="0.01"
+            />
+          </motion.div>
+        )}
+
+        {/* Risk Controls */}
+        {activeTab === "risk_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Risk Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("risk_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <InputCard
+                label="Max Market Volatility Threshold"
+                description="Maximum allowed market volatility"
+                value={settings.risk_controls.max_market_volatility_threshold}
+                onChange={(v) =>
+                  updateSetting(
+                    "risk_controls",
+                    "max_market_volatility_threshold",
+                    v
+                  )
+                }
+              />
+              <InputCard
+                label="Suspicious Trade Threshold (USDC)"
+                description="Threshold for flagging suspicious trades"
+                value={settings.risk_controls.suspicious_trade_threshold}
+                onChange={(v) =>
+                  updateSetting(
+                    "risk_controls",
+                    "suspicious_trade_threshold",
+                    v
+                  )
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Circuit Breaker Threshold (USDC)"
+                description="Threshold for triggering circuit breaker"
+                value={settings.risk_controls.circuit_breaker_threshold}
+                onChange={(v) =>
+                  updateSetting(
+                    "risk_controls",
+                    "circuit_breaker_threshold",
+                    v
+                  )
+                }
+                step="0.01"
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Dispute Controls */}
+        {activeTab === "dispute_controls" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Dispute Controls
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("dispute_controls")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <InputCard
+                label="Default Dispute Period (hours)"
+                description="Default time window for disputes"
+                value={settings.dispute_controls.default_dispute_period_hours}
+                onChange={(v) =>
+                  updateSetting(
+                    "dispute_controls",
+                    "default_dispute_period_hours",
+                    v
+                  )
+                }
+              />
+              <InputCard
+                label="Required Dispute Bond (USDC)"
+                description="Bond required to file a dispute"
+                value={settings.dispute_controls.required_dispute_bond}
+                onChange={(v) =>
+                  updateSetting(
+                    "dispute_controls",
+                    "required_dispute_bond",
+                    v
+                  )
+                }
+                step="0.01"
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Feature Flags */}
+        {activeTab === "feature_flags" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Feature Flags
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("feature_flags")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <SettingCard
+                label="Enable Copy Trading"
+                description="Allow users to copy trades from other users"
+              >
+                <Toggle
+                  checked={settings.feature_flags.enable_copy_trading}
+                  onChange={(checked) =>
+                    updateSetting(
+                      "feature_flags",
+                      "enable_copy_trading",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Enable Social Feed"
+                description="Enable social feed features"
+              >
+                <Toggle
+                  checked={settings.feature_flags.enable_social_feed}
+                  onChange={(checked) =>
+                    updateSetting(
+                      "feature_flags",
+                      "enable_social_feed",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Enable Live Rooms"
+                description="Enable live trading rooms"
+              >
+                <Toggle
+                  checked={settings.feature_flags.enable_live_rooms}
+                  onChange={(checked) =>
+                    updateSetting("feature_flags", "enable_live_rooms", checked)
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Enable Referrals"
+                description="Enable referral program"
+              >
+                <Toggle
+                  checked={settings.feature_flags.enable_referrals}
+                  onChange={(checked) =>
+                    updateSetting("feature_flags", "enable_referrals", checked)
+                  }
+                />
+              </SettingCard>
+              <SettingCard
+                label="Enable Notifications"
+                description="Enable push and email notifications"
+              >
+                <Toggle
+                  checked={settings.feature_flags.enable_notifications}
+                  onChange={(checked) =>
+                    updateSetting(
+                      "feature_flags",
+                      "enable_notifications",
+                      checked
+                    )
+                  }
+                />
+              </SettingCard>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Platform Fees */}
+        {activeTab === "platform_fees" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium">
+                Platform Fees
+              </h2>
+              <button
+                onClick={() => handleSaveGroup("platform_fees")}
+                disabled={saving}
+                className="w-full sm:w-auto px-4 py-2 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Section"}
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <InputCard
+                label="LP Fee Rate (%)"
+                description="Fee rate for liquidity providers"
+                value={settings.platform_fees.lp_fee_rate}
+                onChange={(v) =>
+                  updateSetting("platform_fees", "lp_fee_rate", v)
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Protocol Fee Rate (%)"
+                description="Fee rate for the protocol"
+                value={settings.platform_fees.protocol_fee_rate}
+                onChange={(v) =>
+                  updateSetting("platform_fees", "protocol_fee_rate", v)
+                }
+                step="0.01"
+              />
+              <InputCard
+                label="Creator Fee Rate (%)"
+                description="Fee rate for market creators"
+                value={settings.platform_fees.creator_fee_rate}
+                onChange={(v) =>
+                  updateSetting("platform_fees", "creator_fee_rate", v)
+                }
+                step="0.01"
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Circle Wallets */}
+        {activeTab === "circle_wallets" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-graphite-deep/30 border border-white/5 p-4 sm:p-6"
+          >
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium mb-2 sm:mb-3">
+                Circle Hot Wallets
+              </h2>
+              <p className="text-xs sm:text-sm text-moon-grey/50 font-light">
+                Create new Circle hot wallets for platform use.
+              </p>
+            </div>
+
+            {/* Create Wallet Form */}
+            <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-ink-black border border-white/5">
+              <h3 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium mb-4 sm:mb-6">
+                Create New Hot Wallet
               </h3>
-              <div className="space-y-3">
-                {createdWallets.map((wallet) => (
-                  <div
-                    key={wallet.id}
-                    className="p-4 bg-dark-800 rounded-lg border border-dark-700"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        {wallet.name && (
-                          <div className="text-sm font-medium text-white mb-1">
-                            {wallet.name}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] tracking-[0.15em] uppercase text-moon-grey/50 mb-2 sm:mb-3">
+                    Wallet Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={walletName}
+                    onChange={(e) => setWalletName(e.target.value)}
+                    placeholder="e.g., Main Hot Wallet"
+                    className="w-full bg-graphite-deep border border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white placeholder-moon-grey/40 focus:outline-none focus:border-neon-iris/50 transition-colors"
+                  />
+                </div>
+                <button
+                  onClick={handleCreateWallet}
+                  disabled={creatingWallet}
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-xs tracking-wide uppercase font-medium bg-white text-ink-black hover:bg-moon-grey-light transition-all duration-300 disabled:opacity-50"
+                >
+                  {creatingWallet ? "Creating..." : "Create Hot Wallet"}
+                </button>
+              </div>
+            </div>
+
+            {/* Created Wallets List */}
+            {createdWallets.length > 0 && (
+              <div>
+                <h3 className="text-sm tracking-[0.15em] uppercase text-moon-grey/70 font-medium mb-4 sm:mb-6">
+                  Recently Created Wallets
+                </h3>
+                <div className="space-y-4">
+                  {createdWallets.map((wallet) => (
+                    <div
+                      key={wallet.id}
+                      className="p-4 bg-ink-black border border-white/5"
+                    >
+                      {wallet.name && (
+                        <div className="text-sm font-light text-white mb-3">
+                          {wallet.name}
+                        </div>
+                      )}
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-[10px] tracking-[0.1em] uppercase text-moon-grey/40 mb-1">
+                            Wallet ID
                           </div>
-                        )}
-                        <div className="space-y-2">
-                          <div>
-                            <div className="text-xs text-gray-400 mb-1">
-                              Wallet ID
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <code className="text-sm text-gray-300 font-mono bg-dark-900 px-2 py-1 rounded">
-                                {wallet.id}
-                              </code>
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(wallet.id, "Wallet ID")
-                                }
-                                className="text-xs text-primary-400 hover:text-primary-300"
-                              >
-                                Copy
-                              </button>
-                            </div>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                            <code className="text-xs text-moon-grey/70 font-mono bg-graphite-deep px-3 py-1.5 border border-white/5 break-all">
+                              {wallet.id}
+                            </code>
+                            <button
+                              onClick={() =>
+                                copyToClipboard(wallet.id, "Wallet ID")
+                              }
+                              className="text-[10px] tracking-[0.1em] uppercase text-neon-iris hover:text-neon-iris/80 transition-colors"
+                            >
+                              Copy
+                            </button>
                           </div>
-                          <div>
-                            <div className="text-xs text-gray-400 mb-1">
-                              Address
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <code className="text-sm text-gray-300 font-mono bg-dark-900 px-2 py-1 rounded break-all">
-                                {wallet.address}
-                              </code>
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(wallet.address, "Address")
-                                }
-                                className="text-xs text-primary-400 hover:text-primary-300 whitespace-nowrap"
-                              >
-                                Copy
-                              </button>
-                            </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] tracking-[0.1em] uppercase text-moon-grey/40 mb-1">
+                            Address
+                          </div>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                            <code className="text-xs text-moon-grey/70 font-mono bg-graphite-deep px-3 py-1.5 border border-white/5 break-all">
+                              {wallet.address}
+                            </code>
+                            <button
+                              onClick={() =>
+                                copyToClipboard(wallet.address, "Address")
+                              }
+                              className="text-[10px] tracking-[0.1em] uppercase text-neon-iris hover:text-neon-iris/80 whitespace-nowrap transition-colors"
+                            >
+                              Copy
+                            </button>
                           </div>
                         </div>
                       </div>
+                      <div className="mt-4 pt-4 border-t border-white/5">
+                        <p className="text-[10px] text-moon-grey/40">
+                          💡 Save the Wallet ID to use as CIRCLE_HOT_WALLET_ID
+                        </p>
+                      </div>
                     </div>
-                    <div className="mt-4 pt-4 border-t border-dark-700">
-                      <p className="text-xs text-gray-500">
-                        💡 Save the Wallet ID to use as CIRCLE_HOT_WALLET_ID in
-                        your environment variables
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {createdWallets.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <p>No wallets created yet. Create your first hot wallet above.</p>
-            </div>
-          )}
-        </div>
-      )}
+            {createdWallets.length === 0 && (
+              <div className="text-center py-12 sm:py-16 text-moon-grey/40 text-sm font-light">
+                <p>No wallets created yet.</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 };

@@ -8,12 +8,18 @@ import {
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { Wallet, WalletModel } from "../models/Wallet";
 import { DepositModel } from "../models/Deposit";
+
+// Note: WalletModel is used for:
+// - findAll() to get all wallets to monitor
+// - updateLastSignature() to track last processed signature per wallet
 import { SweepModel } from "../models/Sweep";
 import { getCircleWallet } from "./circleWallet";
 import { getUsdcMintAddress } from "../sdk/constants";
 
 // Configuration constants
-const DEFAULT_POLL_INTERVAL_MS = 45_000; // How often to check for new deposits (45 seconds)
+// OPTIMIZATION: Increased from 45s to 2 minutes - with last_signature tracking,
+// we only fetch NEW signatures each poll, so frequent polling is less critical
+const DEFAULT_POLL_INTERVAL_MS = 120_000; // How often to check for new deposits (2 minutes)
 const DEFAULT_SIGNATURE_LIMIT = 50; // Number of recent transactions to check per wallet per poll
 // On startup, fetch more signatures to catch up on missed deposits
 const STARTUP_SIGNATURE_LIMIT = 200; // Higher limit on first run to catch up
@@ -234,6 +240,7 @@ class DepositListener {
 
   /**
    * Sync deposits for a token account - fetch recent transactions and process new deposits
+   * Uses the wallet's last_signature to only fetch NEW transactions (optimization)
    * @param wallet - Wallet record
    * @param walletPublicKey - Wallet's public key
    * @param tokenAccountPublicKey - Associated token account address for USDC
@@ -246,11 +253,21 @@ class DepositListener {
     limit: number
   ): Promise<void> {
     // Fetch recent transaction signatures for the token account
+    // OPTIMIZATION: Use 'until' to only fetch signatures NEWER than the last processed one
+    // This dramatically reduces RPC calls for wallets with no new activity
     let signatures: ConfirmedSignatureInfo[] = [];
     try {
+      const options: { limit: number; until?: string } = { limit };
+      
+      // If we have a last processed signature, only fetch newer ones
+      // This prevents re-scanning the same transactions repeatedly
+      if (wallet.last_signature && !this.isFirstRun) {
+        options.until = wallet.last_signature;
+      }
+      
       signatures = await this.connection.getSignaturesForAddress(
         tokenAccountPublicKey,
-        { limit } // Get up to 'limit' most recent transactions
+        options
       );
     } catch (error: any) {
       // Token account doesn't exist yet - no deposits to process
@@ -290,10 +307,11 @@ class DepositListener {
     }
 
     if (!signatures.length) {
-      return; // No transactions to process
+      return; // No new transactions to process
     }
 
     // Check which signatures we've already processed (avoid duplicates)
+    // This is a safety check - with 'until' we should only get new ones
     const processedSignatures = await DepositModel.findExistingSignatures(
       signatures.map((signatureInfo) => signatureInfo.signature)
     );
@@ -313,6 +331,18 @@ class DepositListener {
         walletPublicKey,
         tokenAccountPublicKey,
         signatureInfo
+      );
+    }
+
+    // OPTIMIZATION: Update the wallet's last_signature to the most recent one
+    // This ensures next poll only fetches newer signatures
+    // signatures[0] is the newest (getSignaturesForAddress returns newest first)
+    if (signatures.length > 0) {
+      const newestSignature = signatures[0];
+      await WalletModel.updateLastSignature(
+        wallet.id,
+        newestSignature.signature,
+        newestSignature.slot
       );
     }
   }
